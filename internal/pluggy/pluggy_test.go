@@ -118,11 +118,7 @@ func TestLinhaSinalEParcela(t *testing.T) {
 
 func TestConta(t *testing.T) {
 	c := pluggy.Conta{ID: "c1", Type: "CREDIT", Name: "Cartão", MarketingName: " Nubank Ultravioleta ", Balance: "1500.10", CurrencyCode: "brl"}
-	c.CreditData = &struct {
-		CreditLimit      json.Number `json:"creditLimit"`
-		BalanceCloseDate string      `json:"balanceCloseDate"`
-		BalanceDueDate   string      `json:"balanceDueDate"`
-	}{"8000", "2026-10-03T03:00:00.000Z", "2026-10-10"}
+	c.CreditData = &pluggy.DadosCartao{CreditLimit: "8000", AvailableCreditLimit: "6500.50", BalanceCloseDate: "2026-10-03T03:00:00.000Z", BalanceDueDate: "2026-10-10"}
 	if !c.Cartao() || c.TipoConta() != "cartao" || c.NomeExibido() != "Nubank Ultravioleta" || c.Moeda() != "BRL" {
 		t.Errorf("cartão: %v %s %q %s", c.Cartao(), c.TipoConta(), c.NomeExibido(), c.Moeda())
 	}

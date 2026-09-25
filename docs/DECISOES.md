@@ -241,6 +241,10 @@ Pluggy fica numa coluna própria para não disputar lugar com o FITID.
 - **Cartão fica fora** da comparação: o saldo que a Pluggy dá (fatura) e o do painel
   (compras lançadas, com parcelas futuras) medem coisas diferentes. O saldo do banco do
   cartão aparece na tela de Open Finance.
+- No cartão ligado, o **limite usado** mostrado é o do banco (limite − disponível, que já
+  conta as parcelas futuras); o limite vem do banco a cada sincronização e os dias de
+  fechamento e vencimento, se a conta ainda não tiver, antes de importar (para cada compra
+  cair na fatura certa).
 - A conta mostra o saldo do banco quando difere e o botão **Acertar pelo banco**, que muda o
   saldo inicial para fechar a diferença (útil quando o histórico importado começa no meio).
 

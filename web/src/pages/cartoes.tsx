@@ -74,8 +74,10 @@ function DetalheCartao({ cartao }: { cartao: Conta }) {
   const aberta = faturas.find((f) => f.status === "aberta");
   const proximas = faturas.filter((f) => f.status === "aberta" || f.status === "futura");
   const passadas = faturas.filter((f) => f.status === "fechada" || f.status === "anterior").reverse();
-  // o saldo do cartão é negativo quando há compras a pagar
-  const usado = Math.max(-(cartao.saldo_centavos ?? 0), 0);
+  // pelo Open Finance o banco diz quanto do limite está usado (já com as parcelas futuras);
+  // sem ele, o saldo do cartão (negativo quando há compras a pagar)
+  const doBanco = cartao.limite_usado_banco_centavos;
+  const usado = doBanco ?? Math.max(-(cartao.saldo_centavos ?? 0), 0);
   const semDias = cartao.fechamento === null || cartao.vencimento === null;
 
   return (
@@ -95,7 +97,7 @@ function DetalheCartao({ cartao }: { cartao: Conta }) {
         {cartao.limite_centavos ? (
           <div className="mt-4">
             <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="text-texto-2">Limite usado</span>
+              <span className="text-texto-2">Limite usado{doBanco !== null ? " (segundo o banco)" : ""}</span>
               <span className="valor num">
                 {formatarMoeda(usado, cartao.moeda)} de {formatarMoeda(cartao.limite_centavos, cartao.moeda)}
               </span>

@@ -346,11 +346,7 @@ func TestCartaoPeloOpenFinance(t *testing.T) {
 	}{3, 10, compra.Format("2006-01-02")}
 	cartao := &pluggyfalsa.Conta{Conta: pluggy.Conta{ID: "card", Type: "CREDIT", Subtype: "CREDIT_CARD", Name: "Ultravioleta", Balance: "1234.56"},
 		Transacoes: []pluggy.Transacao{parcela, txPluggy("c2", -1, "-500", "CREDIT", "PAGAMENTO RECEBIDO")}}
-	cartao.Conta.CreditData = &struct {
-		CreditLimit      json.Number `json:"creditLimit"`
-		BalanceCloseDate string      `json:"balanceCloseDate"`
-		BalanceDueDate   string      `json:"balanceDueDate"`
-	}{"8000", "2026-10-03", "2026-10-10"}
+	cartao.Conta.CreditData = &pluggy.DadosCartao{CreditLimit: "8000", AvailableCreditLimit: "6500.50", BalanceCloseDate: "2026-10-03", BalanceDueDate: "2026-10-10"}
 	amb.pluggy.Item("cli", "item", "Nubank", cartao)
 	conectar(t, a, "cli", "sec", "item", pf)
 	u := usuarioDe(t, a)
@@ -364,19 +360,15 @@ func TestCartaoPeloOpenFinance(t *testing.T) {
 	if rel := sincronizar(t, amb, u); rel.Novas != 2 || rel.Divergencias != 0 {
 		t.Fatalf("cartão: %+v", rel)
 	}
-	var contas []struct {
-		ID         string `json:"id"`
-		Tipo       string `json:"tipo"`
-		Limite     *int64 `json:"limite_centavos"`
-		Fechamento *int16 `json:"fechamento"`
-		Vencimento *int16 `json:"vencimento"`
-	}
+	var contas []cartaoListado
 	a.exigir("GET", "/api/contas", nil, http.StatusOK).json(t, &contas)
 	var c string
 	for _, x := range contas {
 		if x.Tipo == "cartao" {
 			c = x.ID
-			if x.Limite == nil || *x.Limite != 800000 || *x.Fechamento != 3 || *x.Vencimento != 10 {
+			// limite usado segundo o banco: 8.000 − 6.500,50 disponível
+			if x.Limite == nil || *x.Limite != 800000 || *x.Fechamento != 3 || *x.Vencimento != 10 ||
+				x.UsadoBanco == nil || *x.UsadoBanco != 149950 {
 				t.Fatalf("cartão criado: %+v", x)
 			}
 		}
@@ -462,5 +454,54 @@ func TestSincronizacaoDiariaEHealth(t *testing.T) {
 	a.exigir("GET", "/api/open-finance", nil, http.StatusOK).json(t, &e)
 	if e.Conexao.UltimoErro == nil {
 		t.Fatal("erro da conexão não gravado")
+	}
+}
+
+type cartaoListado struct {
+	ID         string `json:"id"`
+	Nome       string `json:"nome"`
+	Tipo       string `json:"tipo"`
+	Limite     *int64 `json:"limite_centavos"`
+	Fechamento *int16 `json:"fechamento"`
+	Vencimento *int16 `json:"vencimento"`
+	UsadoBanco *int64 `json:"limite_usado_banco_centavos"`
+}
+
+// Cartão ligado a uma conta que já existia sem dias nem limite: o banco preenche, e as
+// compras já importadas ganham fatura.
+func TestCartaoLigadoRecebeLimiteEDias(t *testing.T) {
+	amb, a, pf, _, _ := prepara(t)
+	var existente struct{ ID string }
+	a.exigir("POST", "/api/contas", map[string]any{"entidade_id": pf, "nome": "Meu cartão", "tipo": "cartao"}, http.StatusCreated).json(t, &existente)
+	amb.pluggy.Cliente("cli", "sec")
+	cartao := &pluggyfalsa.Conta{Conta: pluggy.Conta{ID: "card", Type: "CREDIT", Name: "Gold", Balance: "300",
+		CreditData: &pluggy.DadosCartao{CreditLimit: "5000", AvailableCreditLimit: "4700", BalanceCloseDate: "2026-10-05", BalanceDueDate: "2026-10-12"}},
+		Transacoes: []pluggy.Transacao{txPluggy("c1", -3, "300", "DEBIT", "MERCADO")}}
+	amb.pluggy.Item("cli", "item", "Nubank", cartao)
+	conectar(t, a, "cli", "sec", "item", pf)
+	u := usuarioDe(t, a)
+	sincronizar(t, amb, u)
+	var e estadoOF
+	a.exigir("GET", "/api/open-finance", nil, http.StatusOK).json(t, &e)
+	a.exigir("PATCH", "/api/open-finance/contas/"+e.Itens[0].Contas[0].ID, map[string]string{"acao": "vincular", "conta_id": existente.ID}, http.StatusNoContent)
+	if rel := sincronizar(t, amb, u); rel.Novas != 1 {
+		t.Fatalf("sincronização: %+v", rel)
+	}
+	var contas []cartaoListado
+	a.exigir("GET", "/api/contas", nil, http.StatusOK).json(t, &contas)
+	for _, x := range contas {
+		if x.ID == existente.ID && (x.Limite == nil || *x.Limite != 500000 || x.Fechamento == nil || *x.Fechamento != 5 ||
+			*x.Vencimento != 12 || x.UsadoBanco == nil || *x.UsadoBanco != 30000) {
+			t.Fatalf("cartão ligado: %+v", x)
+		}
+	}
+	var f faturasResp
+	a.exigir("GET", "/api/contas/"+existente.ID+"/faturas", nil, http.StatusOK).json(t, &f)
+	total := int64(0)
+	for _, x := range f.Faturas {
+		total += x.Compras
+	}
+	if total != 30000 {
+		t.Fatalf("compra sem fatura: %+v", f.Faturas)
 	}
 }

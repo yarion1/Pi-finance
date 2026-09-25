@@ -130,19 +130,23 @@ func (c *Cliente) Item(ctx context.Context, chave, id string) (Item, error) {
 
 // Conta de um item: conta bancária (BANK) ou cartão (CREDIT).
 type Conta struct {
-	ID            string      `json:"id"`
-	Type          string      `json:"type"`
-	Subtype       string      `json:"subtype"`
-	Name          string      `json:"name"`
-	MarketingName string      `json:"marketingName"`
-	Number        string      `json:"number"`
-	Balance       json.Number `json:"balance"`
-	CurrencyCode  string      `json:"currencyCode"`
-	CreditData    *struct {
-		CreditLimit      json.Number `json:"creditLimit"`
-		BalanceCloseDate string      `json:"balanceCloseDate"`
-		BalanceDueDate   string      `json:"balanceDueDate"`
-	} `json:"creditData"`
+	ID            string       `json:"id"`
+	Type          string       `json:"type"`
+	Subtype       string       `json:"subtype"`
+	Name          string       `json:"name"`
+	MarketingName string       `json:"marketingName"`
+	Number        string       `json:"number"`
+	Balance       json.Number  `json:"balance"`
+	CurrencyCode  string       `json:"currencyCode"`
+	CreditData    *DadosCartao `json:"creditData"`
+}
+
+// DadosCartao: limite, disponível e datas da fatura atual, como o banco informa.
+type DadosCartao struct {
+	CreditLimit          json.Number `json:"creditLimit"`
+	AvailableCreditLimit json.Number `json:"availableCreditLimit"`
+	BalanceCloseDate     string      `json:"balanceCloseDate"`
+	BalanceDueDate       string      `json:"balanceDueDate"`
 }
 
 // Cartao diz se a conta é cartão de crédito (o sinal dos valores muda).
@@ -198,6 +202,19 @@ func (c Conta) Limite() *core.Centavos {
 	}
 	v, err := Centavos(c.CreditData.CreditLimit)
 	if err != nil || v <= 0 {
+		return nil
+	}
+	return &v
+}
+
+// Disponivel: limite disponível informado pelo banco (o usado é limite − disponível,
+// já contando as parcelas futuras).
+func (c Conta) Disponivel() *core.Centavos {
+	if c.CreditData == nil {
+		return nil
+	}
+	v, err := Centavos(c.CreditData.AvailableCreditLimit)
+	if err != nil {
 		return nil
 	}
 	return &v

@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.4.2
+
+- Cartões pelo Open Finance: o limite usado vem do banco (limite − disponível, com as
+  parcelas futuras), o limite é atualizado a cada sincronização e os dias de fechamento e
+  vencimento são preenchidos quando a conta não tem, recalculando as faturas. Antes o
+  limite usado saía só das transações importadas e o cartão ligado a uma conta existente
+  ficava sem dias.
+- A tela de Open Finance mostra limite e disponível de cada cartão.
+
 ## v0.4.1
 
 - Open Finance: a busca de transações recusada pela Pluggy (400) no primeiro uso real. O

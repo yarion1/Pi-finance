@@ -259,15 +259,15 @@ func (s *Servico) sincronizarItem(ctx context.Context, usuarioID, chave string, 
 			}
 			fech, venc := pc.DiasDoCartao()
 			err := tx.QueryRow(ctx, `insert into contas_pluggy (item_id, usuario_id, pluggy_id, nome, tipo, subtipo, numero, moeda,
-					saldo_centavos, limite_centavos, dia_fechamento, dia_vencimento, saldo_em)
-				values ($1, app_usuario_id(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
+					saldo_centavos, limite_centavos, dia_fechamento, dia_vencimento, saldo_em, disponivel_centavos)
+				values ($1, app_usuario_id(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), $12)
 				on conflict (item_id, pluggy_id) do update set nome = excluded.nome, tipo = excluded.tipo, subtipo = excluded.subtipo,
 					numero = excluded.numero, moeda = excluded.moeda, saldo_centavos = excluded.saldo_centavos,
 					limite_centavos = excluded.limite_centavos, dia_fechamento = excluded.dia_fechamento,
-					dia_vencimento = excluded.dia_vencimento, saldo_em = now()
+					dia_vencimento = excluded.dia_vencimento, saldo_em = now(), disponivel_centavos = excluded.disponivel_centavos
 				returning id, conta_id, ignorada, acertar_saldo, ultima_sync`,
 				it.id, pc.ID, pc.NomeExibido(), strings.ToUpper(pc.Type), pc.Subtype, pc.Number, pc.Moeda(),
-				c.saldo, pc.Limite(), fech, venc).Scan(&c.id, &c.contaID, &c.ignorada, &c.acertar, &c.ultimaSync)
+				c.saldo, pc.Limite(), fech, venc, pc.Disponivel()).Scan(&c.id, &c.contaID, &c.ignorada, &c.acertar, &c.ultimaSync)
 			if err != nil {
 				return err
 			}
@@ -312,6 +312,12 @@ func (s *Servico) sincronizarItem(ctx context.Context, usuarioID, chave string, 
 			nomeArquivo += " · " + item.Connector.Name
 		}
 		err = db.ComUsuario(ctx, s.Banco, usuarioID, func(tx pgx.Tx) error {
+			// cartão: limite e dias vêm do banco antes de importar, para cada compra cair na fatura certa
+			if c.pluggy.Cartao() {
+				if err := acertarCartao(ctx, tx, *c.contaID, c.pluggy); err != nil {
+					return err
+				}
+			}
 			res, err := financeiro.Importar(ctx, tx, usuarioID, *c.contaID, nomeArquivo, r, false)
 			if err != nil {
 				return err
@@ -342,6 +348,22 @@ func (s *Servico) sincronizarItem(ctx context.Context, usuarioID, chave string, 
 		_, err := tx.Exec(ctx, "update itens_pluggy set ultima_sync = $2 where id = $1", it.id, s.agora())
 		return err
 	})
+}
+
+// acertarCartao copia do banco o limite (sempre) e os dias de fechamento e vencimento
+// (quando a conta ainda não tem), e recalcula as faturas se os dias mudaram.
+func acertarCartao(ctx context.Context, tx pgx.Tx, contaID string, pc pluggy.Conta) error {
+	fech, venc := pc.DiasDoCartao()
+	var mudouDias bool
+	err := tx.QueryRow(ctx, `update contas c set limite_centavos = coalesce($2, c.limite_centavos),
+			fechamento = coalesce(c.fechamento, $3), vencimento = coalesce(c.vencimento, $4)
+		from contas antes where c.id = $1 and antes.id = c.id
+		returning antes.fechamento is distinct from c.fechamento or antes.vencimento is distinct from c.vencimento`,
+		contaID, pc.Limite(), fech, venc).Scan(&mudouDias)
+	if err != nil || !mudouDias {
+		return err
+	}
+	return financeiro.RecalcularFaturas(ctx, tx, contaID)
 }
 
 // conciliar compara o saldo do banco com o calculado até hoje. Conta criada pela

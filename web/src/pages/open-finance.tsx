@@ -388,6 +388,13 @@ function LinhaConta({ conta: c, entidadeId }: { conta: ContaPluggy; entidadeId: 
           <span className="block text-xs text-texto-2">
             {cartao ? "Cartão de crédito" : "Conta"}
             {c.numero ? ` · ${c.numero}` : ""}
+            {cartao && c.limite_centavos !== null
+              ? ` · limite ${formatarMoeda(c.limite_centavos, c.moeda)}${
+                  c.disponivel_centavos !== null
+                    ? `, disponível ${formatarMoeda(c.disponivel_centavos, c.moeda)}`
+                    : ""
+                }`
+              : ""}
           </span>
         </span>
         {c.saldo_centavos !== null ? (

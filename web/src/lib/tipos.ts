@@ -68,6 +68,7 @@ export type Conta = {
   saldo_banco_centavos: number | null;
   saldo_banco_em: string | null;
   open_finance: boolean;
+  limite_usado_banco_centavos: number | null;
 };
 
 export type Instituicao = { id: string; nome: string; codigo_compe: string | null };
@@ -464,6 +465,7 @@ export type ContaPluggy = {
   moeda: string;
   saldo_centavos: number | null;
   limite_centavos: number | null;
+  disponivel_centavos: number | null;
   saldo_em: string | null;
   conta_id: string | null;
   conta: string | null;

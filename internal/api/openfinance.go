@@ -46,6 +46,7 @@ type contaOpenFinance struct {
 	Moeda      string     `json:"moeda"`
 	Saldo      *int64     `json:"saldo_centavos"`
 	Limite     *int64     `json:"limite_centavos"`
+	Disponivel *int64     `json:"disponivel_centavos"`
 	SaldoEm    *time.Time `json:"saldo_em"`
 	ContaID    *string    `json:"conta_id"`
 	Conta      *string    `json:"conta"`
@@ -114,7 +115,7 @@ func (s *Servidor) openFinance(w http.ResponseWriter, r *http.Request) {
 		linhas.Close()
 		for i := range resp.Itens {
 			linhas, err := tx.Query(ctx, `select cp.id, cp.nome, cp.tipo, cp.numero, cp.moeda, cp.saldo_centavos, cp.limite_centavos,
-					cp.saldo_em, cp.conta_id, c.nome, cp.ignorada, cp.ultima_sync
+					cp.disponivel_centavos, cp.saldo_em, cp.conta_id, c.nome, cp.ignorada, cp.ultima_sync
 				from contas_pluggy cp left join contas c on c.id = cp.conta_id
 				where cp.item_id = $1 order by cp.tipo, cp.nome`, resp.Itens[i].ID)
 			if err != nil {
