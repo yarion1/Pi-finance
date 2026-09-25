@@ -61,16 +61,16 @@ numa rede Docker sem saída. Veja `deploy/docker-compose.yml`.
 
 ## Deploy
 
-```sh
-git tag v0.1.0 && git push origin v0.1.0
-```
-
-O workflow `release` roda o CI completo e, no runner do Pi, `deploy/deploy.sh`:
+Automático, como no PiControl: quando a `main` recebe um `CHANGELOG.md` com uma versão nova
+no topo (`## vX.Y.Z — ...`), o workflow `autotag` cria a tag e a release e dispara o
+`release`, que roda o CI completo e, no runner do Pi, `deploy/deploy.sh`:
 build ARM64 → backup do banco → migrações → sobe web, worker e backup → espera
 `/api/health` = 200 por até 90 s. Se falhar, **volta a imagem e o banco anteriores** e avisa.
 
-Testar a volta automática: `gh workflow run release.yml --ref v0.1.0 -f quebrar=true`
-(o health da versão nova responde 503 de propósito; o Pi deve voltar sozinho).
+Também dá para criar a release à mão (tag `vX.Y.Z` na `main`) pelo site.
+
+Testar a volta automática: Actions → release → Run workflow, escolha a tag e marque
+"quebrar" (o health da versão nova responde 503 de propósito; o Pi deve voltar sozinho).
 
 ## PiControl
 

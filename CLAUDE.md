@@ -6,8 +6,9 @@ mudou em relação a ela está em `docs/DECISOES.md` (leia as duas antes de come
 
 ## Como trabalhar
 
-- Siga as fases da seção 12 da SPEC, em ordem. Ao fim de cada fase: testes verdes,
-  CHANGELOG, tag `vX.Y.Z`, deploy pelo runner do Pi e conferência do `/api/health`.
+- Siga as fases da seção 12 da SPEC, em ordem. Ao fim de cada fase: testes verdes e uma
+  seção `## vX.Y.Z — ...` nova no topo do `CHANGELOG.md`. Na `main`, o workflow `autotag`
+  cria a tag e a release e dispara o deploy no Pi; confira o `/api/health` depois.
 - Quando algo da SPEC estiver ambíguo, escolha a opção mais simples, registre em
   `docs/DECISOES.md` e siga.
 - Interface em português do Brasil, primeiro no celular. Código, nomes e comentários

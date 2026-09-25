@@ -1,0 +1,36 @@
+name: autotag
+# Quando a main recebe um CHANGELOG com versão nova no topo ("## vX.Y.Z — ..."), cria a tag,
+# publica a release com as notas da seção e dispara o workflow release (CI completo e, com
+# PI_DEPLOY=true, deploy no Pi pelo runner self-hosted). Mesmo modelo do PiControl.
+on:
+  push:
+    branches: [main]
+    paths: [CHANGELOG.md, .github/workflows/autotag.yml]
+permissions:
+  contents: write
+  actions: write
+concurrency: autotag
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: criar tag, release e disparar o deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(sed -n 's/^## \(v[0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p' CHANGELOG.md | head -1)
+          [ -n "$tag" ] || { echo "não achei '## vX.Y.Z' no topo do CHANGELOG.md"; exit 1; }
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "$tag já existe — nada a fazer"; exit 0
+          fi
+          # notas: a seção da versão, até a próxima "## "
+          awk -v t="## $tag" 'index($0, t) == 1 {dentro=1; next} /^## / && dentro {exit} dentro' CHANGELOG.md > notas.md
+          git tag "$tag" "$GITHUB_SHA"
+          git push origin "$tag"
+          gh release create "$tag" --title "$(sed -n "s/^## \($tag.*\)/\1/p" CHANGELOG.md | head -1)" --notes-file notas.md
+          # tag criada com o GITHUB_TOKEN não dispara push; o release é chamado direto
+          gh workflow run release.yml --ref "$tag"
+          echo "✓ $tag criada, release publicada e deploy disparado"
