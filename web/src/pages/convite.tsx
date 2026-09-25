@@ -6,7 +6,14 @@ import { formatarDataHora } from "../lib/formato";
 import { useSessao } from "../lib/sessao";
 import { nomesPapel } from "../lib/tipos";
 
-type InfoConvite = { casa: string; papel: string; expira_em: string; valido: boolean };
+type InfoConvite = {
+  tipo: "casa" | "conta";
+  casa?: string;
+  papel?: string;
+  convidado_por?: string;
+  expira_em: string;
+  valido: boolean;
+};
 
 export function Convite() {
   const { token = "" } = useParams();
@@ -48,10 +55,27 @@ export function Convite() {
   const c = convite.data;
   const logado = sessao?.autenticado && sessao.mfa_ok;
 
+  if (c.tipo === "conta") {
+    return (
+      <TelaAuth
+        titulo={`${c.convidado_por} te convidou para o Finanças`}
+        subtitulo={`Você cria a sua conta, com os seus dados, que ninguém mais vê. Vale até ${formatarDataHora(c.expira_em)}.`}
+      >
+        {logado ? (
+          <Aviso>Você já tem conta e está conectado. Este convite é para quem ainda não tem.</Aviso>
+        ) : (
+          <Botao onClick={() => navegar(`/cadastro?convite=${encodeURIComponent(token)}`)}>
+            Criar minha conta
+          </Botao>
+        )}
+      </TelaAuth>
+    );
+  }
+
   return (
     <TelaAuth
-      titulo={`Convite para ${c.casa}`}
-      subtitulo={`Papel: ${nomesPapel[c.papel]?.toLowerCase()}. Vale até ${formatarDataHora(c.expira_em)}.`}
+      titulo={`Convite para ${c.casa ?? ""}`}
+      subtitulo={`Papel: ${nomesPapel[c.papel ?? ""]?.toLowerCase()}. Vale até ${formatarDataHora(c.expira_em)}.`}
     >
       <div className="flex flex-col gap-3">
         {aceitar.error ? <Aviso tipo="erro">{mensagemDe(aceitar.error)}</Aviso> : null}

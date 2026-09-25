@@ -73,6 +73,9 @@ func (s *Servidor) Handler() http.Handler {
 	// convites
 	mux.Handle("GET /api/convites/{token}", s.limitadoPor(s.limiteConvite, http.HandlerFunc(s.verConvite)))
 	mux.Handle("POST /api/convites/{token}/aceitar", s.sessaoCompleta(s.aceitarConvite))
+	mux.Handle("GET /api/convites-conta", s.sessaoCompleta(s.listarConvitesConta))
+	mux.Handle("POST /api/convites-conta", s.sessaoCompleta(s.criarConviteConta))
+	mux.Handle("DELETE /api/convites-conta/{id}", s.sessaoCompleta(s.cancelarConviteConta))
 
 	// casas
 	mux.Handle("GET /api/casas", s.sessaoCompleta(s.listarCasas))
@@ -191,7 +194,7 @@ var RotasLeitura = []string{
 	"/api/metas", "/api/metas?entidade_id={entidade}",
 	"/api/patrimonio", "/api/patrimonio?entidade_id={entidade}", "/api/dividas/{divida}/tabela",
 	"/api/compromissos", "/api/compromissos?entidade_id={entidade}",
-	"/api/open-finance",
+	"/api/open-finance", "/api/convites-conta",
 	"/api/investimentos", "/api/investimentos?entidade_id={entidade}",
 }
 

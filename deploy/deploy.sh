@@ -54,7 +54,9 @@ log "deploy $VERSAO (anterior: ${ANTERIOR:-nenhuma})"
 if [ "${PULAR_BUILD:-0}" = 1 ]; then
   docker image inspect "financas:$VERSAO" >/dev/null || { echo "imagem financas:$VERSAO não existe" >&2; exit 1; }
 else
-  docker build --pull -t "financas:$VERSAO" --build-arg "VERSAO=$VERSAO" "$RAIZ"
+  # --network=host: o build resolve nomes pelo DNS do próprio Pi. A rede padrão do BuildKit
+  # herdava um servidor IPv6 antigo do Tailscale e o `go mod download` não achava o proxy.
+  docker build --pull --network=host -t "financas:$VERSAO" --build-arg "VERSAO=$VERSAO" "$RAIZ"
 fi
 
 # 2. banco de pé (com a imagem que já roda, se houver)

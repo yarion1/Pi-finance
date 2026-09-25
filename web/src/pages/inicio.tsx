@@ -1,14 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowDownLeft,
   Building2,
+  CalendarDays,
   CheckCircle2,
   Circle,
+  CreditCard,
   Landmark,
+  ReceiptText,
+  Scale,
   ShieldAlert,
   Tags,
   Target,
   Upload,
   Users,
+  Wallet,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -117,6 +123,7 @@ export function Inicio() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <CartaoNumero
           titulo="Gasto do mês"
+          icone={<ReceiptText />}
           carregando={resumo.isPending}
           valor={r?.gastos_centavos}
           cor="text-saida"
@@ -127,6 +134,7 @@ export function Inicio() {
         </CartaoNumero>
         <CartaoNumero
           titulo="Receitas do mês"
+          icone={<ArrowDownLeft />}
           carregando={resumo.isPending}
           valor={r?.receitas_centavos}
           cor="text-entrada"
@@ -311,15 +319,17 @@ export function Inicio() {
   );
 }
 
+/** Número do mês no mesmo padrão dos blocos: ícone e rótulo em maiúsculas, valor, nota no pé. */
 function CartaoNumero({
   titulo,
+  icone,
   valor,
   cor,
   carregando,
-  pequeno,
   children,
 }: {
   titulo: string;
+  icone: ReactNode;
   valor?: number;
   cor: string;
   carregando: boolean;
@@ -327,17 +337,22 @@ function CartaoNumero({
   children?: ReactNode;
 }) {
   return (
-    <Cartao className="h-full">
-      <p className="text-sm text-texto-2">{titulo}</p>
+    <section className="flex h-full flex-col rounded-cartao border border-borda bg-superficie p-5">
+      <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-texto-2">
+        <span className="text-destaque [&>svg]:size-4" aria-hidden>
+          {icone}
+        </span>
+        {titulo}
+      </h2>
       {carregando ? (
-        <Esqueleto className="mt-2 h-9 w-40" />
+        <Esqueleto className="mt-3 h-8 w-36" />
       ) : (
-        <p className={`valor num mt-2 font-bold tracking-tight ${pequeno ? "text-2xl" : "text-3xl"} ${cor}`}>
+        <p className={`valor num mt-2 text-2xl font-bold tracking-tight ${cor}`}>
           {formatarMoeda(valor ?? 0)}
         </p>
       )}
-      <p className="mt-2 text-xs text-texto-2">{children}</p>
-    </Cartao>
+      <p className="mt-auto pt-2 text-xs text-texto-2">{children}</p>
+    </section>
   );
 }
 
@@ -470,6 +485,7 @@ function PainelIndicadores({
       <Link to="/patrimonio" className="block h-full rounded-cartao hover:brightness-110">
         <CartaoNumero
           titulo="Patrimônio líquido"
+          icone={<Scale />}
           carregando={carregando}
           valor={i?.patrimonio.hoje.liquido_centavos}
           cor={(i?.patrimonio.hoje.liquido_centavos ?? 0) < 0 ? "text-saida" : "text-texto"}
@@ -490,12 +506,14 @@ function PainelIndicadores({
       </Link>
       <Link to="/metas" className="block h-full rounded-cartao hover:brightness-110">
         <CartaoNumero
-          titulo="Custo de vida (média 6 meses)"
+          titulo="Custo de vida"
+          icone={<Wallet />}
           carregando={carregando}
           valor={custo}
           cor="text-texto"
           pequeno
         >
+          Média dos últimos 6 meses.{" "}
           {i?.meses_de_reserva != null ? (
             <>
               Reserva cobre{" "}
@@ -504,7 +522,7 @@ function PainelIndicadores({
               </strong>
             </>
           ) : custo === 0 ? (
-            "Aparece depois do primeiro mês fechado com gastos."
+            "Aparece depois do primeiro mês fechado."
           ) : (
             "Crie uma meta de reserva para ver quantos meses ela cobre."
           )}
@@ -513,6 +531,7 @@ function PainelIndicadores({
       <Link to="/agenda" className="block h-full rounded-cartao hover:brightness-110">
         <CartaoNumero
           titulo="Saldo em 30 dias"
+          icone={<CalendarDays />}
           carregando={carregando}
           valor={i?.saldo_projetado_30_dias_centavos}
           cor={(i?.saldo_projetado_30_dias_centavos ?? 0) < 0 ? "text-saida" : "text-texto"}
@@ -533,6 +552,7 @@ function PainelIndicadores({
       </Link>
       <Link to="/cartoes" className="block h-full rounded-cartao hover:brightness-110">
         <CartaoNumero
+          icone={<CreditCard />}
           titulo={
             proximo ? `Comprometido em ${nomeMes(proximo.mes).split(" ")[0]?.toLowerCase()}` : "Comprometido"
           }

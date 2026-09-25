@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -247,18 +248,90 @@ func (s *Servidor) removerMembro(w http.ResponseWriter, r *http.Request) {
 
 func (s *Servidor) verConvite(w http.ResponseWriter, r *http.Request) {
 	var resp struct {
-		Casa     string    `json:"casa"`
-		Papel    string    `json:"papel"`
-		ExpiraEm time.Time `json:"expira_em"`
-		Valido   bool      `json:"valido"`
+		Tipo         string    `json:"tipo"` // casa ou conta
+		Casa         string    `json:"casa,omitempty"`
+		Papel        string    `json:"papel,omitempty"`
+		ConvidadoPor string    `json:"convidado_por,omitempty"`
+		ExpiraEm     time.Time `json:"expira_em"`
+		Valido       bool      `json:"valido"`
 	}
+	token := auth.HashToken(r.PathValue("token"))
+	resp.Tipo = "casa"
 	err := s.Pool.QueryRow(r.Context(), "select casa_nome, papel::text, expira_em, valido from consultar_convite($1)",
-		auth.HashToken(r.PathValue("token"))).Scan(&resp.Casa, &resp.Papel, &resp.ExpiraEm, &resp.Valido)
+		token).Scan(&resp.Casa, &resp.Papel, &resp.ExpiraEm, &resp.Valido)
+	if errors.Is(err, pgx.ErrNoRows) {
+		resp.Tipo = "conta"
+		err = s.Pool.QueryRow(r.Context(), "select convidado_por, expira_em, valido from consultar_convite_conta($1)",
+			token).Scan(&resp.ConvidadoPor, &resp.ExpiraEm, &resp.Valido)
+	}
 	if err != nil {
 		falhar(w, r, err)
 		return
 	}
 	escreverJSON(w, http.StatusOK, resp)
+}
+
+// Convites de conta: a pessoa cria a própria conta sem entrar numa casa.
+
+func (s *Servidor) criarConviteConta(w http.ResponseWriter, r *http.Request) {
+	token := auth.NovoToken()
+	expira := time.Now().Add(auth.ValidadeConvite)
+	err := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
+		var id string
+		if err := tx.QueryRow(ctx, `insert into convites_conta (token_hash, criado_por, expira_em)
+			values ($1, app_usuario_id(), $2) returning id`, auth.HashToken(token), expira).Scan(&id); err != nil {
+			return err
+		}
+		return s.auditar(ctx, tx, r, "convite_conta_criado", id, nil)
+	})
+	if err != nil {
+		falhar(w, r, err)
+		return
+	}
+	escreverJSON(w, http.StatusCreated, map[string]any{
+		"link": s.Config.URLPublica + "/convite/" + token, "expira_em": expira,
+	})
+}
+
+func (s *Servidor) listarConvitesConta(w http.ResponseWriter, r *http.Request) {
+	type convite struct {
+		ID        string     `json:"id"`
+		CriadoEm  time.Time  `json:"criado_em"`
+		ExpiraEm  time.Time  `json:"expira_em"`
+		AceitoEm  *time.Time `json:"aceito_em"`
+		AceitoPor *string    `json:"aceito_por"`
+	}
+	var lista []convite
+	err := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
+		linhas, err := tx.Query(ctx, `select c.id, c.criado_em, c.expira_em, c.aceito_em, u.nome
+			from convites_conta c left join usuarios u on u.id = c.aceito_por
+			where c.aceito_em is not null or c.expira_em > now()
+			order by c.criado_em desc`)
+		if err != nil {
+			return err
+		}
+		lista, err = pgx.CollectRows(linhas, pgx.RowToStructByPos[convite])
+		return err
+	})
+	if err != nil {
+		falhar(w, r, err)
+		return
+	}
+	if lista == nil {
+		lista = []convite{}
+	}
+	escreverJSON(w, http.StatusOK, lista)
+}
+
+func (s *Servidor) cancelarConviteConta(w http.ResponseWriter, r *http.Request) {
+	err := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
+		return exigirUma(tx.Exec(ctx, "delete from convites_conta where id = $1 and aceito_em is null", r.PathValue("id")))
+	})
+	if err != nil {
+		falhar(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Servidor) aceitarConvite(w http.ResponseWriter, r *http.Request) {

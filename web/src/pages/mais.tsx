@@ -13,6 +13,7 @@ import {
   Tags,
   Target,
   Upload,
+  UserPlus,
   Users,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -70,6 +71,9 @@ export function Mais() {
             </Item>
             <Item para="/entidades" icone={<Users className="size-5" />}>
               Entidades
+            </Item>
+            <Item para="/convidar" icone={<UserPlus className="size-5" />}>
+              Convidar pessoas
             </Item>
             <Item para="/seguranca" icone={<Shield className="size-5" />}>
               Segurança

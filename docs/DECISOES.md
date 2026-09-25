@@ -286,3 +286,13 @@ instituição é mais fiel do que uma curva estimada, e as operações dele entr
 fizerem falta. Resgatados por inteiro ficam como **encerrados**. LCI, LCA, CRI e CRA são
 marcados como isentos de IR. A carteira entra no patrimônio (além das contas do tipo
 investimento); a série histórica do patrimônio ainda não tem a carteira dos meses passados.
+
+## D27 — Convite de conta para amigos
+
+A SPEC fala em "várias pessoas da mesma casa". **Pedido do Pablo: amigos também vão usar**,
+cada um com os próprios dados. Além do convite de casa (entra na casa com um papel), existe
+o **convite de conta**: link de uso único, 48 h, guardado só como hash, que deixa a pessoa
+se cadastrar sem entrar em casa nenhuma (ela ganha só a entidade PF dela). O cadastro
+continua fechado para quem não tem convite, e o Cloudflare Access (D11) precisa liberar o
+e-mail do amigo antes. Cada um conecta o próprio Meu Pluggy (credenciais cifradas por
+usuário); o painel não compartilha as credenciais de ninguém.

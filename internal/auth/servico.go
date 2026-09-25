@@ -143,10 +143,15 @@ func (s *Servico) Cadastrar(ctx context.Context, d DadosCadastro, o Origem) (tok
 			return err
 		}
 		var tokenConvite []byte
+		deConta := false // convite de conta (sem casa) ou de casa
 		if d.Convite != "" {
 			tokenConvite = HashToken(d.Convite)
 			var valido bool
 			err := tx.QueryRow(ctx, "select valido from consultar_convite($1)", tokenConvite).Scan(&valido)
+			if errors.Is(err, pgx.ErrNoRows) {
+				deConta = true
+				err = tx.QueryRow(ctx, "select valido from consultar_convite_conta($1)", tokenConvite).Scan(&valido)
+			}
 			if errors.Is(err, pgx.ErrNoRows) || (err == nil && !valido) {
 				return ErrConviteInvalido
 			}
@@ -172,7 +177,11 @@ func (s *Servico) Cadastrar(ctx context.Context, d DadosCadastro, o Origem) (tok
 			if _, err := tx.Exec(ctx, "select set_config('app.usuario_id', $1, true)", usuarioID); err != nil {
 				return err
 			}
-			if _, err := tx.Exec(ctx, "select aceitar_convite($1)", tokenConvite); err != nil {
+			aceitar := "select aceitar_convite($1)"
+			if deConta {
+				aceitar = "select aceitar_convite_conta($1)"
+			}
+			if _, err := tx.Exec(ctx, aceitar, tokenConvite); err != nil {
 				return ErrConviteInvalido
 			}
 		}
@@ -180,7 +189,7 @@ func (s *Servico) Cadastrar(ctx context.Context, d DadosCadastro, o Origem) (tok
 		if err != nil {
 			return err
 		}
-		return auditar(ctx, tx, usuarioID, "cadastro", "", o, map[string]any{"com_convite": tokenConvite != nil})
+		return auditar(ctx, tx, usuarioID, "cadastro", "", o, map[string]any{"com_convite": tokenConvite != nil, "convite_de_conta": deConta})
 	})
 	return token, err
 }

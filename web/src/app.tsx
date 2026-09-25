@@ -11,6 +11,7 @@ import { Casas, DetalheCasa } from "./pages/casa";
 import { Categorias } from "./pages/categorias";
 import { Configurar2FA } from "./pages/configurar-2fa";
 import { Contas } from "./pages/contas";
+import { Convidar } from "./pages/convidar";
 import { Convite } from "./pages/convite";
 import { EmBreve } from "./pages/em-breve";
 import { DetalheEntidade, Entidades } from "./pages/entidades";
@@ -111,6 +112,7 @@ export function App() {
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/recorrencias" element={<Recorrencias />} />
           <Route path="/open-finance" element={<OpenFinance />} />
+          <Route path="/convidar" element={<Convidar />} />
           <Route path="/investimentos" element={<Investimentos />} />
           <Route
             path="/cnpj"

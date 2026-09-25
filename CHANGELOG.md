@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.4.5
+
+- **Convidar amigos**: em Mais › Convidar pessoas sai um link de uso único (48 h) para
+  alguém criar a **própria conta**, separada da sua casa: cada um vê só os próprios dados e
+  conecta o próprio Meu Pluggy. O convite de casa continua para quem divide as finanças.
+- **Início alinhado**: todos os blocos de números seguem o mesmo padrão (ícone, rótulo,
+  valor e detalhe) e a mesma altura, no celular e no computador.
+- Deploy: o build no Pi usa a rede do host, porque o DNS antigo do Tailscale derrubava o
+  `go mod download` (a v0.4.3 e a v0.4.4 não chegaram ao Pi; esta leva as duas).
+
 ## v0.4.4
 
 - Inclui tudo da v0.4.3, que não chegou ao Pi (o build parou no DNS antigo do Tailscale).
