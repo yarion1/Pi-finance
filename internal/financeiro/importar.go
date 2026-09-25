@@ -40,17 +40,6 @@ type ResultadoImportacao struct {
 	SaldoSistema   *core.Centavos `json:"saldo_sistema_centavos,omitempty"`
 }
 
-// ContaEditavel devolve a entidade da conta se o usuário pode gravar nela.
-func ContaEditavel(ctx context.Context, tx pgx.Tx, contaID string) (entidadeID, moeda string, err error) {
-	var pode bool
-	err = tx.QueryRow(ctx, "select entidade_id, moeda, app_pode_editar_entidade(entidade_id) from contas where id = $1",
-		contaID).Scan(&entidadeID, &moeda, &pode)
-	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !pode) {
-		return "", "", ErrContaNaoEditavel
-	}
-	return entidadeID, moeda, err
-}
-
 type linhaChave struct {
 	importadores.Linha
 	chave string
@@ -61,10 +50,11 @@ type linhaChave struct {
 // simular=true nada é gravado e volta a prévia linha a linha.
 func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string, r importadores.Resultado, simular bool) (ResultadoImportacao, error) {
 	res := ResultadoImportacao{Formato: r.Formato, Linhas: len(r.Linhas), Avisos: r.Avisos, SaldoArquivo: r.SaldoFinal}
-	entidadeID, moeda, err := ContaEditavel(ctx, tx, contaID)
+	conta, err := InfoContaEditavel(ctx, tx, contaID)
 	if err != nil {
 		return res, err
 	}
+	entidadeID, moeda := conta.EntidadeID, conta.Moeda
 	if r.Moeda != "" && r.Moeda != moeda {
 		return res, fmt.Errorf("%w: o arquivo está em %s e a conta em %s", ErrMoeda, r.Moeda, moeda)
 	}
@@ -146,12 +136,18 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 		if r.Formato == importadores.FormatoOFX {
 			origemTx = "ofx"
 		}
+		// "Loja - Parcela 3/12" vira parcela 3 de 12 (as futuras entram no comprometido)
+		var parcelaN, parcelaTotal *int
+		if _, n, total, ok := core.ExtrairParcela(l.Descricao); ok {
+			parcelaN, parcelaTotal = &n, &total
+		}
 		err := tx.QueryRow(ctx, `insert into transacoes (entidade_id, conta_id, data, descricao_original, descricao,
-				valor_centavos, moeda, categoria_id, tipo, origem, id_externo, importacao_id, chave_dedup)
-			values ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+				valor_centavos, moeda, categoria_id, tipo, origem, id_externo, importacao_id, chave_dedup,
+				fatura_em, parcela_n, parcela_total)
+			values ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 			on conflict do nothing returning id`,
 			entidadeID, contaID, l.Data, l.Descricao, int64(l.Valor), moeda, categoria, TipoPorValor(l.Valor),
-			origemTx, idExterno, importacaoID, l.chave).Scan(&id)
+			origemTx, idExterno, importacaoID, l.chave, conta.FaturaEm(l.Data), parcelaN, parcelaTotal).Scan(&id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			// corrida com outra importação: conta como duplicada
 			res.Novas--
@@ -174,6 +170,10 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 	if err := tx.QueryRow(ctx, "select app_saldo_conta($1)", contaID).Scan(&saldo); err == nil {
 		s := core.Centavos(saldo)
 		res.SaldoSistema = &s
+	}
+	// contas fixas e assinaturas novas aparecem a cada extrato
+	if _, err := DetectarRecorrencias(ctx, tx, entidadeID, time.Now().In(fusoSP)); err != nil {
+		return res, err
 	}
 	res.ImportacaoID = importacaoID
 	_, err = tx.Exec(ctx, "update importacoes set novas = $2, duplicadas = $3, transferencias = $4 where id = $1",

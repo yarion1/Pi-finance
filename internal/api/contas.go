@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/yarion1/pi-finance/internal/auth"
+	"github.com/yarion1/pi-finance/internal/financeiro"
 )
 
 type conta struct {
@@ -161,6 +162,10 @@ func (s *Servidor) editarConta(w http.ResponseWriter, r *http.Request) {
 			where id = $1`, r.PathValue("id"), d.InstituicaoID, d.Nome, d.Tipo, d.Moeda, d.Visibilidade, d.CasaID,
 			d.SaldoInicial, d.Fechamento, d.Vencimento, d.Limite, d.Arquivada))
 		if err != nil {
+			return err
+		}
+		// dias de fechamento/vencimento mudam a fatura de cada compra
+		if err := financeiro.RecalcularFaturas(ctx, tx, r.PathValue("id")); err != nil {
 			return err
 		}
 		return s.auditar(ctx, tx, r, "conta_editada", r.PathValue("id"), map[string]any{"visibilidade": d.Visibilidade})

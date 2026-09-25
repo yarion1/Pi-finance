@@ -159,6 +159,17 @@ func TestIsolamentoPorRota(t *testing.T) {
 	a.exigir("POST", "/api/categorias", map[string]any{"entidade_id": pf.ID, "nome": "CATEGORIA-SECRETA", "tipo": "gasto"}, http.StatusCreated).json(t, &cat)
 	a.exigir("POST", "/api/regras", map[string]any{"entidade_id": pf.ID, "texto": "REGRA-SECRETA", "categoria_id": cat.ID}, http.StatusCreated)
 	a.exigir("POST", "/api/mapeamentos", map[string]any{"nome": "MAPA-SECRETO", "config": map[string]string{"coluna_data": "x"}}, http.StatusCreated)
+	// fase 2: cartão com compra parcelada, meta, bem, dívida, compromisso, recorrência e orçamento
+	var cartao, divida struct{ ID string }
+	a.exigir("POST", "/api/contas", map[string]any{"entidade_id": pf.ID, "nome": "CARTAO-SECRETO", "tipo": "cartao", "fechamento": 5, "vencimento": 12}, http.StatusCreated).json(t, &cartao)
+	a.exigir("POST", "/api/transacoes", map[string]any{"conta_id": cartao.ID, "data": time.Now().Format("2006-01-02"), "descricao": "COMPRA-SECRETA", "valor_centavos": -120000, "parcelas": 12}, http.StatusCreated)
+	a.exigir("POST", "/api/metas", map[string]any{"entidade_id": pf.ID, "nome": "META-SECRETA", "tipo": "viagem", "alvo_centavos": 500000, "contas_vinculadas": []string{contaPrivada}}, http.StatusCreated)
+	a.exigir("POST", "/api/bens", map[string]any{"entidade_id": pf.ID, "nome": "BEM-SECRETO", "tipo": "imovel", "valor_centavos": 50000000}, http.StatusCreated)
+	a.exigir("POST", "/api/dividas", map[string]any{"entidade_id": pf.ID, "nome": "DIVIDA-SECRETA", "tipo": "financiamento", "sistema": "price",
+		"principal_centavos": 10000000, "taxa_mensal": "0.01", "prazo_meses": 12, "primeiro_vencimento": time.Now().AddDate(0, 0, 10).Format("2006-01-02")}, http.StatusCreated).json(t, &divida)
+	a.exigir("POST", "/api/compromissos", map[string]any{"entidade_id": pf.ID, "descricao": "COMPROMISSO-SECRETO", "valor_centavos": -30000, "vencimento": time.Now().AddDate(0, 0, 3).Format("2006-01-02")}, http.StatusCreated)
+	a.exigir("POST", "/api/recorrencias", map[string]any{"entidade_id": pf.ID, "descricao": "RECORRENCIA-SECRETA", "valor_centavos": -3990, "frequencia": "mensal", "proxima": time.Now().AddDate(0, 0, 5).Format("2006-01-02"), "tipo": "assinatura"}, http.StatusCreated)
+	a.exigir("PUT", "/api/orcamento", map[string]any{"entidade_id": pf.ID, "mes": time.Now().Format("2006-01"), "itens": []map[string]any{{"categoria_id": cat.ID, "limite_centavos": 7777777}}}, http.StatusNoContent)
 	// A enxerga o próprio segredo pelas rotas (controle positivo)
 	if r := a.exigir("GET", "/api/transacoes", nil, 200); !bytes.Contains(r.corpo, []byte("SEGREDO-DA-ANA")) {
 		t.Fatal("A deveria ver a própria transação")
@@ -168,10 +179,12 @@ func TestIsolamentoPorRota(t *testing.T) {
 	b.cadastrarCom2FA("Bruno", "bruno@teste.com", token)
 
 	proibidos := []string{"SEGREDO-DA-ANA", "CONTA-SECRETA", contaPrivada, pf.ID, "982.247", "52998224725",
-		"ARQUIVO-SECRETO", imp.ImportacaoID, "CATEGORIA-SECRETA", "REGRA-SECRETA", "MAPA-SECRETO"}
+		"ARQUIVO-SECRETO", imp.ImportacaoID, "CATEGORIA-SECRETA", "REGRA-SECRETA", "MAPA-SECRETO",
+		"CARTAO-SECRETO", cartao.ID, "COMPRA-SECRETA", "META-SECRETA", "BEM-SECRETO", "DIVIDA-SECRETA", divida.ID,
+		"COMPROMISSO-SECRETO", "RECORRENCIA-SECRETA", "7777777", "50000000"}
 	for _, rota := range api.RotasLeitura {
 		caminho := strings.NewReplacer("{casa}", casa.ID, "{entidade}", pf.ID, "{conta}", contaPrivada,
-			"{importacao}", imp.ImportacaoID).Replace(rota)
+			"{importacao}", imp.ImportacaoID, "{cartao}", cartao.ID, "{divida}", divida.ID).Replace(rota)
 		r := b.fazer("GET", caminho, nil)
 		if r.status >= 500 {
 			t.Errorf("%s: status %d", caminho, r.status)
@@ -199,6 +212,12 @@ func TestIsolamentoPorRota(t *testing.T) {
 	b.exigir("POST", "/api/contas", map[string]any{"entidade_id": pf.ID, "nome": "x", "tipo": "corrente"}, http.StatusForbidden)
 	b.exigir("PATCH", "/api/contas/"+contaPrivada, map[string]any{"nome": "x", "tipo": "corrente"}, http.StatusNotFound)
 	b.exigir("GET", "/api/resumo?entidade_id="+pf.ID, nil, http.StatusNotFound)
+	b.exigir("POST", "/api/metas", map[string]any{"entidade_id": pf.ID, "nome": "x", "tipo": "outra", "alvo_centavos": 1}, http.StatusForbidden)
+	b.exigir("PATCH", "/api/dividas/"+divida.ID, map[string]any{"entidade_id": pf.ID, "nome": "x", "tipo": "outro", "sistema": "sac",
+		"principal_centavos": 1, "taxa_mensal": "0", "prazo_meses": 1, "primeiro_vencimento": "2026-01-01"}, http.StatusNotFound)
+	b.exigir("DELETE", "/api/dividas/"+divida.ID, nil, http.StatusNotFound)
+	b.exigir("PUT", "/api/orcamento", map[string]any{"entidade_id": pf.ID, "mes": "2026-09", "itens": []map[string]any{{"categoria_id": cat.ID, "limite_centavos": 1}}}, http.StatusForbidden)
+	b.exigir("POST", "/api/recorrencias/detectar", map[string]any{"entidade_id": pf.ID}, http.StatusNotFound)
 	if r := a.exigir("GET", "/api/transacoes?busca=SEGREDO", nil, 200); !bytes.Contains(r.corpo, []byte("SEGREDO-DA-ANA")) {
 		t.Fatal("a importação de A deveria continuar intacta")
 	}

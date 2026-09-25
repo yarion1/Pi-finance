@@ -146,8 +146,16 @@ func (s *Servidor) criarTransacao(w http.ResponseWriter, r *http.Request) {
 		Valor       int64   `json:"valor_centavos"`
 		CategoriaID *string `json:"categoria_id"`
 		Notas       *string `json:"notas"`
+		Parcelas    int     `json:"parcelas"` // 2 a 72: o valor é o total da compra
 	}
 	if !lerJSON(w, r, &c) {
+		return
+	}
+	if c.Parcelas == 1 {
+		c.Parcelas = 0
+	}
+	if c.Parcelas != 0 && (c.Parcelas < 2 || c.Parcelas > 72) {
+		falhar(w, r, invalido("parcelas de 2 a 72"))
 		return
 	}
 	data, err := time.Parse("2006-01-02", c.Data)
@@ -165,7 +173,7 @@ func (s *Servidor) criarTransacao(w http.ResponseWriter, r *http.Request) {
 	}
 	var id string
 	err = s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
-		entidade, moeda, err := financeiro.ContaEditavel(ctx, tx, c.ContaID)
+		conta, err := financeiro.InfoContaEditavel(ctx, tx, c.ContaID)
 		if err != nil {
 			return err
 		}
@@ -174,7 +182,7 @@ func (s *Servidor) criarTransacao(w http.ResponseWriter, r *http.Request) {
 			categoria = nil
 		}
 		if categoria == nil {
-			cat, err := financeiro.NovoCategorizador(ctx, tx, entidade)
+			cat, err := financeiro.NovoCategorizador(ctx, tx, conta.EntidadeID)
 			if err != nil {
 				return err
 			}
@@ -184,16 +192,39 @@ func (s *Servidor) criarTransacao(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		if err := tx.QueryRow(ctx, `insert into transacoes (entidade_id, conta_id, data, descricao_original, descricao,
-				valor_centavos, moeda, categoria_id, tipo, origem, notas)
-			values ($1, $2, $3, $4, $4, $5, $6, $7, $8, 'manual', $9) returning id`,
-			entidade, c.ContaID, data, desc, c.Valor, moeda, categoria, tipo, c.Notas).Scan(&id); err != nil {
+		if c.Parcelas == 0 {
+			if err := tx.QueryRow(ctx, `insert into transacoes (entidade_id, conta_id, data, descricao_original, descricao,
+					valor_centavos, moeda, categoria_id, tipo, origem, notas, fatura_em)
+				values ($1, $2, $3, $4, $4, $5, $6, $7, $8, 'manual', $9, $10) returning id`,
+				conta.EntidadeID, c.ContaID, data, desc, c.Valor, conta.Moeda, categoria, tipo, c.Notas, conta.FaturaEm(data)).Scan(&id); err != nil {
+				return err
+			}
+			if tipo != "transferencia" {
+				_, err = financeiro.ParearTransferencias(ctx, tx, []string{id})
+			}
 			return err
 		}
-		if tipo != "transferencia" {
-			_, err = financeiro.ParearTransferencias(ctx, tx, []string{id})
+		// compra parcelada: uma transação por parcela, um mês depois da outra; no cartão,
+		// cada parcela cai na fatura do seu mês
+		var compra string
+		if err := tx.QueryRow(ctx, "select gen_random_uuid()").Scan(&compra); err != nil {
+			return err
 		}
-		return err
+		for i, valor := range core.DividirParcelas(core.Centavos(c.Valor), c.Parcelas) {
+			dataParcela := core.SomarMeses(data, i)
+			var pid string
+			if err := tx.QueryRow(ctx, `insert into transacoes (entidade_id, conta_id, data, descricao_original, descricao,
+					valor_centavos, moeda, categoria_id, tipo, origem, notas, fatura_em, parcela_n, parcela_total, compra_id)
+				values ($1, $2, $3, $4, $4, $5, $6, $7, $8, 'manual', $9, $10, $11, $12, $13) returning id`,
+				conta.EntidadeID, c.ContaID, dataParcela, fmt.Sprintf("%s (%d/%d)", desc, i+1, c.Parcelas), int64(valor),
+				conta.Moeda, categoria, tipo, c.Notas, conta.FaturaEm(dataParcela), i+1, c.Parcelas, compra).Scan(&pid); err != nil {
+				return err
+			}
+			if i == 0 {
+				id = pid
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		falhar(w, r, err)

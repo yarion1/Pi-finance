@@ -117,6 +117,36 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("POST /api/regras/aplicar", s.sessaoCompleta(s.aplicarRegras))
 	mux.Handle("DELETE /api/regras/{id}", s.sessaoCompleta(s.apagarRegra))
 	mux.Handle("GET /api/resumo", s.sessaoCompleta(s.resumo))
+
+	// planejamento (fase 2)
+	mux.Handle("GET /api/contas/{id}/faturas", s.sessaoCompleta(s.faturas))
+	mux.Handle("GET /api/indicadores", s.sessaoCompleta(s.indicadores))
+	mux.Handle("GET /api/agenda", s.sessaoCompleta(s.agenda))
+	mux.Handle("GET /api/recorrencias", s.sessaoCompleta(s.listarRecorrencias))
+	mux.Handle("POST /api/recorrencias", s.sessaoCompleta(s.criarRecorrencia))
+	mux.Handle("POST /api/recorrencias/detectar", s.sessaoCompleta(s.detectarRecorrencias))
+	mux.Handle("PATCH /api/recorrencias/{id}", s.sessaoCompleta(s.editarRecorrencia))
+	mux.Handle("DELETE /api/recorrencias/{id}", s.sessaoCompleta(s.apagarRecorrencia))
+	mux.Handle("GET /api/orcamento", s.sessaoCompleta(s.orcamento))
+	mux.Handle("PUT /api/orcamento", s.sessaoCompleta(s.salvarOrcamento))
+	mux.Handle("POST /api/orcamento/copiar", s.sessaoCompleta(s.copiarOrcamento))
+	mux.Handle("PUT /api/orcamento/config", s.sessaoCompleta(s.configurarOrcamento))
+	mux.Handle("GET /api/metas", s.sessaoCompleta(s.listarMetasHTTP))
+	mux.Handle("POST /api/metas", s.sessaoCompleta(s.criarMeta))
+	mux.Handle("PATCH /api/metas/{id}", s.sessaoCompleta(s.editarMeta))
+	mux.Handle("DELETE /api/metas/{id}", s.sessaoCompleta(s.apagarMeta))
+	mux.Handle("GET /api/patrimonio", s.sessaoCompleta(s.patrimonio))
+	mux.Handle("POST /api/bens", s.sessaoCompleta(s.criarBem))
+	mux.Handle("PATCH /api/bens/{id}", s.sessaoCompleta(s.editarBem))
+	mux.Handle("DELETE /api/bens/{id}", s.sessaoCompleta(s.apagarBem))
+	mux.Handle("POST /api/dividas", s.sessaoCompleta(s.criarDivida))
+	mux.Handle("PATCH /api/dividas/{id}", s.sessaoCompleta(s.editarDivida))
+	mux.Handle("DELETE /api/dividas/{id}", s.sessaoCompleta(s.apagarDivida))
+	mux.Handle("GET /api/dividas/{id}/tabela", s.sessaoCompleta(s.tabelaDivida))
+	mux.Handle("GET /api/compromissos", s.sessaoCompleta(s.listarCompromissos))
+	mux.Handle("POST /api/compromissos", s.sessaoCompleta(s.criarCompromisso))
+	mux.Handle("PATCH /api/compromissos/{id}", s.sessaoCompleta(s.editarCompromisso))
+	mux.Handle("DELETE /api/compromissos/{id}", s.sessaoCompleta(s.apagarCompromisso))
 	mux.Handle("GET /api/alertas", s.sessaoCompleta(s.listarAlertas))
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +167,14 @@ var RotasLeitura = []string{
 	"/api/importacoes", "/api/importacoes?entidade_id={entidade}", "/api/mapeamentos",
 	"/api/categorias", "/api/categorias?entidade_id={entidade}", "/api/regras", "/api/regras?entidade_id={entidade}",
 	"/api/resumo", "/api/resumo?entidade_id={entidade}",
+	"/api/contas/{conta}/faturas", "/api/contas/{cartao}/faturas",
+	"/api/indicadores", "/api/indicadores?entidade_id={entidade}&serie=1",
+	"/api/agenda", "/api/agenda?entidade_id={entidade}&dias=365",
+	"/api/recorrencias", "/api/recorrencias?entidade_id={entidade}",
+	"/api/orcamento", "/api/orcamento?entidade_id={entidade}",
+	"/api/metas", "/api/metas?entidade_id={entidade}",
+	"/api/patrimonio", "/api/patrimonio?entidade_id={entidade}", "/api/dividas/{divida}/tabela",
+	"/api/compromissos", "/api/compromissos?entidade_id={entidade}",
 }
 
 // ---------------------------------------------------------------------------
