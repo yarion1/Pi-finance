@@ -63,6 +63,16 @@ func (c Config) ExigirServidor() error {
 	return nil
 }
 
+// Segura: HTTPS, ou localhost (que os navegadores tratam como seguro).
+// Sem isso não há cookie Secure, prefixo __Host-, HSTS nem passkey.
+func (c Config) Segura() bool {
+	u, err := url.Parse(c.URLPublica)
+	if err != nil {
+		return false
+	}
+	return u.Scheme == "https" || u.Hostname() == "localhost"
+}
+
 // Origem é esquema://host[:porta] da URL pública (comparada com o cabeçalho Origin).
 func (c Config) Origem() string {
 	u, err := url.Parse(c.URLPublica)

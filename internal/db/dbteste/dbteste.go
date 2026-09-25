@@ -50,11 +50,18 @@ func Novo(t testing.TB) *Banco {
 	if _, err := conn.Exec(ctx, "create database "+pgx.Identifier{nome}.Sanitize()); err != nil {
 		t.Fatalf("criar banco: %v", err)
 	}
-	_ = conn.Close(ctx)
 
+	// Os pacotes de teste rodam em paralelo e o papel financas_app é do servidor
+	// inteiro: um ALTER ROLE por vez (trava no banco admin, comum a todos).
+	if _, err := conn.Exec(ctx, "select pg_advisory_lock(7201002)"); err != nil {
+		t.Fatalf("trava de migração: %v", err)
+	}
 	urlDono := trocarBanco(t, admin, nome, "", "")
-	if err := db.Migrar(ctx, urlDono, senhaApp); err != nil {
-		t.Fatalf("migrar: %v", err)
+	errMigrar := db.Migrar(ctx, urlDono, senhaApp)
+	_, _ = conn.Exec(ctx, "select pg_advisory_unlock(7201002)")
+	_ = conn.Close(ctx)
+	if errMigrar != nil {
+		t.Fatalf("migrar: %v", errMigrar)
 	}
 	urlApp := trocarBanco(t, admin, nome, db.PapelApp, senhaApp)
 

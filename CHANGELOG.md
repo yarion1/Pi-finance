@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.1
+
+- Acesso pelo Cloudflare Tunnel (DECISOES D11): IP real do visitante via `CF-Connecting-IP`,
+  aceito só de proxy confiável, para o limite de tentativas por IP funcionar.
+- Modo rede de casa (D12): com `PUBLIC_URL` em http, cookies sem `Secure`/`__Host-`, sem
+  HSTS e passkeys desligadas; `ESCUTAR` no `.env` escolhe onde a porta 3100 escuta.
+- Deploy: a chave mestra só precisa existir para o runner (quem lê é o container).
+- Testes: migrações dos testes em série (o papel do app é do servidor inteiro).
+
 ## v0.1.0 — Fase 0: fundação
 
 - Backend em Go (um binário: `serve`, `worker`, `migrar`, `saude`) e front em React + Vite

@@ -102,3 +102,12 @@ app. Condições para compensar a exposição na internet:
   checagem de `Origin` usam uma origem só, então o endereço do Tailscale deixa de valer.
 - O IP do visitante vem de `CF-Connecting-IP`, aceito só de proxy confiável (cloudflared).
 - Custo aceito: a Cloudflare termina o TLS e vê o tráfego na borda dela.
+
+## D12 — Modo rede de casa (http) como alternativa
+
+Com `PUBLIC_URL=http://192.168.x.x:3100` e `ESCUTAR=0.0.0.0` no `.env`, o painel abre direto
+pelo Wi-Fi de casa, sem túnel. O servidor se adapta à URL: sem HTTPS, o cookie perde
+`Secure` e o prefixo `__Host-` (o navegador descartaria), não há HSTS e as passkeys ficam
+desligadas (exigem HTTPS e nome de domínio); o 2FA fica só com o aplicativo autenticador.
+A checagem de `Origin`, o RLS e o resto não mudam. Com `PUBLIC_URL` em HTTPS (túnel,
+D11) tudo volta ao modo seguro automaticamente.

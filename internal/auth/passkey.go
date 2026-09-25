@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"net/url"
 	"strings"
 	"time"
@@ -17,17 +18,38 @@ import (
 const validadeDesafio = 5 * time.Minute
 
 // NovoWebAuthn configura a parte confiável a partir da URL pública
-// (ex.: https://pi.exemplo.ts.net:8443).
+// (ex.: https://financas.exemplo.com.br). Devolve nil, sem erro, quando a URL não
+// permite passkeys (http na rede de casa ou endereço IP): o login fica só com TOTP.
 func NovoWebAuthn(urlPublica string) (*webauthn.WebAuthn, error) {
 	u, err := url.Parse(urlPublica)
 	if err != nil || u.Host == "" {
 		return nil, fmt.Errorf("PUBLIC_URL inválida: %q", urlPublica)
+	}
+	if !PasskeysPossiveis(urlPublica) {
+		return nil, nil
 	}
 	return webauthn.New(&webauthn.Config{
 		RPID:          u.Hostname(),
 		RPDisplayName: "Finanças",
 		RPOrigins:     []string{u.Scheme + "://" + u.Host},
 	})
+}
+
+// PasskeysPossiveis: o navegador só oferece passkey em HTTPS (ou localhost) com
+// nome de domínio; em http://192.168.x.x não existe.
+func PasskeysPossiveis(urlPublica string) bool {
+	u, err := url.Parse(urlPublica)
+	if err != nil {
+		return false
+	}
+	host := u.Hostname()
+	if host == "localhost" {
+		return true
+	}
+	if _, err := netip.ParseAddr(host); err == nil {
+		return false
+	}
+	return u.Scheme == "https"
 }
 
 type usuarioWA struct {
@@ -93,6 +115,9 @@ func consumirDesafio(ctx context.Context, tx pgx.Tx, id string, agora time.Time)
 
 // IniciarRegistroPasskey devolve as opções para navigator.credentials.create().
 func (s *Servico) IniciarRegistroPasskey(ctx context.Context, ss *Sessao) (*protocol.CredentialCreation, string, error) {
+	if s.WebAuthn == nil {
+		return nil, "", ErrPasskeyIndisponivel
+	}
 	if !ss.PodeConfigurar() {
 		return nil, "", ErrSegundoFator
 	}
@@ -122,6 +147,9 @@ func (s *Servico) IniciarRegistroPasskey(ctx context.Context, ss *Sessao) (*prot
 // ConcluirRegistroPasskey grava a passkey. Se era o primeiro fator do usuário,
 // eleva a sessão e devolve os códigos de recuperação e o novo token.
 func (s *Servico) ConcluirRegistroPasskey(ctx context.Context, ss *Sessao, desafioID string, resposta []byte, nome string, o Origem) (codigos []string, novoToken string, err error) {
+	if s.WebAuthn == nil {
+		return nil, "", ErrPasskeyIndisponivel
+	}
 	if !ss.PodeConfigurar() {
 		return nil, "", ErrSegundoFator
 	}
@@ -173,6 +201,9 @@ func (s *Servico) ConcluirRegistroPasskey(ctx context.Context, ss *Sessao, desaf
 // IniciarLoginPasskey: sem sessão, login direto (passkey descoberta pelo
 // navegador); com sessão parcial, a passkey é o segundo fator daquele usuário.
 func (s *Servico) IniciarLoginPasskey(ctx context.Context, parcial *Sessao) (*protocol.CredentialAssertion, string, error) {
+	if s.WebAuthn == nil {
+		return nil, "", ErrPasskeyIndisponivel
+	}
 	if parcial != nil && !parcial.MFAOK {
 		u, err := carregarUsuarioWA(ctx, s.Pool, parcial.UsuarioID)
 		if err != nil {
@@ -199,6 +230,9 @@ func (s *Servico) IniciarLoginPasskey(ctx context.Context, parcial *Sessao) (*pr
 // ConcluirLoginPasskey valida a asserção e devolve o token da sessão completa
 // (nova, ou a parcial elevada).
 func (s *Servico) ConcluirLoginPasskey(ctx context.Context, parcial *Sessao, desafioID string, resposta []byte, o Origem) (string, error) {
+	if s.WebAuthn == nil {
+		return "", ErrPasskeyIndisponivel
+	}
 	analisada, err := protocol.ParseCredentialRequestResponseBytes(resposta)
 	if err != nil {
 		return "", ErrPasskey

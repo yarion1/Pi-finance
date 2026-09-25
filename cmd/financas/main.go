@@ -81,6 +81,9 @@ func servir(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if wa == nil {
+		slog.Warn("passkeys desligadas: PUBLIC_URL sem HTTPS ou com IP; o 2FA fica só com o aplicativo autenticador", "url", cfg.URLPublica)
+	}
 	srv := &api.Servidor{
 		Auth:     &auth.Servico{Pool: pool, Cifrador: cifrador, WebAuthn: wa},
 		Pool:     pool,

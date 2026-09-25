@@ -19,7 +19,7 @@ seção 12 da SPEC.
 ## Arquitetura
 
 ```
-navegador (PWA) ──HTTPS tailnet──> tailscale serve :8443 ──> 127.0.0.1:3100
+navegador (PWA) ──HTTPS──> Cloudflare Access + Tunnel ──> cloudflared no Pi ──> 127.0.0.1:3100
                                                               │
                               financas serve  (API Go + front React embutido)
                               financas worker (River: sinal de vida, limpeza…)
@@ -49,8 +49,11 @@ numa rede Docker sem saída. Veja `deploy/docker-compose.yml`.
    sudo chown root:docker /etc/financas/.env && sudo chmod 640 /etc/financas/.env
    ```
 4. **Dados**: `sudo mkdir -p /srv/financas && sudo chown "$USER_DO_RUNNER":docker /srv/financas`.
-5. **HTTPS na tailnet**: `sudo tailscale serve --bg --https=8443 http://127.0.0.1:3100`
-   (nada de Cloudflare Tunnel para este serviço).
+5. **Acesso** (escolha um):
+   - **Cloudflare Tunnel** (D11): no túnel, hostname `financas.<domínio>` → `http://localhost:3100`,
+     com **Cloudflare Access** na frente (só os e-mails da casa). `PUBLIC_URL=https://financas.<domínio>`.
+   - **Só rede de casa** (D12): `ESCUTAR=0.0.0.0` e `PUBLIC_URL=http://<ip-do-pi>:3100`
+     (sem passkeys; libere a porta 3100 no firewall só para a rede de casa).
 
 ## Deploy
 
@@ -75,6 +78,6 @@ Testar a volta automática: `gh workflow run release.yml --ref v0.1.0 -f quebrar
 
 ## Primeiro acesso
 
-Abra `https://pi.<tailnet>.ts.net:8443`, crie a primeira conta, configure a passkey ou o
+Abra `https://financas.<domínio>`, crie a primeira conta, configure a passkey ou o
 aplicativo autenticador (obrigatório) e guarde os códigos de recuperação. Depois crie a
 sua entidade PF, a casa, e convide as outras pessoas pelo link.

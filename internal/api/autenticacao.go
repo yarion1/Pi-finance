@@ -176,7 +176,7 @@ func (s *Servidor) concluirRegistroPasskey(w http.ResponseWriter, r *http.Reques
 	if !lerJSON(w, r, &c) {
 		return
 	}
-	desafio, err := r.Cookie(cookieDesafio)
+	desafio, err := s.lerCookie(r, cookieDesafio)
 	if err != nil {
 		falhar(w, r, auth.ErrPasskey)
 		return
@@ -210,7 +210,7 @@ func (s *Servidor) concluirLoginPasskey(w http.ResponseWriter, r *http.Request) 
 	if !lerJSON(w, r, &c) {
 		return
 	}
-	desafio, err := r.Cookie(cookieDesafio)
+	desafio, err := s.lerCookie(r, cookieDesafio)
 	if err != nil {
 		falhar(w, r, auth.ErrPasskey)
 		return

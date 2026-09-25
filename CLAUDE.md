@@ -40,7 +40,8 @@ mudou em relação a ela está em `docs/DECISOES.md` (leia as duas antes de come
   (AES-256-GCM, chave em `/etc/financas/master.key`), com contexto = nome da coluna.
 - **Segurança:** CSP estrita (nada inline, nada de terceiros), cookies `__Host-`,
   `HttpOnly`, `Secure`, `SameSite=Strict`, escrita só com `Origin` igual à `PUBLIC_URL`.
-  2FA obrigatório. Ações sensíveis pedem reautenticação. Nunca expor fora da LAN/tailnet.
+  2FA obrigatório. Ações sensíveis pedem reautenticação. Acesso de fora só pelo túnel
+  com Cloudflare Access na frente (DECISOES D11).
 - Cálculos puros vão em `internal/core` e são 100 % testados.
 - Telas de impostos e investimentos mostram que o painel organiza e simula, e não
   substitui contador nem assessor.

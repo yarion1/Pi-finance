@@ -54,7 +54,8 @@ func falhar(w http.ResponseWriter, r *http.Request, err error) {
 		erroJSON(w, http.StatusGone, "convite", err.Error())
 	case errors.Is(err, auth.ErrEmailEmUso):
 		erroJSON(w, http.StatusConflict, "email", err.Error())
-	case errors.Is(err, auth.ErrDadosInvalidos), errors.Is(err, auth.ErrUltimoFator), errors.Is(err, errValidacao):
+	case errors.Is(err, auth.ErrDadosInvalidos), errors.Is(err, auth.ErrUltimoFator), errors.Is(err, auth.ErrPasskeyIndisponivel),
+		errors.Is(err, errValidacao):
 		erroJSON(w, http.StatusBadRequest, "validacao", mensagemValidacao(err))
 	case errors.Is(err, pgx.ErrNoRows), errors.Is(err, errNaoEncontrado):
 		erroJSON(w, http.StatusNotFound, "nao_encontrado", "não encontrado")

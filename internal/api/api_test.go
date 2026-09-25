@@ -338,3 +338,43 @@ func TestEntidades(t *testing.T) {
 	a.exigir("GET", "/api/entidades/"+mei.ID, nil, http.StatusNotFound)
 	a.exigir("GET", "/api/entidades/nao-e-uuid", nil, http.StatusNotFound)
 }
+
+// Modo rede de casa: http://192.168.x.x, sem HTTPS. Cookie sem Secure (senão o
+// navegador descarta), sem HSTS, sem passkey; login com senha + TOTP funciona.
+func TestModoRedeDeCasa(t *testing.T) {
+	const lan = "http://192.168.0.25:3100"
+	banco := dbteste.Novo(t)
+	cif, _ := cripto.Novo(bytes.Repeat([]byte{9}, 32))
+	wa, err := auth.NovoWebAuthn(lan)
+	if err != nil || wa != nil {
+		t.Fatalf("com IP as passkeys deveriam ficar desligadas sem erro: %v %v", wa, err)
+	}
+	srv := &api.Servidor{
+		Auth: &auth.Servico{Pool: banco.App, Cifrador: cif}, Pool: banco.App, Cifrador: cif,
+		Config: config.Config{URLPublica: lan}, Versao: "teste",
+	}
+	amb := &ambiente{t: t, handler: srv.Handler(), banco: banco}
+	c := amb.novoCliente()
+	c.origem = lan
+
+	r := c.exigir("POST", "/api/auth/cadastro", map[string]string{"nome": "Ana", "email": "ana@teste.com", "senha": "senha comprida de teste"}, http.StatusCreated)
+	ck := r.cab.Get("Set-Cookie")
+	if !strings.HasPrefix(ck, "financas=") || strings.Contains(ck, "Secure") || !strings.Contains(ck, "SameSite=Strict") {
+		t.Fatalf("cookie no modo rede de casa: %s", ck)
+	}
+	if r.cab.Get("Strict-Transport-Security") != "" {
+		t.Fatal("HSTS não pode ir em http")
+	}
+	c.exigir("POST", "/api/auth/passkey/registro/iniciar", nil, http.StatusBadRequest)
+
+	var ini struct{ Segredo string }
+	c.exigir("POST", "/api/auth/totp/iniciar", nil, http.StatusOK).json(t, &ini)
+	codigo, _ := totp.GenerateCode(ini.Segredo, time.Now())
+	c.exigir("POST", "/api/auth/totp/confirmar", map[string]string{"codigo": codigo}, http.StatusOK)
+	c.exigir("GET", "/api/entidades", nil, http.StatusOK)
+
+	// a checagem de origem continua valendo
+	outro := amb.novoCliente()
+	outro.origem = "http://192.168.0.99:3100"
+	outro.exigir("POST", "/api/auth/entrar", map[string]string{"email": "ana@teste.com", "senha": "x"}, http.StatusForbidden)
+}

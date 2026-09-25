@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	cookieSessao  = "__Host-financas"
-	cookieDesafio = "__Host-financas-wa"
+	cookieSessao  = "financas"
+	cookieDesafio = "financas-wa"
 	limiteCorpo   = 1 << 20
 )
 
@@ -252,7 +252,7 @@ func sessaoDe(r *http.Request) *auth.Sessao {
 }
 
 func (s *Servidor) lerSessao(r *http.Request) *auth.Sessao {
-	c, err := r.Cookie(cookieSessao)
+	c, err := r.Cookie(s.nomeCookie(cookieSessao))
 	if err != nil {
 		return nil
 	}
@@ -285,17 +285,30 @@ func (s *Servidor) sessaoOpcional(h http.HandlerFunc) http.Handler {
 func (s *Servidor) sessaoParcial(h http.HandlerFunc) http.Handler  { return s.comSessao(h, true, false) }
 func (s *Servidor) sessaoCompleta(h http.HandlerFunc) http.Handler { return s.comSessao(h, true, true) }
 
-func (s *Servidor) gravarCookie(w http.ResponseWriter, nome, valor string, duracao time.Duration) {
+// nomeCookie: com origem segura, prefixo __Host- (só vale com Secure, Path=/ e sem
+// Domain). Em http na rede de casa o navegador descartaria um cookie Secure.
+func (s *Servidor) nomeCookie(base string) string {
+	if s.Config.Segura() {
+		return "__Host-" + base
+	}
+	return base
+}
+
+func (s *Servidor) lerCookie(r *http.Request, base string) (*http.Cookie, error) {
+	return r.Cookie(s.nomeCookie(base))
+}
+
+func (s *Servidor) gravarCookie(w http.ResponseWriter, base, valor string, duracao time.Duration) {
 	http.SetCookie(w, &http.Cookie{
-		Name: nome, Value: valor, Path: "/", MaxAge: int(duracao.Seconds()),
-		HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode,
+		Name: s.nomeCookie(base), Value: valor, Path: "/", MaxAge: int(duracao.Seconds()),
+		HttpOnly: true, Secure: s.Config.Segura(), SameSite: http.SameSiteStrictMode,
 	})
 }
 
-func (s *Servidor) apagarCookie(w http.ResponseWriter, nome string) {
+func (s *Servidor) apagarCookie(w http.ResponseWriter, base string) {
 	http.SetCookie(w, &http.Cookie{
-		Name: nome, Value: "", Path: "/", MaxAge: -1,
-		HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode,
+		Name: s.nomeCookie(base), Value: "", Path: "/", MaxAge: -1,
+		HttpOnly: true, Secure: s.Config.Segura(), SameSite: http.SameSiteStrictMode,
 	})
 }
 

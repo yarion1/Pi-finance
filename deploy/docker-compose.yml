@@ -1,5 +1,5 @@
 # Finanças no Raspberry Pi. Rode sempre pelo deploy.sh (ele define VERSAO e lê /etc/financas/.env).
-# Nada fica exposto fora do Pi: a web escuta só em 127.0.0.1:3100 e o tailscale serve publica na tailnet.
+# Por padrão a web escuta só em 127.0.0.1:3100; ESCUTAR=0.0.0.0 abre na rede de casa.
 name: financas
 
 x-logs: &logs
@@ -48,7 +48,9 @@ services:
     <<: *app
     command: ["serve"]
     mem_limit: 512m
-    ports: ["127.0.0.1:3100:3100"]
+    # ESCUTAR=0.0.0.0 no .env abre na rede de casa (modo http, DECISOES D12);
+    # o padrão fica só dentro do Pi, para túnel ou tailscale serve
+    ports: ["${ESCUTAR:-127.0.0.1}:3100:3100"]
     networks: [interna, saida]
     environment:
       <<: *app-env
