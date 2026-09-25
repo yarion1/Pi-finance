@@ -17,7 +17,15 @@ import { Barra, SeletorMes, Valor } from "../components/extras";
 import { Aviso, Cartao, Esqueleto, Etiqueta, Pagina, TituloCartao, Vazio } from "../components/ui";
 import { Cartoes, ContasBancarias, EvolucaoSaldo, Investimentos } from "../components/visao";
 import { mensagemDe, obter } from "../lib/api";
-import { gastoOrcado, mesAtual, nomeMes, useCasas, useEntidades } from "../lib/dados";
+import {
+  gastoOrcado,
+  mesAtual,
+  nomeMes,
+  useCasas,
+  useEntidades,
+  useIndicadores,
+  useResumo,
+} from "../lib/dados";
 import { formatarData, formatarDataHora, formatarMoeda, formatarPercentual } from "../lib/formato";
 import { useSessao } from "../lib/sessao";
 import type { Alerta, Indicadores, Orcamento, Resumo } from "../lib/tipos";
@@ -63,17 +71,11 @@ function saudacao() {
 export function Inicio() {
   const { data: sessao } = useSessao();
   const [mes, setMes] = useState(mesAtual);
-  const resumo = useQuery({
-    queryKey: ["resumo", mes],
-    queryFn: () => obter<Resumo>(`/api/resumo?mes=${mes}`),
-  });
+  const resumo = useResumo(mes);
   const entidades = useEntidades();
   const casas = useCasas();
   const alertas = useQuery({ queryKey: ["alertas"], queryFn: () => obter<Alerta[]>("/api/alertas") });
-  const indicadores = useQuery({
-    queryKey: ["indicadores"],
-    queryFn: () => obter<Indicadores>("/api/indicadores?serie=1"),
-  });
+  const indicadores = useIndicadores();
   const orcamento = useQuery({
     queryKey: ["orcamento", mes, ""],
     queryFn: () => obter<Orcamento>(`/api/orcamento?mes=${mes}`),

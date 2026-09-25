@@ -1,11 +1,30 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, Plus, ReceiptText, Search, Trash2, Upload } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  Clock,
+  Plus,
+  ReceiptText,
+  Search,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { Dialogo, SeletorCategoria, SeletorMes, Valor } from "../components/extras";
+import { Barra, Dialogo, SeletorCategoria, SeletorMes, Valor } from "../components/extras";
 import { Aviso, Botao, Campo, CarregandoLista, Cartao, Pagina, Selecao, Vazio } from "../components/ui";
+import { Bloco } from "../components/visao";
 import { api, mensagemDe, obter } from "../lib/api";
-import { limitesMes, mesAtual, useCategorias, useContas } from "../lib/dados";
+import {
+  limitesMes,
+  mesAtual,
+  nomeMes,
+  useCategorias,
+  useContas,
+  useIndicadores,
+  useResumo,
+} from "../lib/dados";
 import { formatarData, formatarMoeda, lerCentavos } from "../lib/formato";
 import type { Transacao } from "../lib/tipos";
 
@@ -29,6 +48,8 @@ export function Transacoes() {
   const categoria = params.get("categoria") ?? "";
   const semCategoria = params.get("sem_categoria") === "1";
   const importacao = params.get("importacao") ?? "";
+  const sentido = params.get("sentido") ?? "";
+  const resumo = useResumo(mes);
   const [busca, setBusca] = useState(params.get("busca") ?? "");
   const [buscaAtiva, setBuscaAtiva] = useState(busca);
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
@@ -82,8 +103,9 @@ export function Transacoes() {
     if (semCategoria) q.set("sem_categoria", "1");
     if (importacao) q.set("importacao_id", importacao);
     if (buscaAtiva) q.set("busca", buscaAtiva);
+    if (sentido) q.set("sentido", sentido);
     return q.toString();
-  }, [mes, conta, categoria, semCategoria, importacao, buscaAtiva]);
+  }, [mes, conta, categoria, semCategoria, importacao, buscaAtiva, sentido]);
 
   const consulta = useInfiniteQuery({
     queryKey: ["transacoes", filtro],
@@ -113,8 +135,8 @@ export function Transacoes() {
 
   return (
     <Pagina
-      titulo="Gastos e transações"
-      subtitulo="Onde está aquela compra?"
+      titulo="Fluxo de caixa"
+      subtitulo="Despesas, receitas e movimentações das suas contas."
       acao={
         <div className="flex flex-wrap gap-2">
           <Link
@@ -129,9 +151,29 @@ export function Transacoes() {
         </div>
       }
     >
+      {!buscaAtiva && !importacao ? <FluxoTopo mes={mes} /> : null}
+
       <Cartao className="flex flex-col gap-3">
+        {!buscaAtiva && !importacao ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <SeletorMes mes={mes} onChange={(m) => definir("mes", m)} />
+            {resumo.data ? (
+              <p className="flex gap-4 text-sm font-semibold">
+                <span className="valor num flex items-center gap-1 text-entrada" title="Entradas do mês">
+                  <ArrowDownLeft className="size-4" aria-hidden />
+                  <span className="sr-only">Entradas:</span>
+                  {formatarMoeda(resumo.data.receitas_centavos)}
+                </span>
+                <span className="valor num flex items-center gap-1 text-saida" title="Saídas do mês">
+                  <ArrowUpRight className="size-4" aria-hidden />
+                  <span className="sr-only">Saídas:</span>
+                  {formatarMoeda(resumo.data.gastos_centavos)}
+                </span>
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         <div className="flex flex-wrap items-center gap-3">
-          {!buscaAtiva && !importacao ? <SeletorMes mes={mes} onChange={(m) => definir("mes", m)} /> : null}
           <label className="relative min-w-0 flex-1 basis-56">
             <span className="sr-only">Buscar</span>
             <Search
@@ -164,15 +206,39 @@ export function Transacoes() {
             onChange={(v) => definir("categoria", v)}
             vazio="Todas as categorias"
           />
-          <label className="flex min-h-11 items-center gap-3 self-end text-sm">
-            <input
-              type="checkbox"
-              className="size-5 accent-[var(--primaria)]"
-              checked={semCategoria}
-              onChange={(e) => definir("sem_categoria", e.target.checked ? "1" : "")}
-            />
-            Só sem categoria
-          </label>
+          <div className="flex flex-col gap-2 self-end">
+            <fieldset className="grid grid-cols-3 rounded-xl border border-borda p-0.5">
+              <legend className="sr-only">Mostrar</legend>
+              {[
+                ["", "Todos"],
+                ["entradas", "Entradas"],
+                ["saidas", "Saídas"],
+              ].map(([v, nome]) => (
+                <label
+                  key={v}
+                  className="flex min-h-10 cursor-pointer items-center justify-center rounded-lg text-sm font-semibold text-texto-2 has-[:checked]:bg-destaque/15 has-[:checked]:text-primaria has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-primaria"
+                >
+                  <input
+                    type="radio"
+                    name="sentido"
+                    className="sr-only"
+                    checked={sentido === v}
+                    onChange={() => definir("sentido", v ?? "")}
+                  />
+                  {nome}
+                </label>
+              ))}
+            </fieldset>
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                className="size-5 accent-[var(--primaria)]"
+                checked={semCategoria}
+                onChange={(e) => definir("sem_categoria", e.target.checked ? "1" : "")}
+              />
+              Só sem categoria
+            </label>
+          </div>
         </div>
         {importacao ? (
           <Aviso>
@@ -217,13 +283,11 @@ export function Transacoes() {
             </p>
             {[...porDia.entries()].map(([dia, lista]) => (
               <section key={dia} aria-label={formatarData(dia)}>
-                <h2 className="sticky top-14 z-[1] bg-superficie px-2 py-1.5 text-xs font-semibold tracking-wide text-texto-2 uppercase md:top-0">
-                  {new Intl.DateTimeFormat("pt-BR", {
-                    weekday: "short",
-                    day: "2-digit",
-                    month: "short",
-                    timeZone: "UTC",
-                  }).format(new Date(`${dia}T00:00:00Z`))}
+                <h2 className="sticky top-14 z-[1] flex items-baseline gap-2 bg-superficie px-2 py-2 md:top-0">
+                  <span className="num text-xl font-bold">{dia.slice(8, 10)}</span>
+                  <span className="text-sm text-texto-2">
+                    {diaDaSemana(dia, !!buscaAtiva || !!importacao)}
+                  </span>
                 </h2>
                 <ul>
                   {lista.map((t) => (
@@ -267,6 +331,94 @@ export function Transacoes() {
   );
 }
 
+/** "Sexta-feira" (ou "Sexta-feira · set. 2026" quando a lista passa de um mês). */
+function diaDaSemana(dia: string, comMes: boolean): string {
+  const d = new Date(`${dia}T00:00:00Z`);
+  const semana = new Intl.DateTimeFormat("pt-BR", { weekday: "long", timeZone: "UTC" }).format(d);
+  const texto = semana.charAt(0).toUpperCase() + semana.slice(1);
+  if (!comMes) return texto;
+  return `${texto} · ${new Intl.DateTimeFormat("pt-BR", { month: "short", year: "numeric", timeZone: "UTC" }).format(d)}`;
+}
+
+/** Topo do fluxo: despesas do mês por categoria e o que já está comprometido nos próximos meses. */
+function FluxoTopo({ mes }: { mes: string }) {
+  const resumo = useResumo(mes);
+  const indicadores = useIndicadores();
+  const r = resumo.data;
+  const cats = (r?.gastos_por_categoria ?? []).slice(0, 8);
+  const maior = Math.max(...cats.map((c) => c.total_centavos), 1);
+  const futuros = (indicadores.data?.comprometido ?? []).slice(1, 7).filter((m) => m.total_centavos > 0);
+  const maiorFuturo = Math.max(...futuros.map((m) => m.total_centavos), 1);
+  const totalFuturo = futuros.reduce((s, m) => s + m.total_centavos, 0);
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <Bloco
+        icone={<ReceiptText className="size-4" />}
+        rotulo="Despesas"
+        valor={r?.gastos_centavos}
+        cor="text-saida"
+        carregando={resumo.isPending}
+        sub={
+          r
+            ? `${nomeMes(mes)} · ${r.sem_categoria ? `${r.sem_categoria} sem categoria` : "tudo categorizado"}`
+            : undefined
+        }
+      >
+        {cats.length ? (
+          <ul className="flex flex-col gap-3 p-5">
+            {cats.map((c) => (
+              <li key={c.categoria_id ?? c.nome}>
+                <Link
+                  to={
+                    c.categoria_id
+                      ? `/gastos?mes=${mes}&categoria=${c.categoria_id}`
+                      : `/gastos?mes=${mes}&sem_categoria=1`
+                  }
+                  className="block rounded-lg hover:bg-superficie-2"
+                >
+                  <span className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="truncate">{c.nome}</span>
+                    <span className="valor num shrink-0 font-medium">{formatarMoeda(c.total_centavos)}</span>
+                  </span>
+                  <Barra fracao={c.total_centavos / maior} cor={c.cor ?? "var(--texto-2)"} rotulo={c.nome} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Bloco>
+      <Bloco
+        icone={<Clock className="size-4" />}
+        rotulo="Despesas futuras"
+        valor={totalFuturo}
+        cor="text-alerta"
+        carregando={indicadores.isPending}
+        sub="Parcelas, financiamentos e contas fixas já assumidos nos próximos meses"
+      >
+        {futuros.length ? (
+          <ul className="flex flex-col gap-3 p-5">
+            {futuros.map((m) => (
+              <li key={m.mes}>
+                <Link to="/cartoes" className="block rounded-lg hover:bg-superficie-2">
+                  <span className="flex items-baseline justify-between gap-3 text-sm">
+                    <span>{nomeMes(m.mes)}</span>
+                    <span className="valor num shrink-0 font-medium">{formatarMoeda(m.total_centavos)}</span>
+                  </span>
+                  <Barra
+                    fracao={m.total_centavos / maiorFuturo}
+                    cor="var(--alerta)"
+                    rotulo={nomeMes(m.mes)}
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Bloco>
+    </div>
+  );
+}
+
 function LinhaTransacao({
   t,
   marcada,
@@ -292,23 +444,23 @@ function LinhaTransacao({
         aria-label={`Selecionar ${t.descricao}`}
         checked={marcada}
         onChange={aoMarcar}
-        className="m-3 size-5 shrink-0 accent-[var(--primaria)]"
+        className="m-2 size-5 shrink-0 accent-[var(--primaria)] sm:m-3"
       />
       <button
         type="button"
         onClick={aoAbrir}
-        className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2 pr-2 text-left"
+        className="flex min-h-14 min-w-0 flex-1 items-center gap-2 py-2 pr-2 text-left sm:gap-3"
       >
         <span
-          className="size-2.5 shrink-0 rounded-full"
+          className="hidden size-2.5 shrink-0 rounded-full sm:block"
           style={{ backgroundColor: t.cor ?? "var(--borda)" }}
           aria-hidden
         />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium">{t.descricao}</span>
-          <span className="flex items-center gap-1 truncate text-xs text-texto-2">
+          <span className="block truncate text-xs text-texto-2">
             {t.tipo === "transferencia" ? (
-              <ArrowLeftRight className="size-3 shrink-0" aria-label="transferência" />
+              <ArrowLeftRight className="mr-1 inline size-3 align-[-1px]" aria-label="transferência" />
             ) : null}
             {t.conta} · {categoria ?? <span className="text-alerta">sem categoria</span>}
           </span>

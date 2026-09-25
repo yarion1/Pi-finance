@@ -306,3 +306,23 @@ func TestCasaVeSoSaldo(t *testing.T) {
 	_ = pf
 	_ = api.RotasLeitura
 }
+
+// Fluxo de caixa: filtro do que entrou e do que saiu.
+func TestFiltroSentido(t *testing.T) {
+	_, a, _, nu, _ := prepara(t)
+	arquivo := ofx(
+		[4]string{"20260905", "-45.90", "f1", "Padaria"},
+		[4]string{"20260910", "5000.00", "f2", "Salário EMPRESA"},
+	)
+	a.exigir("POST", "/api/importacoes", map[string]any{"conta_id": nu, "arquivo": "a.ofx", "conteudo": arquivo}, http.StatusCreated)
+	var l listaTransacoes
+	a.exigir("GET", "/api/transacoes?sentido=entradas", nil, http.StatusOK).json(t, &l)
+	if l.Total != 1 || l.Itens[0].Valor != 500000 {
+		t.Fatalf("entradas: %+v", l)
+	}
+	a.exigir("GET", "/api/transacoes?sentido=saidas", nil, http.StatusOK).json(t, &l)
+	if l.Total != 1 || l.Itens[0].Valor != -4590 {
+		t.Fatalf("saídas: %+v", l)
+	}
+	a.exigir("GET", "/api/transacoes?sentido=x", nil, http.StatusBadRequest)
+}

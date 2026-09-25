@@ -76,6 +76,16 @@ func filtroTransacoes(q map[string][]string) (string, []any, error) {
 	if v := valor("tipo"); v != "" {
 		add("t.tipo::text = $%d", v)
 	}
+	// fluxo de caixa: só o que entrou ou só o que saiu (transferências incluídas)
+	switch valor("sentido") {
+	case "entradas":
+		conds = append(conds, "t.valor_centavos > 0")
+	case "saidas":
+		conds = append(conds, "t.valor_centavos < 0")
+	case "":
+	default:
+		return "", nil, invalido("sentido: entradas ou saidas")
+	}
 	for _, k := range []string{"de", "ate"} {
 		if v := valor(k); v != "" {
 			if _, err := time.Parse("2006-01-02", v); err != nil {

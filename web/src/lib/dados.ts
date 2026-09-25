@@ -1,7 +1,16 @@
 // Consultas compartilhadas entre telas (mesma chave = mesmo cache).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { obter } from "./api";
-import type { Casa, Categoria, Conta, Entidade, Instituicao, ItemOrcamento } from "./tipos";
+import type {
+  Casa,
+  Categoria,
+  Conta,
+  Entidade,
+  Indicadores,
+  Instituicao,
+  ItemOrcamento,
+  Resumo,
+} from "./tipos";
 
 export const useEntidades = () =>
   useQuery({ queryKey: ["entidades"], queryFn: () => obter<Entidade[]>("/api/entidades") });
@@ -113,3 +122,11 @@ export function gastoOrcado(itens: ItemOrcamento[]): number {
   const maes = new Set(itens.filter((i) => !i.pai).map((i) => i.nome));
   return itens.filter((i) => !i.pai || !maes.has(i.pai)).reduce((s, i) => s + i.gasto_centavos, 0);
 }
+
+/** Indicadores com a série do patrimônio (mesma chave em todas as telas). */
+export const useIndicadores = () =>
+  useQuery({ queryKey: ["indicadores"], queryFn: () => obter<Indicadores>("/api/indicadores?serie=1") });
+
+/** Resumo de um mês (mesma chave no Início e em Gastos). */
+export const useResumo = (mes: string) =>
+  useQuery({ queryKey: ["resumo", mes], queryFn: () => obter<Resumo>(`/api/resumo?mes=${mes}`) });
