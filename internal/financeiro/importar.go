@@ -102,6 +102,10 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 	if err != nil {
 		return res, err
 	}
+	cats, err := carregarCategorias(ctx, tx, entidadeID)
+	if err != nil {
+		return res, err
+	}
 
 	var importacaoID string
 	if !simular {
@@ -128,6 +132,16 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 			}
 		}
 		categoria, origem := cat.Sugerir(contaID, l.Descricao, l.Valor)
+		if categoria == nil {
+			// sem regra nem histórico: a categoria que o banco deu (Open Finance)
+			categoria, origem = cats.daFonte(l.Linha)
+		}
+		if dup && pluggy && categoria != nil && !simular {
+			// transação que já estava sem categoria ganha a do banco
+			if err := cats.completar(ctx, tx, contaID, l.IDExterno, *categoria, l.Valor); err != nil {
+				return res, err
+			}
+		}
 		if dup {
 			res.Duplicadas++
 		} else {
@@ -168,7 +182,7 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 				fatura_em, parcela_n, parcela_total, id_pluggy)
 			values ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 			on conflict do nothing returning id`,
-			entidadeID, contaID, l.Data, l.Descricao, int64(l.Valor), moeda, categoria, TipoPorValor(l.Valor),
+			entidadeID, contaID, l.Data, l.Descricao, int64(l.Valor), moeda, categoria, cats.tipo(categoria, l.Valor),
 			origemTx, idExterno, importacaoID, l.chave, conta.FaturaEm(l.Data), parcelaN, parcelaTotal, idPluggy).Scan(&id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			// corrida com outra importação: conta como duplicada
@@ -201,6 +215,77 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 	_, err = tx.Exec(ctx, "update importacoes set novas = $2, duplicadas = $3, transferencias = $4 where id = $1",
 		importacaoID, res.Novas, res.Duplicadas, res.Transferencias)
 	return res, err
+}
+
+// categoriasEntidade: as categorias que a entidade vê, por "mãe|filha", com o tipo.
+type categoriasEntidade struct {
+	porNome map[string]string
+	tipos   map[string]string
+}
+
+func carregarCategorias(ctx context.Context, tx pgx.Tx, entidadeID string) (categoriasEntidade, error) {
+	c := categoriasEntidade{porNome: map[string]string{}, tipos: map[string]string{}}
+	linhas, err := tx.Query(ctx, `select c.id, c.nome, p.nome, c.tipo::text from categorias c
+		left join categorias p on p.id = c.pai_id
+		where c.entidade_id is null or c.entidade_id = $1
+		order by c.entidade_id nulls first`, entidadeID)
+	if err != nil {
+		return c, err
+	}
+	defer linhas.Close()
+	for linhas.Next() {
+		var id, nome, tipo string
+		var pai *string
+		if err := linhas.Scan(&id, &nome, &pai, &tipo); err != nil {
+			return c, err
+		}
+		chave := nome + "|"
+		if pai != nil {
+			chave = *pai + "|" + nome
+		}
+		if _, existe := c.porNome[chave]; !existe { // a padrão vale sobre uma personalizada de mesmo nome
+			c.porNome[chave] = id
+		}
+		c.tipos[id] = tipo
+	}
+	return c, linhas.Err()
+}
+
+// daFonte traduz a categoria do banco; só vale se combina com o sinal (gasto sai,
+// receita entra; transferência qualquer um).
+func (c categoriasEntidade) daFonte(l importadores.Linha) (*string, string) {
+	if l.CategoriaExternaID == "" && l.CategoriaExterna == "" {
+		return nil, ""
+	}
+	mae, filha := core.CategoriaPluggy(l.CategoriaExternaID, l.CategoriaExterna)
+	if mae == "" {
+		return nil, ""
+	}
+	id, ok := c.porNome[mae+"|"+filha]
+	if !ok { // filha apagada ou renomeada: fica na mãe
+		id, ok = c.porNome[mae+"|"]
+	}
+	if !ok || !compativel(c.tipos[id], l.Valor) {
+		return nil, ""
+	}
+	return &id, "banco"
+}
+
+// tipo da transação pela categoria: transferência não é gasto nem receita.
+func (c categoriasEntidade) tipo(categoria *string, valor core.Centavos) string {
+	if categoria != nil && c.tipos[*categoria] == "transferencia" {
+		return "transferencia"
+	}
+	return TipoPorValor(valor)
+}
+
+// completar põe a categoria numa transação da Pluggy que ficou sem (as importadas antes
+// de o painel ler a categoria do banco), sem mexer em par de transferência.
+func (c categoriasEntidade) completar(ctx context.Context, tx pgx.Tx, contaID, idPluggy, categoria string, valor core.Centavos) error {
+	_, err := tx.Exec(ctx, `update transacoes set categoria_id = $3, tipo = $4::tipo_transacao
+		where conta_id = $1 and id_pluggy = $2 and categoria_id is null and transferencia_par_id is null
+		  and tipo in ('gasto', 'receita')`, contaID, idPluggy, categoria, c.tipo(&categoria, valor))
+	return err
 }
 
 // casar procura, na mesma conta, a transação que já veio pela outra fonte: mesmo

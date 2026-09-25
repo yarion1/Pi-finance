@@ -505,3 +505,50 @@ func TestCartaoLigadoRecebeLimiteEDias(t *testing.T) {
 		t.Fatalf("compra sem fatura: %+v", f.Faturas)
 	}
 }
+
+// A categoria que o banco dá entra quando não há regra nem histórico, inclusive nas
+// transações que já estavam no painel sem categoria; pagamento de fatura vira
+// transferência (não é gasto).
+func TestCategoriaDoBanco(t *testing.T) {
+	amb, a, pf, nu, _ := prepara(t)
+	mercado := txPluggy("p1", -3, "-80", "DEBIT", "SUPERMERCADO DIA")
+	mercado.Category, mercado.CategoryID = "Groceries", "10000000"
+	uber := txPluggy("p2", -2, "-25", "DEBIT", "UBER *TRIP")
+	pix := txPluggy("p3", -1, "-50", "DEBIT", "PIX ENVIADO FULANO")
+	pix.Category, pix.CategoryID = "Transfer - PIX", "05070000"
+	fatura := txPluggy("p4", -1, "-300", "DEBIT", "PAGAMENTO FATURA")
+	fatura.Category, fatura.CategoryID = "Credit card payment", "05100000"
+	amb.pluggy.Cliente("cli", "sec")
+	amb.pluggy.Item("cli", "item", "Nubank", contaBanco("acc", "Nubank", "545", mercado, uber, pix, fatura))
+	conectar(t, a, "cli", "sec", "item", pf)
+	u := usuarioDe(t, a)
+	sincronizar(t, amb, u)
+	var e estadoOF
+	a.exigir("GET", "/api/open-finance", nil, http.StatusOK).json(t, &e)
+	a.exigir("PATCH", "/api/open-finance/contas/"+e.Itens[0].Contas[0].ID, map[string]string{"acao": "vincular", "conta_id": nu}, http.StatusNoContent)
+	sincronizar(t, amb, u)
+
+	var l listaTransacoes
+	a.exigir("GET", "/api/transacoes?conta_id="+nu, nil, http.StatusOK).json(t, &l)
+	cat := map[string]string{}
+	tipo := map[string]string{}
+	for _, x := range l.Itens {
+		if x.Categoria != nil {
+			cat[x.Descricao] = *x.Categoria
+		}
+		tipo[x.Descricao] = x.Tipo
+	}
+	if cat["SUPERMERCADO DIA"] != "Mercado" || cat["PAGAMENTO FATURA"] != "Pagamento de fatura" ||
+		tipo["PAGAMENTO FATURA"] != "transferencia" || cat["PIX ENVIADO FULANO"] != "" || cat["UBER *TRIP"] != "" {
+		t.Fatalf("categorias: %v tipos: %v", cat, tipo)
+	}
+
+	// a Uber já estava no painel sem categoria; o banco passa a categorizar e a próxima
+	// sincronização (que relê o período) completa
+	amb.pluggy.Categoria("acc", "p2", "19010000", "Taxi and ride-hailing")
+	sincronizar(t, amb, u)
+	a.exigir("GET", "/api/transacoes?conta_id="+nu+"&busca=UBER", nil, http.StatusOK).json(t, &l)
+	if len(l.Itens) != 1 || l.Itens[0].Categoria == nil || *l.Itens[0].Categoria != "App" {
+		t.Fatalf("uber completada: %+v", l.Itens)
+	}
+}

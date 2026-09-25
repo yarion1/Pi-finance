@@ -255,6 +255,8 @@ type Transacao struct {
 	Type               string      `json:"type"`   // DEBIT (sai) ou CREDIT (entra)
 	Status             string      `json:"status"` // POSTED ou PENDING
 	CurrencyCode       string      `json:"currencyCode"`
+	Category           string      `json:"category"`
+	CategoryID         string      `json:"categoryId"`
 	CreditCardMetadata *struct {
 		InstallmentNumber int    `json:"installmentNumber"`
 		TotalInstallments int    `json:"totalInstallments"`
@@ -315,7 +317,8 @@ func (t Transacao) Linha(cartao bool) (importadores.Linha, bool, error) {
 			data = core.SomarMeses(compra, m.InstallmentNumber-1)
 		}
 	}
-	return importadores.Linha{Data: data, Descricao: descricao, Valor: modulo, IDExterno: t.ID}, true, nil
+	return importadores.Linha{Data: data, Descricao: descricao, Valor: modulo, IDExterno: t.ID,
+		CategoriaExternaID: t.CategoryID, CategoriaExterna: t.Category}, true, nil
 }
 
 // Transacoes de uma conta desde uma data. Usa a v2 (cursor); se a Pluggy recusar,

@@ -76,6 +76,19 @@ func (f *Falsa) Saldo(conta, valor string) {
 	}
 }
 
+// Categoria muda a categoria de uma transação já existente.
+func (f *Falsa) Categoria(conta, transacao, id, nome string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if c := f.conta(conta); c != nil {
+		for i := range c.Transacoes {
+			if c.Transacoes[i].ID == transacao {
+				c.Transacoes[i].CategoryID, c.Transacoes[i].Category = id, nome
+			}
+		}
+	}
+}
+
 // Transacao acrescenta uma transação a uma conta.
 func (f *Falsa) Transacao(conta string, t pluggy.Transacao) {
 	f.mu.Lock()

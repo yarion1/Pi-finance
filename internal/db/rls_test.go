@@ -355,3 +355,27 @@ func TestIsolamento_entre_usuarios(t *testing.T) {
 		}
 	})
 }
+
+// Cotações e índices são globais: todo mundo lê, só o worker (sem usuário) grava.
+func TestCotacoesSoOWorkerGrava(t *testing.T) {
+	b := dbteste.Novo(t)
+	ctx := context.Background()
+	if _, err := b.App.Exec(ctx, "insert into cotacoes (codigo, data, preco, fonte) values ('PETR4', '2026-09-25', 38.5, 'teste')"); err != nil {
+		t.Fatalf("worker deveria gravar: %v", err)
+	}
+	usuario := "00000000-0000-0000-0000-000000000001"
+	err := db.ComUsuario(ctx, b.App, usuario, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, "insert into indices (serie, data, valor) values ('cdi', '2026-09-25', 0.0005)")
+		return err
+	})
+	if err == nil {
+		t.Fatal("usuário não pode gravar índices")
+	}
+	var preco string
+	err = db.ComUsuario(ctx, b.App, usuario, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, "select preco::text from cotacoes where codigo = 'PETR4'").Scan(&preco)
+	})
+	if err != nil || preco != "38.50000000" {
+		t.Fatalf("usuário deveria ler a cotação: %q %v", preco, err)
+	}
+}

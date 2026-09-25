@@ -20,6 +20,7 @@ const (
 	EvDesdobramento = "desdobramento" // quantidade × fator (ex.: 1 vira 2 → fator 2)
 	EvGrupamento    = "grupamento"    // quantidade × fator (ex.: 10 viram 1 → fator 0,1)
 	EvBonificacao   = "bonificacao"   // ganha quantidade × (fator − 1) ações ao custo informado
+	EvAjuste        = "ajuste"        // soma "fator" à quantidade (é como a B3 informa desdobro e bonificação)
 )
 
 // ErrVendaSemPosicao: venda de mais do que se tem (venda a descoberto não é suportada).
@@ -123,6 +124,11 @@ func aplicarEvento(p *Posicao, e Evento) {
 		novas := MultDec8(p.Quantidade, e.Fator-Um)
 		p.Quantidade += novas
 		p.Custo += Valor(novas, e.CustoUnitario)
+	case EvAjuste:
+		p.Quantidade += e.Fator
+		if e.Fator > 0 {
+			p.Custo += Valor(e.Fator, e.CustoUnitario)
+		}
 	}
 }
 

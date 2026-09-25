@@ -113,6 +113,12 @@ func TestEventosEDayTrade(t *testing.T) {
 	if err != nil || p.Quantidade != d8("110") || p.Custo != 210000 || p.PrecoMedio != PrecoMedio(210000, d8("110")) {
 		t.Fatalf("eventos: %+v %v", p, err)
 	}
+	// ajuste como a B3 manda: +10 ações a 3,00 e depois −5 (sai sem mexer no custo)
+	aj := append(evs, Evento{Data: data("2026-04-10"), Tipo: EvAjuste, Fator: d8("10"), CustoUnitario: d8("3")},
+		Evento{Data: data("2026-04-11"), Tipo: EvAjuste, Fator: d8("-5")})
+	if p, _ := CalcularPosicao(ops, aj, data("2026-04-30")); p.Quantidade != d8("115") || p.Custo != 213000 {
+		t.Fatalf("ajuste: %+v", p)
+	}
 	// antes do desdobramento
 	if p, _ := CalcularPosicao(ops, evs, data("2026-01-31")); p.Quantidade != d8("100") {
 		t.Fatalf("data limite: %+v", p)

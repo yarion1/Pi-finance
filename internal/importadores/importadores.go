@@ -21,6 +21,9 @@ type Linha struct {
 	Descricao string        `json:"descricao"`
 	Valor     core.Centavos `json:"valor_centavos"` // negativo = saída
 	IDExterno string        `json:"id_externo,omitempty"`
+	// Categoria que a fonte deu (Open Finance): id e nome, traduzidos por core.CategoriaPluggy
+	CategoriaExternaID string `json:"-"`
+	CategoriaExterna   string `json:"-"`
 }
 
 // Resultado da leitura de um arquivo.
