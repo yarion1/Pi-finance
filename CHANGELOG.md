@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.3.0 — Fase 2: planejamento
+
+- **Cartões**: faturas por fechamento e vencimento (aberta, futuras e anteriores), limite
+  usado e disponível, melhor dia de compra e parcelas futuras mês a mês. Compra parcelada
+  lançada à mão (2 a 72×) cai uma parcela em cada fatura; parcelas importadas ("Parcela
+  3/12") projetam as que faltam. Mudar os dias do cartão recalcula as faturas.
+- **Recorrências**: assinaturas, contas fixas e receitas, cadastradas ou **detectadas** no
+  histórico (3 meses seguidos), com aviso quando o valor sobe e quando a cobrança esperada
+  não aparece.
+- **Orçamento**: limite por categoria, envelopes (a sobra passa para o mês seguinte) ou
+  regra 50/30/20; barra com a marca do ritmo ideal do dia, situação (no ritmo, acima do
+  ritmo, estourou), média de 3 meses como sugestão e cópia do mês anterior.
+- **Metas**: alvo, prazo, contas vinculadas, quanto guardar por mês, data prevista no ritmo
+  planejado e, na reserva de emergência, quantos meses de custo de vida ela cobre.
+- **Patrimônio**: contas, investimentos, bens (imóvel, veículo), cartões, cheque especial e
+  dívidas com tabela Price ou SAC e saldo devedor; variação no mês e no ano e os últimos 12
+  meses.
+- **Agenda**: o que vence em 30, 60 ou 90 dias (faturas, recorrências, prestações, contas a
+  pagar e receber avulsas) com o saldo projetado dia a dia e o menor saldo do período.
+- **Início**: patrimônio líquido, custo de vida e meses de reserva, saldo em 30 dias,
+  comprometido do mês que vem e gasto × orçamento. Alertas de recorrência com texto.
+- Correções: parcelas com data futura não aparecem mais como "últimas transações" nem na
+  contagem de "sem categoria"; nunca "-R$ 0,00".
+
 ## v0.2.0 — Fase 1: contas e transações
 
 - **Contas e cartões**: tipo, banco, moeda, saldo inicial, limite, fechamento e vencimento,

@@ -17,6 +17,9 @@ CNPJ de várias pessoas da mesma casa, com privacidade garantida no banco (RLS),
 - **Fase 1 (contas e transações)**: contas e cartões, importação de OFX e CSV (Nubank, Inter,
   genérico) sem duplicar, transferências internas fora do gasto, categorias e regras,
   telas de Início e Gastos.
+- **Fase 2 (planejamento)**: faturas do cartão com parcelas futuras, recorrências
+  detectadas, orçamento com o ritmo do mês (categoria, envelopes, 50/30/20), metas,
+  patrimônio com bens e dívidas (Price/SAC) e agenda com saldo projetado.
 
 As próximas fases estão na seção 12 da SPEC.
 

@@ -134,3 +134,58 @@ Escolher uma categoria de gasto ou receita numa ponta desfaz o par.
 Para manter a regra "toda escrita é JSON com Origin conferida" (proteção CSRF), o arquivo
 vai em base64 dentro do JSON, até 8 MB. A importação roda na própria requisição (extratos
 são pequenos); a fila do worker entra com o Open Finance (fase 3).
+
+## D16 — Cartão e parcelas (fase 2)
+
+- A fatura de cada compra sai só dos dias de fechamento e vencimento da conta
+  (`core.FaturaDaCompra`): compra **no dia do fechamento ou depois** cai na fatura seguinte,
+  por isso o "melhor dia de compra" mostrado é o próprio dia do fechamento. O vencimento é no
+  mesmo mês do fechamento se o dia for maior; senão, no mês seguinte. A fatura fica gravada
+  em `transacoes.fatura_em` e é recalculada quando os dias do cartão mudam.
+- Compra parcelada lançada à mão (2 a 72×) grava **uma transação por parcela**, a k-ésima
+  datada `compra + (k−1) meses`, descrição "Loja (k/n)" e o mesmo `compra_id`. A sobra dos
+  centavos vai para as primeiras parcelas. Assim cada fatura soma sozinha, sem tabela à parte.
+- Parcela importada ("Parcela 3/12", "PARC 03/10", "(1/12)", "Parcela 2 de 6") projeta as
+  que faltam a partir da última importada; as projeções aparecem como "prevista" e somem
+  quando a parcela real chega no extrato.
+- Para o limite e o patrimônio, a dívida do cartão inclui as parcelas futuras já lançadas
+  (é compromisso assumido). Saldo abaixo de zero em conta que não é cartão conta como
+  "contas no negativo" (cheque especial), separado dos cartões.
+- "Últimas transações" e "sem categoria" no Início ignoram as parcelas com data futura.
+
+## D17 — Recorrências detectadas (fase 2)
+
+- Mensal: a mesma descrição (chave do histórico) em **3 meses diferentes ou mais**, com
+  intervalos de 25 a 35 dias e valores até 15 % da mediana. Anual: intervalo de 350 a 380 dias.
+- "Subiu" quando o último valor passa o anterior em 5 % ou mais; gera o alerta
+  `recorrencia_subiu`. Assinatura nova gera `assinatura_detectada`. Os alertas vão para quem
+  estava na sessão ao importar (os alertas são por usuário).
+- A detecção roda ao fim de cada importação e no botão "Procurar no histórico". Só as
+  detectadas ficam "atrasadas" quando a cobrança esperada não aparece (sinal de
+  cancelamento). Para parar de acompanhar, desativa-se: apagar uma detectada faz ela voltar
+  na próxima detecção.
+
+## D18 — Agenda e saldo projetado (fase 2)
+
+- Saldo inicial: contas corrente, poupança, carteira, dinheiro e benefício, na data de hoje
+  (fuso de São Paulo). Investimentos ficam de fora (não pagam boleto).
+- Entram: recorrências (as do cartão aparecem, mas marcadas "no cartão" e sem mexer no saldo,
+  porque já estão na fatura), faturas a pagar, parcelas de dívidas, contas a pagar e receber
+  avulsas (atrasadas se venceram sem pagamento) e lançamentos futuros fora do cartão.
+- Custo de vida: média dos gastos de 3, 6 e 12 **meses fechados**; a reserva conta os meses
+  pelo de 6. "Comprometido" soma, por mês, parcelas, prestações, contas fixas e avulsas.
+
+## D19 — Orçamento, metas e patrimônio: o que ficou simples (fase 2)
+
+- Orçamento por entidade (a PF por padrão). Ritmo ideal = limite × dia ÷ dias do mês;
+  "acima do ritmo" quando o gasto passa disso sem estourar o limite. Nos envelopes, a sobra
+  (ou o estouro) de cada mês desde o primeiro limite passa para o seguinte. Na 50/30/20, as
+  categorias mães têm um grupo padrão (Alimentação, Lazer, Compras, Pessoal e Outros =
+  desejo, com Mercado e Farmácia como necessidade; o resto é necessidade), ajustável.
+- Metas por entidade: o valor atual é o saldo das contas vinculadas mais um valor manual.
+  Metas **conjuntas da casa**, com contribuição por membro, ficam para a fase 7 (casa e
+  despesas divididas).
+- Veículo guarda o código FIPE, mas a atualização automática do valor fica para quando os
+  conectores externos entrarem (fase 3 em diante); até lá o valor é manual.
+- Taxa de dívida: digitada em % ao mês na tela, guardada como fração em `numeric(12,8)`,
+  convertida sem ponto flutuante.
