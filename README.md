@@ -11,10 +11,14 @@ CNPJ de várias pessoas da mesma casa, com privacidade garantida no banco (RLS),
 
 ## Estado
 
-Fase 0 (fundação): login com senha + TOTP ou passkey, códigos de recuperação, casas,
-convites, entidades PF/CNPJ com papéis, RLS com teste de isolamento, `/api/health`,
-worker, backup simples e deploy com volta automática. As próximas fases estão na
-seção 12 da SPEC.
+- **Fase 0 (fundação)**: login com senha + TOTP ou passkey, códigos de recuperação, casas,
+  convites, entidades PF/CNPJ com papéis, RLS com teste de isolamento, `/api/health`,
+  worker, backup e deploy com volta automática.
+- **Fase 1 (contas e transações)**: contas e cartões, importação de OFX e CSV (Nubank, Inter,
+  genérico) sem duplicar, transferências internas fora do gasto, categorias e regras,
+  telas de Início e Gastos.
+
+As próximas fases estão na seção 12 da SPEC.
 
 ## Arquitetura
 

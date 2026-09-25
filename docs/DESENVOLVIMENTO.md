@@ -38,4 +38,6 @@ PUBLIC_URL=http://localhost:3100 ... /tmp/financas serve   # (mesmas variáveis 
 cd web && npx playwright test          # CHROMIUM_PATH=... para usar um Chromium já instalado
 ```
 
-O e2e cria a primeira conta, então precisa de um banco recém-migrado.
+O e2e cria a primeira conta, então precisa de um banco recém-migrado. Ele faz vários logins
+seguidos do mesmo IP: suba o servidor com `LIMITE_AUTH_POR_MINUTO=100` (em produção o padrão
+é 10).

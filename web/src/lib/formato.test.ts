@@ -27,3 +27,20 @@ describe("formato pt-BR", () => {
     expect(mascararDocumento("5299", "PF")).toBe("529.9");
   });
 });
+
+import { centavosParaTexto, lerCentavos } from "./formato";
+
+describe("valores digitados", () => {
+  it("lê como o servidor", () => {
+    expect(lerCentavos("1.234,56")).toBe(123456);
+    expect(lerCentavos("R$ 1.234,56")).toBe(123456);
+    expect(lerCentavos("-45")).toBe(-4500);
+    expect(lerCentavos("45,5")).toBe(4550);
+    expect(lerCentavos("1234.56")).toBe(123456);
+    expect(lerCentavos("0")).toBe(0);
+    for (const ruim of ["", "abc", "1,2,3", "1,234", "R$"]) expect(lerCentavos(ruim)).toBeNull();
+  });
+  it("ida e volta", () => {
+    for (const c of [0, 5, 123456, -4500]) expect(lerCentavos(centavosParaTexto(c))).toBe(c);
+  });
+});

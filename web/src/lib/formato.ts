@@ -55,3 +55,39 @@ export function mascararDocumento(texto: string, tipo: "PF" | "PJ"): string {
     .replace(/\.(\d{3})(\d)/, ".$1/$2")
     .replace(/(\d{4})(\d)/, "$1-$2");
 }
+
+/** Lê "1.234,56", "-45", "45,5" ou "R$ 10" em centavos; null se inválido. Mesmas regras de core.ParseBRL. */
+export function lerCentavos(texto: string): number | null {
+  let s = texto.replace(/\s| /g, "").replace(/^R\$/, "");
+  let negativo = false;
+  if (s.startsWith("-")) {
+    negativo = true;
+    s = s.slice(1).replace(/^R\$/, "");
+  }
+  if (!s) return null;
+  let inteiro: string;
+  let fracao = "";
+  if (s.includes(",")) {
+    const partes = s.split(",");
+    if (partes.length !== 2) return null;
+    inteiro = (partes[0] ?? "").replace(/\./g, "");
+    fracao = partes[1] ?? "";
+  } else if ((s.match(/\./g) ?? []).length === 1 && s.length - s.lastIndexOf(".") - 1 <= 2) {
+    inteiro = s.slice(0, s.lastIndexOf("."));
+    fracao = s.slice(s.lastIndexOf(".") + 1);
+  } else {
+    inteiro = s.replace(/\./g, "");
+  }
+  if (inteiro === "") inteiro = "0";
+  if (fracao.length > 2 || !/^\d+$/.test(inteiro) || (fracao && !/^\d+$/.test(fracao))) return null;
+  const n = Number(inteiro) * 100 + Number(fracao.padEnd(2, "0"));
+  if (!Number.isSafeInteger(n)) return null;
+  return negativo ? -n : n;
+}
+
+/** Centavos para o campo de edição: 123456 → "1.234,56". */
+export function centavosParaTexto(c: number): string {
+  return new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+    c / 100,
+  );
+}

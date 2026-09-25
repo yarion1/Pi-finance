@@ -172,3 +172,113 @@ test.describe
       await expect(page.locator("html")).toHaveAttribute("data-privado", "sim");
     });
   });
+
+test.describe
+  .serial("fase 1", () => {
+    const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" })
+      .format(new Date())
+      .replaceAll("-", "");
+    const ofx = (...linhas: [string, string, string][]) =>
+      Buffer.from(
+        `OFXHEADER:100\nDATA:OFXSGML\n\n<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>BRL<BANKTRANLIST>\n${linhas
+          .map(
+            ([valor, id, desc]) =>
+              `<STMTTRN>\n<DTPOSTED>${hoje}\n<TRNAMT>${valor}\n<FITID>${id}\n<MEMO>${desc}\n</STMTTRN>\n`,
+          )
+          .join("")}</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>\n`,
+      );
+
+    test("contas, importação sem duplicar, transferência fora do gasto e categorização em massa", async ({
+      page,
+    }) => {
+      const violacoes: string[] = [];
+      vigiarCSP(page, violacoes);
+
+      await page.goto("/entrar");
+      await page.getByLabel("E-mail").fill("ana@teste.com");
+      await page.getByLabel("Senha").fill(senha);
+      await page.getByRole("button", { name: "Continuar" }).click();
+      await page.getByRole("button", { name: "Usar código de recuperação" }).click();
+      await page.getByLabel("Código de recuperação").fill(codigosAna[1] ?? "");
+      await page.getByRole("button", { name: "Confirmar" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Ana");
+
+      // duas contas da mesma pessoa
+      await page.goto("/contas");
+      for (const [nome, saldo] of [
+        ["Nubank", "1.000,00"],
+        ["Inter", "0,00"],
+      ]) {
+        await page.getByRole("button", { name: "Nova conta" }).click();
+        const d = page.getByRole("dialog");
+        await d.getByLabel("Nome").fill(nome ?? "");
+        await d.getByLabel("Saldo inicial").fill(saldo ?? "");
+        await d.getByRole("button", { name: "Salvar" }).click();
+        await expect(page.getByRole("link", { name: new RegExp(`^${nome}`) })).toBeVisible();
+      }
+
+      // importar o mesmo OFX duas vezes não duplica
+      const extratoNubank = ofx(
+        ["-45.90", "n1", "Padaria Pao Quente"],
+        ["-45.90", "n2", "Padaria Pao Quente"],
+        ["-1200.00", "n3", "Pix enviado Ana Inter"],
+      );
+      await page.goto("/importar");
+      await page.getByLabel("Conta").selectOption({ label: "Nubank — Ana PF" });
+      await page
+        .locator('input[type="file"]')
+        .setInputFiles({ name: "nubank.ofx", mimeType: "application/x-ofx", buffer: extratoNubank });
+      await page.getByRole("button", { name: "Ver prévia" }).click();
+      await expect(page.getByText("3 novas · 0 já importadas")).toBeVisible();
+      await page.getByRole("button", { name: "Importar 3 transações" }).click();
+      await expect(page.getByText("Importação concluída")).toBeVisible();
+
+      await page
+        .locator('input[type="file"]')
+        .setInputFiles({ name: "nubank.ofx", mimeType: "application/x-ofx", buffer: extratoNubank });
+      await page.getByRole("button", { name: "Ver prévia" }).click();
+      await expect(page.getByText("0 novas · 3 já importadas")).toBeVisible();
+      await expect(page.getByRole("button", { name: /Importar 0/ })).toBeDisabled();
+
+      // a outra ponta do Pix, no Inter, vira transferência
+      await page.getByLabel("Conta").selectOption({ label: "Inter — Ana PF" });
+      await page.locator('input[type="file"]').setInputFiles({
+        name: "inter.ofx",
+        mimeType: "application/x-ofx",
+        buffer: ofx(["1200.00", "i1", "Pix recebido Ana Nubank"]),
+      });
+      await page.getByRole("button", { name: "Ver prévia" }).click();
+      await page.getByRole("button", { name: "Importar 1 transação" }).click();
+      await expect(page.getByText(/1 transferências entre contas/)).toBeVisible();
+
+      // o gasto do mês não inclui a transferência
+      await page.goto("/");
+      const gasto = page.locator("section", { hasText: "Gasto do mês" }).first();
+      await expect(gasto).toContainText("91,80");
+      await expect(gasto).not.toContainText("1.291,80");
+      await expect(page.getByText(/2 transações estão sem categoria/)).toBeVisible();
+
+      // categoriza as duas padarias de uma vez, criando regra
+      await page.goto("/gastos?sem_categoria=1");
+      const linhas = page.getByRole("checkbox", { name: /Selecionar Padaria/ });
+      await expect(linhas).toHaveCount(2);
+      await linhas.nth(0).check();
+      await linhas.nth(1).check();
+      await page.getByLabel("Mudar categoria para").selectOption({ label: "Alimentação" });
+      await page.getByLabel(/Criar regra/).check();
+      await page.getByRole("button", { name: "Aplicar" }).click();
+      await expect(page.getByText("Nenhuma transação aqui")).toBeVisible();
+
+      await page.goto("/categorias");
+      await expect(page.getByText(/contém “Padaria Pao”/)).toBeVisible();
+
+      // telas novas sem rolagem lateral no celular
+      await page.setViewportSize({ width: 360, height: 740 });
+      for (const rota of ["/", "/gastos", "/contas", "/importar", "/categorias"]) {
+        await page.goto(rota);
+        await page.waitForLoadState("networkidle");
+        await semRolagemHorizontal(page);
+      }
+      expect(violacoes).toEqual([]);
+    });
+  });

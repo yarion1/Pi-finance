@@ -6,14 +6,18 @@ import { mensagemDe } from "./lib/api";
 import { useSessao } from "./lib/sessao";
 import { Cadastro } from "./pages/cadastro";
 import { Casas, DetalheCasa } from "./pages/casa";
+import { Categorias } from "./pages/categorias";
 import { Configurar2FA } from "./pages/configurar-2fa";
+import { Contas } from "./pages/contas";
 import { Convite } from "./pages/convite";
 import { EmBreve } from "./pages/em-breve";
 import { DetalheEntidade, Entidades } from "./pages/entidades";
 import { Entrar } from "./pages/entrar";
+import { Importar } from "./pages/importar";
 import { Inicio } from "./pages/inicio";
 import { Mais } from "./pages/mais";
 import { Seguranca } from "./pages/seguranca";
+import { Transacoes } from "./pages/transacoes";
 import { Verificar } from "./pages/verificar";
 
 function Carregando() {
@@ -87,10 +91,11 @@ export function App() {
       <Route element={<Protegida />}>
         <Route element={<Shell />}>
           <Route index element={<Inicio />} />
-          <Route
-            path="/gastos"
-            element={<EmBreve titulo="Gastos" pergunta="Com o que gasto mais?" fase="fase 1" />}
-          />
+          <Route path="/gastos" element={<Transacoes />} />
+          <Route path="/transacoes" element={<Navigate to="/gastos" replace />} />
+          <Route path="/contas" element={<Contas />} />
+          <Route path="/importar" element={<Importar />} />
+          <Route path="/categorias" element={<Categorias />} />
           <Route
             path="/investimentos"
             element={

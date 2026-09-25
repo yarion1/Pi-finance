@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -19,6 +20,7 @@ type Config struct {
 	Endereco            string
 	ProxiesConfiaveis   []netip.Prefix
 	ForcarFalhaSaude    bool
+	LimiteAuthPorMinuto int
 	HSTS                bool
 }
 
@@ -39,7 +41,15 @@ func Carregar() (Config, error) {
 		URLPublica:          strings.TrimRight(env("PUBLIC_URL", ""), "/"),
 		Endereco:            env("ENDERECO", ":3100"),
 		ForcarFalhaSaude:    env("FORCAR_FALHA_HEALTH", "") == "1",
+		LimiteAuthPorMinuto: 10,
 		HSTS:                strings.HasPrefix(env("PUBLIC_URL", ""), "https:"),
+	}
+	if v := env("LIMITE_AUTH_POR_MINUTO", ""); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 {
+			return c, fmt.Errorf("LIMITE_AUTH_POR_MINUTO inválido: %q", v)
+		}
+		c.LimiteAuthPorMinuto = n
 	}
 	for _, p := range strings.Split(env("PROXIES_CONFIAVEIS", "127.0.0.1/32,::1/128,172.16.0.0/12"), ",") {
 		pref, err := netip.ParsePrefix(strings.TrimSpace(p))

@@ -112,3 +112,8 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* itens de grid não se esticam além da coluna por causa de texto longo (truncate) */
+.grid > * {
+  min-width: 0;
+}

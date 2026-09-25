@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.2.0 — Fase 1: contas e transações
+
+- **Contas e cartões**: tipo, banco, moeda, saldo inicial, limite, fechamento e vencimento,
+  visibilidade (privada, só saldo, compartilhada) e arquivamento. Saldo calculado; a casa
+  vê o saldo de contas "só saldo" sem ver as transações, e de quem é cada conta.
+- **Importação** de OFX (1.x e 2.x, Windows-1252, vírgula ou ponto) e CSV (Nubank conta,
+  Nubank cartão, Inter e genérico com mapeamento de colunas salvo). Prévia antes de gravar,
+  conferência do saldo com o do banco e histórico com **desfazer** por inteiro.
+- **Deduplicação** por conta + data + valor + descrição normalizada + id externo: o mesmo
+  arquivo (ou o mesmo extrato em outro formato) não duplica nada; duas compras iguais no
+  mesmo dia continuam sendo duas.
+- **Transferências internas**: saída numa conta e entrada do mesmo valor em outra conta da
+  mesma entidade, em até 2 dias, viram transferência e não entram como gasto nem receita.
+- **Categorias** padrão em dois níveis e personalizadas por entidade; **regras** "descrição
+  contém X" com prioridade; categorização pelo histórico de descrições parecidas; estorno
+  (categoria de gasto em entrada) abate o gasto.
+- **Telas**: Início com saldo, gasto do mês comparado ao mesmo período do mês passado,
+  receitas, taxa de poupança, gastos por categoria e últimas transações; Gastos e
+  transações com busca, filtros, edição em massa (com criação de regra), lançamento manual
+  e atalhos `/` e `n`; Contas; Importar; Categorias e regras.
+- Limite de tentativas de login por IP configurável (`LIMITE_AUTH_POR_MINUTO`, padrão 10);
+  consulta de convite com limite próprio.
+
 ## v0.1.1
 
 - Acesso pelo Cloudflare Tunnel (DECISOES D11): IP real do visitante via `CF-Connecting-IP`,

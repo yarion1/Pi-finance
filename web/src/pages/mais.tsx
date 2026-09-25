@@ -1,4 +1,4 @@
-import { Building2, ChevronRight, LogOut, Shield, Users } from "lucide-react";
+import { Building2, ChevronRight, Landmark, LogOut, Shield, Tags, Upload, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { useSair } from "../components/shell";
@@ -13,6 +13,15 @@ export function Mais() {
       <Cartao className="p-2 sm:p-2">
         <nav aria-label="Mais opções">
           <ul className="flex flex-col">
+            <Item para="/contas" icone={<Landmark className="size-5" />}>
+              Contas e cartões
+            </Item>
+            <Item para="/importar" icone={<Upload className="size-5" />}>
+              Importar extrato
+            </Item>
+            <Item para="/categorias" icone={<Tags className="size-5" />}>
+              Categorias e regras
+            </Item>
             <Item para="/casa" icone={<Building2 className="size-5" />}>
               Casa
             </Item>

@@ -111,3 +111,26 @@ pelo Wi-Fi de casa, sem túnel. O servidor se adapta à URL: sem HTTPS, o cookie
 desligadas (exigem HTTPS e nome de domínio); o 2FA fica só com o aplicativo autenticador.
 A checagem de `Origin`, o RLS e o resto não mudam. Com `PUBLIC_URL` em HTTPS (túnel,
 D11) tudo volta ao modo seguro automaticamente.
+
+## D13 — Transferência interna só dentro da mesma entidade (fase 1)
+
+O pareamento automático (mesmo valor com sinal oposto, contas diferentes, até 2 dias) só
+acontece entre contas da **mesma entidade**. Dinheiro que sai do CNPJ para a PF não é
+"transferência": é pró-labore, lucro ou reembolso (SPEC §4) e será classificado na fase 5.
+Escolher uma categoria de gasto ou receita numa ponta desfaz o par.
+
+## D14 — Deduplicação e estorno (fase 1)
+
+- Chave: hash de data + valor + descrição normalizada (minúsculas, sem acento, espaços
+  simples) + ordem entre linhas idênticas do mesmo arquivo; e, à parte, o id externo (FITID
+  do OFX, identificador do CSV do Nubank). Qualquer um que já exista na conta marca a linha
+  como repetida. Transações manuais não têm chave e nunca são deduplicadas.
+- Tipo vem do sinal (saída = gasto, entrada = receita). Categoria de transferência marca
+  transferência; categoria de gasto numa entrada vira **estorno** (abate o gasto da
+  categoria); categoria de receita numa saída é recusada.
+
+## D15 — Arquivo de importação em JSON (fase 1)
+
+Para manter a regra "toda escrita é JSON com Origin conferida" (proteção CSRF), o arquivo
+vai em base64 dentro do JSON, até 8 MB. A importação roda na própria requisição (extratos
+são pequenos); a fila do worker entra com o Open Finance (fase 3).

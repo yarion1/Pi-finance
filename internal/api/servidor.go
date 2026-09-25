@@ -33,12 +33,18 @@ type Servidor struct {
 	Versao   string
 	Front    fs.FS // conteúdo de web/dist; nil = sem front
 
-	limiteAuth *limitador
+	limiteAuth    *limitador
+	limiteConvite *limitador
 }
 
 // Handler monta as rotas com os middlewares.
 func (s *Servidor) Handler() http.Handler {
-	s.limiteAuth = novoLimitador(10, time.Minute)
+	porMinuto := s.Config.LimiteAuthPorMinuto
+	if porMinuto < 1 {
+		porMinuto = 10
+	}
+	s.limiteAuth = novoLimitador(porMinuto, time.Minute)
+	s.limiteConvite = novoLimitador(30, time.Minute)
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /api/health", s.saude)
@@ -62,7 +68,7 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("DELETE /api/auth/passkeys/{id}", s.sessaoCompleta(s.removerPasskey))
 
 	// convites
-	mux.Handle("GET /api/convites/{token}", s.limitado(http.HandlerFunc(s.verConvite)))
+	mux.Handle("GET /api/convites/{token}", s.limitadoPor(s.limiteConvite, http.HandlerFunc(s.verConvite)))
 	mux.Handle("POST /api/convites/{token}/aceitar", s.sessaoCompleta(s.aceitarConvite))
 
 	// casas
@@ -228,9 +234,11 @@ func limitarCorpo(h http.Handler) http.Handler {
 	})
 }
 
-func (s *Servidor) limitado(h http.Handler) http.Handler {
+func (s *Servidor) limitado(h http.Handler) http.Handler { return s.limitadoPor(s.limiteAuth, h) }
+
+func (s *Servidor) limitadoPor(l *limitador, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !s.limiteAuth.permitir(s.ip(r)) {
+		if !l.permitir(s.ip(r)) {
 			w.Header().Set("Retry-After", "60")
 			erroJSON(w, http.StatusTooManyRequests, "limite", "muitas tentativas; aguarde um minuto")
 			return
