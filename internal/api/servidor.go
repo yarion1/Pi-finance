@@ -206,8 +206,8 @@ func (s *Servidor) limitado(h http.Handler) http.Handler {
 	})
 }
 
-// ip do cliente: X-Forwarded-For só é aceito vindo de proxy confiável
-// (tailscale serve no próprio Pi, rede do Docker).
+// ip do cliente: CF-Connecting-IP e X-Forwarded-For só são aceitos vindo de proxy
+// confiável (cloudflared ou tailscale serve no próprio Pi, rede do Docker).
 func (s *Servidor) ip(r *http.Request) string {
 	remoto, err := netip.ParseAddrPort(r.RemoteAddr)
 	if err != nil {
@@ -222,6 +222,10 @@ func (s *Servidor) ip(r *http.Request) string {
 		}
 	}
 	if confiavel {
+		// cloudflared (Cloudflare Tunnel) manda o IP do visitante aqui
+		if cf, err := netip.ParseAddr(strings.TrimSpace(r.Header.Get("Cf-Connecting-Ip"))); err == nil {
+			return cf.String()
+		}
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 			partes := strings.Split(xff, ",")
 			if a, err := netip.ParseAddr(strings.TrimSpace(partes[len(partes)-1])); err == nil {

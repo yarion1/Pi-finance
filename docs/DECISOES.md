@@ -89,3 +89,16 @@ Entraram só os valores citados na SPEC §4 (teto do MEI, DAS-MEI 2026, salário
 teto do Simples, sublimite, Fator R, faixas dos Anexos III e V, lucro presumido do MEI,
 limite de dividendos). Partilha, tabela do IRPF e IR regressivo entram nas fases 4 e 5,
 com fonte, para não inventar números.
+
+## D11 — Acesso pelo Cloudflare Tunnel em vez do Tailscale
+
+A SPEC (§10, §11) pedia só LAN e tailnet, sem Cloudflare Tunnel. **Pedido do Pablo:
+publicar pelo Cloudflare Tunnel, como o site dos Pebas**, para ninguém precisar instalar
+app. Condições para compensar a exposição na internet:
+
+- **Cloudflare Access obrigatório** na frente do hostname (e-mails autorizados, código por
+  e-mail). O login do Finanças (senha + 2FA obrigatório, bloqueio progressivo) fica atrás.
+- `PUBLIC_URL` passa a ser o hostname público (`https://financas.<domínio>`): passkeys e a
+  checagem de `Origin` usam uma origem só, então o endereço do Tailscale deixa de valer.
+- O IP do visitante vem de `CF-Connecting-IP`, aceito só de proxy confiável (cloudflared).
+- Custo aceito: a Cloudflare termina o TLS e vê o tráfego na borda dela.
