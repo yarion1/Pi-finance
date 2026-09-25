@@ -197,13 +197,20 @@ são pequenos); a fila do worker entra com o Open Finance (fase 3).
   Client ID e nunca o segredo. As tabelas `conexoes_pluggy`, `itens_pluggy` e `contas_pluggy`
   têm RLS por `usuario_id`: nem a casa nem quem tem acesso à entidade veem as credenciais ou
   os bancos conectados. Cadastrar, trocar e apagar as credenciais pedem reautenticação.
-- As credenciais são conferidas na Pluggy antes de gravar; o **item** (banco conectado no Meu
-  Pluggy) é conferido com as credenciais da própria pessoa, então o item de outra pessoa é
-  recusado. Cada item diz para qual entidade vão as contas dele.
+- De onde vem cada coisa: os bancos são conectados no **meu.pluggy.ai**; o Client ID e o
+  Secret são da aplicação de desenvolvimento no **dashboard.pluggy.ai** (a conta de
+  desenvolvedor continua lendo depois do teste de 15 dias); o **item** nasce no Dashboard, ao
+  conectar pela Demo com o conector **MeuPluggy** (um por banco), que funciona como procuração
+  para a conexão do Meu Pluggy.
+- As credenciais são conferidas na Pluggy antes de gravar; o **item** é conferido com as
+  credenciais da própria pessoa, então o item de outra pessoa é recusado. Cada item diz para
+  qual entidade vão as contas dele.
 - Nenhuma conta da Pluggy importa nada sozinha: a pessoa decide se **liga a uma conta que já
   existe** (da mesma entidade e do mesmo tipo), **cria uma nova** ou **ignora**. Conta criada
   pela Pluggy tem o saldo inicial acertado com o do banco na primeira sincronização.
-- Transações pela `v2/transactions` (a v1 é desligada em 31/12/2026), paginadas por cursor.
+- Transações pela `v2/transactions` (a v1 é desligada em 31/12/2026), paginadas por cursor, só
+  com `accountId` e `dateFrom`; se a Pluggy recusar a v2, cai para a v1 (páginas numeradas).
+  Erro 400 mostra a mensagem da Pluggy na tela.
   Pendentes ficam de fora até serem confirmadas. Sinal: numa conta, `DEBIT` sai e `CREDIT`
   entra; num cartão a Pluggy manda a compra positiva e o pagamento negativo. Valores viram
   centavos sem float. Parcela de cartão ganha "(n/N)" e a data do mês da parcela (D16).

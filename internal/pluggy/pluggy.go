@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,6 +33,8 @@ var (
 	ErrItemNaoEncontrado = errors.New("item não encontrado no Meu Pluggy")
 	// ErrIndisponivel: a Pluggy não respondeu ou respondeu algo inesperado.
 	ErrIndisponivel = errors.New("Meu Pluggy indisponível")
+	// ErrRecusada: a Pluggy recusou o pedido (400); a mensagem dela vem junto.
+	ErrRecusada = errors.New("o Meu Pluggy recusou o pedido")
 )
 
 var fusoSP = func() *time.Location {
@@ -298,9 +301,18 @@ func (t Transacao) Linha(cartao bool) (importadores.Linha, bool, error) {
 	return importadores.Linha{Data: data, Descricao: descricao, Valor: modulo, IDExterno: t.ID}, true, nil
 }
 
-// Transacoes de uma conta desde uma data (v2, paginada por cursor).
+// Transacoes de uma conta desde uma data. Usa a v2 (cursor); se a Pluggy recusar,
+// cai para a v1 (páginas numeradas), que vale até 31/12/2026.
 func (c *Cliente) Transacoes(ctx context.Context, chave, contaID string, desde time.Time) ([]Transacao, error) {
-	q := url.Values{"accountId": {contaID}, "dateFrom": {desde.Format("2006-01-02")}, "pageSize": {"500"}}
+	todas, err := c.transacoesV2(ctx, chave, contaID, desde)
+	if errors.Is(err, ErrRecusada) {
+		return c.transacoesV1(ctx, chave, contaID, desde)
+	}
+	return todas, err
+}
+
+func (c *Cliente) transacoesV2(ctx context.Context, chave, contaID string, desde time.Time) ([]Transacao, error) {
+	q := url.Values{"accountId": {contaID}, "dateFrom": {desde.Format("2006-01-02")}}
 	caminho := "/v2/transactions?" + q.Encode()
 	var todas []Transacao
 	for range 200 { // limite para um cursor que nunca acaba
@@ -317,6 +329,26 @@ func (c *Cliente) Transacoes(ctx context.Context, chave, contaID string, desde t
 			return todas, nil
 		}
 		caminho = "/v2/transactions?" + prox
+	}
+	return todas, nil
+}
+
+func (c *Cliente) transacoesV1(ctx context.Context, chave, contaID string, desde time.Time) ([]Transacao, error) {
+	var todas []Transacao
+	for pagina := 1; pagina <= 200; pagina++ {
+		q := url.Values{"accountId": {contaID}, "from": {desde.Format("2006-01-02")},
+			"pageSize": {"500"}, "page": {strconv.Itoa(pagina)}}
+		var out struct {
+			Results    []Transacao `json:"results"`
+			TotalPages int         `json:"totalPages"`
+		}
+		if err := c.get(ctx, chave, "/transactions?"+q.Encode(), &out); err != nil {
+			return nil, err
+		}
+		todas = append(todas, out.Results...)
+		if pagina >= out.TotalPages || len(out.Results) == 0 {
+			break
+		}
 	}
 	return todas, nil
 }
@@ -353,6 +385,22 @@ func (c *Cliente) get(ctx context.Context, chave, caminho string, destino any) e
 	return c.fazer(req, destino)
 }
 
+// mensagemDeErro tira o "message" do corpo de erro da Pluggy (curto, sem dados da pessoa).
+func mensagemDeErro(corpo io.Reader) string {
+	var e struct {
+		Message string `json:"message"`
+	}
+	b, _ := io.ReadAll(io.LimitReader(corpo, 4096))
+	if json.Unmarshal(b, &e) != nil || strings.TrimSpace(e.Message) == "" {
+		return "sem detalhes"
+	}
+	m := []rune(strings.TrimSpace(e.Message))
+	if len(m) > 200 {
+		m = append(m[:200], '…')
+	}
+	return string(m)
+}
+
 func (c *Cliente) fazer(req *http.Request, destino any) error {
 	req.Header.Set("Accept", "application/json")
 	resp, err := c.HTTP.Do(req)
@@ -365,6 +413,8 @@ func (c *Cliente) fazer(req *http.Request, destino any) error {
 		return ErrCredenciais
 	case resp.StatusCode == http.StatusNotFound:
 		return ErrItemNaoEncontrado
+	case resp.StatusCode == http.StatusBadRequest:
+		return fmt.Errorf("%w: %s", ErrRecusada, mensagemDeErro(resp.Body))
 	case resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated:
 		return fmt.Errorf("%w: respondeu %d", ErrIndisponivel, resp.StatusCode)
 	}

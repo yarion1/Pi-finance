@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.1
+
+- Open Finance: a busca de transações recusada pela Pluggy (400) no primeiro uso real. O
+  pedido à v2 vai só com `accountId` e `dateFrom`, e se a Pluggy recusar a v2 o painel usa a
+  v1. Erro 400 agora mostra a mensagem da própria Pluggy.
+- Texto de ajuda da tela de Open Finance com o caminho certo: credenciais e id do item vêm do
+  Dashboard da Pluggy, conectando pela Demo com o conector MeuPluggy.
+
 ## v0.4.0 — Fase 3: Open Finance
 
 - **Meu Pluggy por pessoa**: cada um cola o próprio Client ID e Secret (conferidos na Pluggy,

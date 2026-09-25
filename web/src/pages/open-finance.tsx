@@ -119,16 +119,18 @@ function PassoAPasso() {
         <TituloCartao>Como conectar</TituloCartao>
         <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm">
           <li>
-            Crie sua conta gratuita em <strong>meu.pluggy.ai</strong> e conecte seus bancos lá (até 5
-            conexões, só contas em seu nome).
+            Em <strong>meu.pluggy.ai</strong>, crie sua conta gratuita e conecte seus bancos (autorizando no
+            app de cada banco).
           </li>
           <li>
-            No Meu Pluggy, copie o <strong>Client ID</strong> e o <strong>Client Secret</strong> e cole
+            Em <strong>dashboard.pluggy.ai</strong>, crie a conta de desenvolvedor. A aplicação de
+            desenvolvimento tem o <strong>Client ID</strong> e o <strong>Client Secret</strong>: cole os dois
             abaixo.
           </li>
           <li>
-            Copie o <strong>id de cada banco conectado</strong> (o item) e adicione aqui, escolhendo de quem
-            são as contas.
+            No Dashboard, em <strong>Conecte um item demo</strong>, escolha o conector{" "}
+            <strong>MeuPluggy</strong> (não o banco direto) e autorize, uma vez por banco. Cada autorização
+            gera um <strong>id de item</strong>: adicione aqui, escolhendo de quem são as contas.
           </li>
           <li>Escolha, para cada conta, se liga a uma conta que já existe no painel ou cria uma nova.</li>
         </ol>
@@ -298,6 +300,7 @@ function NovoBanco({ primeiro }: { primeiro: boolean }) {
           autoComplete="off"
           spellCheck={false}
           placeholder="ex.: 5a1c1b2e-…"
+          dica="Gerado no Dashboard da Pluggy ao conectar pela Demo com o conector MeuPluggy."
         />
         <SeletorEntidade entidades={editaveis.lista} valor={entidadeId} onChange={setEntidade} />
         <div className="flex justify-end">

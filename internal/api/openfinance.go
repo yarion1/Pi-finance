@@ -23,6 +23,8 @@ func falharOpenFinance(w http.ResponseWriter, r *http.Request, err error) {
 		erroJSON(w, http.StatusBadRequest, "validacao", "o Meu Pluggy recusou o Client ID e o Client Secret")
 	case errors.Is(err, pluggy.ErrItemNaoEncontrado):
 		erroJSON(w, http.StatusBadRequest, "validacao", "item não encontrado no Meu Pluggy: confira o id copiado")
+	case errors.Is(err, pluggy.ErrRecusada):
+		erroJSON(w, http.StatusBadGateway, "pluggy", err.Error())
 	case errors.Is(err, pluggy.ErrIndisponivel):
 		erroJSON(w, http.StatusBadGateway, "pluggy", "o Meu Pluggy não respondeu; tente de novo em alguns minutos")
 	case errors.Is(err, openfinance.ErrSemConexao):

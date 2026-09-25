@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -214,6 +215,14 @@ func TestClienteContraAFalsa(t *testing.T) {
 		t.Fatalf("transações: %d %v", len(lista), err)
 	}
 
+	// se a v2 recusar, a v1 (páginas numeradas) traz as mesmas transações
+	f.SemV2 = true
+	lista, err = c.Transacoes(ctx, chave, "acc-1", time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC))
+	if err != nil || len(lista) != 4 {
+		t.Fatalf("transações pela v1: %d %v", len(lista), err)
+	}
+	f.SemV2 = false
+
 	// outra pessoa não vê o item de Ana
 	chaveBia, _ := c.Autenticar(ctx, "bia", "outro")
 	if _, err := c.Item(ctx, chaveBia, "item-1"); !errors.Is(err, pluggy.ErrItemNaoEncontrado) {
@@ -225,6 +234,15 @@ func TestClienteContraAFalsa(t *testing.T) {
 
 	// servidor fora e resposta quebrada
 	quebrado := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/items/recusado" {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"code":400,"message":"parâmetro inválido: dateFrom"}`))
+			return
+		}
+		if r.URL.Path == "/items/recusado-sem-json" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		if r.URL.Path == "/auth" {
 			_, _ = w.Write([]byte(`{"apiKey": ""}`))
 			return
@@ -239,6 +257,13 @@ func TestClienteContraAFalsa(t *testing.T) {
 	q := pluggy.Novo(quebrado.URL)
 	if _, err := q.Autenticar(ctx, "a", "b"); !errors.Is(err, pluggy.ErrCredenciais) {
 		t.Errorf("chave vazia: %v", err)
+	}
+	// 400 traz a mensagem da Pluggy, para dar para entender o que houve
+	if _, err := q.Item(ctx, "k", "recusado"); !errors.Is(err, pluggy.ErrRecusada) || !strings.Contains(err.Error(), "parâmetro inválido: dateFrom") {
+		t.Errorf("400: %v", err)
+	}
+	if _, err := q.Item(ctx, "k", "recusado-sem-json"); !errors.Is(err, pluggy.ErrRecusada) || !strings.Contains(err.Error(), "sem detalhes") {
+		t.Errorf("400 sem corpo: %v", err)
 	}
 	if _, err := q.Item(ctx, "k", "x"); !errors.Is(err, pluggy.ErrIndisponivel) {
 		t.Errorf("500: %v", err)

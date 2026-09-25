@@ -34,6 +34,8 @@ type Falsa struct {
 	// PorPagina: quantas transações por página (testa o cursor).
 	PorPagina int
 	Chamadas  int
+	// SemV2 faz a /v2/transactions recusar (400), para testar a volta para a v1.
+	SemV2 bool
 }
 
 // Nova API falsa vazia.
@@ -158,8 +160,14 @@ func (f *Falsa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			contas = append(contas, c.Conta)
 		}
 		escrever(w, http.StatusOK, map[string]any{"results": contas})
-	case r.URL.Path == "/v2/transactions":
+	case r.URL.Path == "/v2/transactions" && f.SemV2:
+		escrever(w, http.StatusBadRequest, map[string]any{"code": 400, "message": "v2 indisponível neste teste"})
+	case r.URL.Path == "/v2/transactions", r.URL.Path == "/transactions":
 		q := r.URL.Query()
+		v1 := r.URL.Path == "/transactions"
+		if v1 {
+			q.Set("dateFrom", q.Get("from"))
+		}
 		var c *Conta
 		for _, it := range f.itens {
 			if it.Dono != dono {
@@ -183,6 +191,16 @@ func (f *Falsa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		sort.SliceStable(lista, func(i, j int) bool { return lista[i].Date < lista[j].Date })
+		if v1 {
+			// v1: páginas numeradas a partir de 1, com totalPages
+			pagina, _ := strconv.Atoi(q.Get("page"))
+			pagina = max(pagina, 1)
+			total := (len(lista) + f.PorPagina - 1) / f.PorPagina
+			de := min((pagina-1)*f.PorPagina, len(lista))
+			ate := min(de+f.PorPagina, len(lista))
+			escrever(w, http.StatusOK, map[string]any{"results": lista[de:ate], "page": pagina, "totalPages": total, "total": len(lista)})
+			return
+		}
 		inicio, _ := strconv.Atoi(q.Get("cursor"))
 		fim := min(inicio+f.PorPagina, len(lista))
 		resp := map[string]any{"results": lista[min(inicio, fim):fim]}
