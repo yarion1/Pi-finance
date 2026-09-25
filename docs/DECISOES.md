@@ -255,3 +255,23 @@ falhou na última sincronização e `atrasada` se a última passou de 36 h. `las
 sincronização mais recente de qualquer pessoa. Nenhum dos dois derruba o 200 (o deploy só
 depende de banco e worker); é informação para o monitor do PiControl. A leitura usa uma
 função `SECURITY DEFINER` que devolve só contagens e datas, nunca credenciais.
+
+## D24 — Categoria que o banco dá (Open Finance)
+
+A Pluggy categoriza cada transação ("Eating out", "Groceries", com um id de 8 dígitos
+cuja família são os 2 primeiros). `core.CategoriaPluggy` traduz pelo nome (inglês ou
+português) e, sem casar, pela família, para as categorias padrão do painel. Ordem na
+importação: **regra da pessoa → histórico → categoria do banco**. Transferência para
+terceiros (Pix, TED), empréstimos e "outros" ficam sem sugestão. Pagamento de fatura e
+transferência para si mesmo entram como **transferência** (fora do gasto). Transações que
+já estavam no painel sem categoria recebem a do banco quando voltam numa sincronização; a
+migração 00008 faz a próxima sincronização reler o histórico uma vez para completar.
+
+## D25 — Visual inspirado no Meu Pluggy
+
+Fundo quase preto, cartões um tom acima, destaque rosa nos ícones e gráficos; cada bloco
+da visão geral tem cabeçalho com ícone e rótulo em maiúsculas e o número grande. O Início
+abre com contas bancárias por banco (cores de marca em siglas, sem imagens de terceiros por
+causa da CSP), cartões com o % do limite usado segundo o banco, investimentos e a evolução
+do patrimônio em SVG próprio (ECharts continua previsto para a fase 7). O tema claro
+acompanha com o mesmo destaque.

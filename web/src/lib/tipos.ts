@@ -69,6 +69,7 @@ export type Conta = {
   saldo_banco_em: string | null;
   open_finance: boolean;
   limite_usado_banco_centavos: number | null;
+  numero_final: string | null;
 };
 
 export type Instituicao = { id: string; nome: string; codigo_compe: string | null };

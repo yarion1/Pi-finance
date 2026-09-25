@@ -6,20 +6,22 @@
  */
 :root,
 [data-theme="escuro"] {
-  --fundo: #0b0f14;
-  --superficie: #121821;
-  --superficie-2: #1a2230;
-  --borda: #253245;
-  --texto: #e6edf5;
-  --texto-2: #9aa8b8;
-  --primaria: #7cb0ff;
-  --primaria-texto: #06121f;
+  /* quase preto, cartões um tom acima, destaque rosa (referência: Meu Pluggy) */
+  --fundo: #0a0a0a;
+  --superficie: #141414;
+  --superficie-2: #1c1c1c;
+  --borda: #262626;
+  --texto: #f5f5f5;
+  --texto-2: #a3a3a3;
+  --primaria: #fb7185;
+  --primaria-texto: #1a0509;
+  --destaque: #f43f5e;
   --entrada: #34d399;
   --saida: #f87171;
   --invest: #a78bfa;
   --imposto: #fbbf24;
-  --alerta: #fb923c;
-  --sombra: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.25);
+  --alerta: #facc15;
+  --sombra: 0 1px 2px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
 
@@ -30,8 +32,9 @@
   --borda: #d9e0e8;
   --texto: #0f172a;
   --texto-2: #4f5d6e;
-  --primaria: #1d5fd6;
+  --primaria: #e11d48;
   --primaria-texto: #ffffff;
+  --destaque: #e11d48;
   --entrada: #047857;
   --saida: #b91c1c;
   --invest: #6d28d9;
@@ -50,6 +53,7 @@
   --color-texto-2: var(--texto-2);
   --color-primaria: var(--primaria);
   --color-primaria-texto: var(--primaria-texto);
+  --color-destaque: var(--destaque);
   --color-entrada: var(--entrada);
   --color-saida: var(--saida);
   --color-invest: var(--invest);

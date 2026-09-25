@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.4.3
+
+- **Categoria do banco**: as transações do Open Finance usam a categoria que o banco dá
+  (mercado, restaurante, app de transporte, farmácia…) quando não há regra nem histórico;
+  pagamento de fatura e transferência para si mesmo saem do gasto. As transações que já
+  estavam sem categoria são completadas na próxima sincronização.
+- **Visual novo**, inspirado no Meu Pluggy: fundo quase preto com destaque rosa; Início
+  com contas bancárias por banco, cartões com o % do limite usado, investimentos e a
+  evolução do patrimônio; cartões do Início com a mesma altura.
+- Base da fase 4 (ainda sem tela): tabelas de ativos, operações e cotações, regras de IR
+  dos investimentos com vigência e leitura dos extratos da B3.
+
 ## v0.4.2
 
 - Cartões pelo Open Finance: o limite usado vem do banco (limite − disponível, com as

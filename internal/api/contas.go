@@ -37,13 +37,16 @@ type conta struct {
 	OpenFinance  bool       `json:"open_finance"`
 	// cartão pelo Open Finance: limite usado segundo o banco (limite − disponível)
 	LimiteUsadoBanco *int64 `json:"limite_usado_banco_centavos"`
+	// últimos 4 dígitos do número da conta ou do cartão, pelo Open Finance
+	NumeroFinal *string `json:"numero_final"`
 }
 
 const consultaContas = `select c.id, c.entidade_id, e.nome, app_dono_conta(c.id), c.instituicao_id, i.nome, c.nome,
 	c.tipo::text, c.moeda, c.visibilidade::text, c.casa_id, c.saldo_inicial_centavos, app_saldo_conta(c.id),
 	c.fechamento, c.vencimento, c.limite_centavos, c.arquivada, app_pode_editar_entidade(c.entidade_id),
 	x.saldo_banco_centavos, x.criada_em, exists (select 1 from contas_pluggy cp where cp.conta_id = c.id),
-	(select cp.limite_centavos - cp.disponivel_centavos from contas_pluggy cp where cp.conta_id = c.id and c.tipo = 'cartao')
+	(select cp.limite_centavos - cp.disponivel_centavos from contas_pluggy cp where cp.conta_id = c.id and c.tipo = 'cartao'),
+	(select nullif(right(regexp_replace(cp.numero, '\D', '', 'g'), 4), '') from contas_pluggy cp where cp.conta_id = c.id)
 	from contas c
 	left join lateral (select saldo_banco_centavos, criada_em from conciliacoes
 		where conta_id = c.id order by data desc limit 1) x on true

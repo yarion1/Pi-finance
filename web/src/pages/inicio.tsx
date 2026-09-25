@@ -15,6 +15,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { Barra, SeletorMes, Valor } from "../components/extras";
 import { Aviso, Cartao, Esqueleto, Etiqueta, Pagina, TituloCartao, Vazio } from "../components/ui";
+import { Cartoes, ContasBancarias, EvolucaoSaldo, Investimentos } from "../components/visao";
 import { mensagemDe, obter } from "../lib/api";
 import { gastoOrcado, mesAtual, nomeMes, useCasas, useEntidades } from "../lib/dados";
 import { formatarData, formatarDataHora, formatarMoeda, formatarPercentual } from "../lib/formato";
@@ -71,7 +72,7 @@ export function Inicio() {
   const alertas = useQuery({ queryKey: ["alertas"], queryFn: () => obter<Alerta[]>("/api/alertas") });
   const indicadores = useQuery({
     queryKey: ["indicadores"],
-    queryFn: () => obter<Indicadores>("/api/indicadores"),
+    queryFn: () => obter<Indicadores>("/api/indicadores?serie=1"),
   });
   const orcamento = useQuery({
     queryKey: ["orcamento", mes, ""],
@@ -97,15 +98,15 @@ export function Inicio() {
     >
       {resumo.error ? <Aviso tipo="erro">{mensagemDe(resumo.error)}</Aviso> : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <CartaoNumero
-          titulo="Saldo nas contas"
-          carregando={resumo.isPending}
-          valor={r?.saldo_total_centavos}
-          cor="text-texto"
-        >
-          {r ? `${r.contas.length} ${r.contas.length === 1 ? "conta" : "contas"}` : null}
-        </CartaoNumero>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <ContasBancarias contas={r?.contas ?? []} carregando={resumo.isPending} />
+        <Cartoes contas={r?.contas ?? []} carregando={resumo.isPending} />
+        <Investimentos contas={r?.contas ?? []} carregando={resumo.isPending} />
+      </div>
+
+      <EvolucaoSaldo serie={indicadores.data?.patrimonio.serie ?? []} carregando={indicadores.isPending} />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <CartaoNumero
           titulo="Gasto do mês"
           carregando={resumo.isPending}
@@ -225,55 +226,7 @@ export function Inicio() {
         </Cartao>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Cartao>
-          <TituloCartao
-            acao={
-              <Link to="/contas" className="text-sm font-semibold text-primaria">
-                Contas
-              </Link>
-            }
-          >
-            Saldo por conta
-          </TituloCartao>
-          {resumo.isPending ? (
-            <Esqueleto className="h-24 w-full" />
-          ) : r?.contas.length ? (
-            <ul className="flex flex-col divide-y divide-borda">
-              {r.contas.map((c) => (
-                <li key={c.id}>
-                  <Link
-                    to={`/gastos?conta=${c.id}`}
-                    className="flex min-h-12 items-center gap-3 rounded-lg hover:bg-superficie-2"
-                  >
-                    <span className="min-w-0 flex-1 truncate text-sm">
-                      {c.nome}
-                      <span className="text-texto-2"> · {c.entidade_nome}</span>
-                    </span>
-                    {c.saldo_centavos !== null ? (
-                      <Valor
-                        centavos={c.saldo_centavos}
-                        moeda={c.moeda}
-                        saldo
-                        className="text-sm font-semibold"
-                      />
-                    ) : null}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Vazio
-              titulo="Nenhuma conta"
-              acao={
-                <Link to="/contas" className="text-sm font-semibold text-primaria">
-                  Cadastrar conta
-                </Link>
-              }
-            />
-          )}
-        </Cartao>
-
+      <div className="grid grid-cols-1 gap-4">
         <Cartao>
           <TituloCartao>Alertas</TituloCartao>
           {alertas.isPending ? (
@@ -366,7 +319,7 @@ function CartaoNumero({
   children?: ReactNode;
 }) {
   return (
-    <Cartao>
+    <Cartao className="h-full">
       <p className="text-sm text-texto-2">{titulo}</p>
       {carregando ? (
         <Esqueleto className="mt-2 h-9 w-40" />
@@ -506,7 +459,7 @@ function PainelIndicadores({
   const gasto = gastoOrcado(o?.itens ?? []);
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Link to="/patrimonio" className="block rounded-cartao hover:brightness-110">
+      <Link to="/patrimonio" className="block h-full rounded-cartao hover:brightness-110">
         <CartaoNumero
           titulo="Patrimônio líquido"
           carregando={carregando}
@@ -527,7 +480,7 @@ function PainelIndicadores({
           ) : null}
         </CartaoNumero>
       </Link>
-      <Link to="/metas" className="block rounded-cartao hover:brightness-110">
+      <Link to="/metas" className="block h-full rounded-cartao hover:brightness-110">
         <CartaoNumero
           titulo="Custo de vida (média 6 meses)"
           carregando={carregando}
@@ -549,7 +502,7 @@ function PainelIndicadores({
           )}
         </CartaoNumero>
       </Link>
-      <Link to="/agenda" className="block rounded-cartao hover:brightness-110">
+      <Link to="/agenda" className="block h-full rounded-cartao hover:brightness-110">
         <CartaoNumero
           titulo="Saldo em 30 dias"
           carregando={carregando}
@@ -570,7 +523,7 @@ function PainelIndicadores({
           ) : null}
         </CartaoNumero>
       </Link>
-      <Link to="/cartoes" className="block rounded-cartao hover:brightness-110">
+      <Link to="/cartoes" className="block h-full rounded-cartao hover:brightness-110">
         <CartaoNumero
           titulo={
             proximo ? `Comprometido em ${nomeMes(proximo.mes).split(" ")[0]?.toLowerCase()}` : "Comprometido"
