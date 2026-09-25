@@ -70,7 +70,7 @@ func conectar(t *testing.T, c *cliente, clientID, secret, item, entidade string)
 	return r.ID
 }
 
-// sincronizar força a sincronização (a trava de 30 s vale só para o botão).
+// sincronizar força a sincronização (a trava de 10 s vale só para o botão).
 func sincronizar(t *testing.T, amb *ambiente, usuario string) relatorioOF {
 	t.Helper()
 	rel, err := amb.of.Sincronizar(context.Background(), usuario)
@@ -127,7 +127,7 @@ func TestCadaUmConectaAsProprias(t *testing.T) {
 
 	// a primeira sincronização traz as contas; sem vínculo, nada é importado
 	a.exigir("POST", "/api/open-finance/sincronizar", nil, http.StatusOK)
-	a.exigir("POST", "/api/open-finance/sincronizar", nil, http.StatusTooManyRequests) // botão com trava de 30 s
+	a.exigir("POST", "/api/open-finance/sincronizar", nil, http.StatusTooManyRequests) // botão com trava de 10 s
 	var e estadoOF
 	a.exigir("GET", "/api/open-finance", nil, http.StatusOK).json(t, &e)
 	if e.Conexao == nil || e.Conexao.ClientIDFim != "1234" || len(e.Itens) != 1 || e.Itens[0].ID != item ||

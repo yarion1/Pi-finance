@@ -6,6 +6,7 @@ import {
   Landmark,
   LogOut,
   PiggyBank,
+  Plug,
   Repeat,
   Scale,
   Shield,
@@ -54,6 +55,9 @@ export function Mais() {
           <ul className="flex flex-col">
             <Item para="/contas" icone={<Landmark className="size-5" />}>
               Contas e cartões
+            </Item>
+            <Item para="/open-finance" icone={<Plug className="size-5" />}>
+              Open Finance (Meu Pluggy)
             </Item>
             <Item para="/importar" icone={<Upload className="size-5" />}>
               Importar extrato

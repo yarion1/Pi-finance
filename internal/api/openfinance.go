@@ -14,7 +14,7 @@ import (
 )
 
 // errAguarde: sincronização pedida logo depois da anterior.
-var errAguarde = errors.New("a última sincronização foi agora há pouco; aguarde um minuto")
+var errAguarde = errors.New("a última sincronização foi agora há pouco; aguarde alguns segundos")
 
 // falharOpenFinance traduz os erros da Pluggy; o resto segue para falhar.
 func falharOpenFinance(w http.ResponseWriter, r *http.Request, err error) {
@@ -241,7 +241,7 @@ func (s *Servidor) sincronizarAgora(w http.ResponseWriter, r *http.Request) {
 	u := sessaoDe(r).UsuarioID
 	err := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
 		var recente bool
-		err := tx.QueryRow(ctx, `select coalesce(ultima_sync > now() - interval '30 seconds', false) from conexoes_pluggy
+		err := tx.QueryRow(ctx, `select coalesce(ultima_sync > now() - interval '10 seconds', false) from conexoes_pluggy
 			where usuario_id = app_usuario_id()`).Scan(&recente)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return openfinance.ErrSemConexao

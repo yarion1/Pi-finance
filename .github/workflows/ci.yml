@@ -77,15 +77,17 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci && npm run build
         working-directory: web
-      - run: go build -o /tmp/financas ./cmd/financas
-      - name: migrar, subir API e worker
+      - run: go build -o /tmp/financas ./cmd/financas && go build -o /tmp/pluggy-falsa ./cmd/pluggy-falsa
+      - name: migrar, subir a Pluggy falsa, a API e o worker
         run: |
+          nohup /tmp/pluggy-falsa > /tmp/pluggy.log 2>&1 &
           head -c 32 /dev/urandom | base64 > /tmp/master.key && chmod 600 /tmp/master.key
           DATABASE_URL_MIGRACAO=postgres://postgres:postgres@127.0.0.1:5432/financas?sslmode=disable \
             APP_DB_PASSWORD=app /tmp/financas migrar
           export DATABASE_URL=postgres://financas_app:app@127.0.0.1:5432/financas?sslmode=disable
           export MASTER_KEY_FILE=/tmp/master.key PUBLIC_URL=http://localhost:3100 ENDERECO=127.0.0.1:3100
           export LIMITE_AUTH_POR_MINUTO=100  # o e2e faz vários logins seguidos do mesmo IP
+          export PLUGGY_URL=http://127.0.0.1:3200  # cmd/pluggy-falsa
           nohup /tmp/financas serve > /tmp/serve.log 2>&1 &
           nohup /tmp/financas worker > /tmp/worker.log 2>&1 &
           for i in $(seq 30); do curl -sf -o /dev/null http://127.0.0.1:3100/api/health && break; sleep 1; done
@@ -105,6 +107,7 @@ jobs:
             web/test-results
             /tmp/serve.log
             /tmp/worker.log
+            /tmp/pluggy.log
           retention-days: 7
 
   docker:

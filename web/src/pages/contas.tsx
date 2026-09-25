@@ -115,20 +115,24 @@ function ListaContas({ contas, aoEditar }: { contas: Conta[]; aoEditar: (c: Cont
           >
             {(c.instituicao ?? c.nome).slice(0, 2).toUpperCase()}
           </span>
-          <Link to={`/gastos?conta=${c.id}`} className="min-w-0 flex-1">
-            <span className="block truncate font-medium">{c.nome}</span>
-            <span className="block truncate text-xs text-texto-2">
-              {nomesTipoConta[c.tipo]}
-              {c.instituicao ? ` · ${c.instituicao}` : ""}
-              {c.entidade_nome === null && c.dono ? ` · de ${c.dono}` : ""}
-            </span>
-            <span className="mt-1 flex flex-wrap gap-1">
-              {c.visibilidade !== "privada" ? (
-                <Etiqueta cor="primaria">{nomesVisibilidade[c.visibilidade]}</Etiqueta>
-              ) : null}
-              {c.arquivada ? <Etiqueta>Arquivada</Etiqueta> : null}
-            </span>
-          </Link>
+          <div className="min-w-0 flex-1">
+            <Link to={`/gastos?conta=${c.id}`} className="block">
+              <span className="block truncate font-medium">{c.nome}</span>
+              <span className="block truncate text-xs text-texto-2">
+                {nomesTipoConta[c.tipo]}
+                {c.instituicao ? ` · ${c.instituicao}` : ""}
+                {c.entidade_nome === null && c.dono ? ` · de ${c.dono}` : ""}
+                {c.open_finance ? " · Open Finance" : ""}
+              </span>
+              <span className="mt-1 flex flex-wrap gap-1">
+                {c.visibilidade !== "privada" ? (
+                  <Etiqueta cor="primaria">{nomesVisibilidade[c.visibilidade]}</Etiqueta>
+                ) : null}
+                {c.arquivada ? <Etiqueta>Arquivada</Etiqueta> : null}
+              </span>
+            </Link>
+            <SaldoBanco conta={c} />
+          </div>
           {c.saldo_centavos !== null ? (
             <Valor centavos={c.saldo_centavos} moeda={c.moeda} saldo className="font-semibold" />
           ) : null}
@@ -140,6 +144,40 @@ function ListaContas({ contas, aoEditar }: { contas: Conta[]; aoEditar: (c: Cont
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Saldo que o banco informou (Open Finance), quando difere do calculado, com o acerto. */
+function SaldoBanco({ conta: c }: { conta: Conta }) {
+  const cliente = useQueryClient();
+  const acertar = useMutation({
+    mutationFn: () => api("POST", `/api/contas/${c.id}/acertar-saldo`),
+    onSuccess: () => cliente.invalidateQueries(),
+  });
+  if (c.saldo_banco_centavos === null || c.tipo === "cartao") return null;
+  if (c.saldo_banco_centavos === c.saldo_centavos)
+    return <span className="mt-1 block text-xs text-entrada">confere com o banco</span>;
+  return (
+    <span className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-alerta">
+      <span>
+        banco: <span className="valor num">{formatarMoeda(c.saldo_banco_centavos, c.moeda)}</span>
+      </span>
+      {c.pode_editar ? (
+        <button
+          type="button"
+          className="min-h-8 font-semibold text-primaria underline"
+          disabled={acertar.isPending}
+          title="Muda o saldo inicial para o saldo calculado bater com o do banco"
+          onClick={() =>
+            confirm(
+              "Acertar o saldo inicial para bater com o banco? Use quando o histórico importado começou no meio.",
+            ) && acertar.mutate()
+          }
+        >
+          Acertar pelo banco
+        </button>
+      ) : null}
+    </span>
   );
 }
 

@@ -65,6 +65,9 @@ export type Conta = {
   limite_centavos: number | null;
   arquivada: boolean;
   pode_editar: boolean;
+  saldo_banco_centavos: number | null;
+  saldo_banco_em: string | null;
+  open_finance: boolean;
 };
 
 export type Instituicao = { id: string; nome: string; codigo_compe: string | null };
@@ -449,4 +452,55 @@ export const nomesFrequencia: Record<Recorrencia["frequencia"], string> = {
   mensal: "Mensal",
   anual: "Anual",
   semanal: "Semanal",
+};
+
+// ---- Fase 3: Open Finance (Meu Pluggy) ----
+
+export type ContaPluggy = {
+  id: string;
+  nome: string;
+  tipo: "BANK" | "CREDIT";
+  numero: string | null;
+  moeda: string;
+  saldo_centavos: number | null;
+  limite_centavos: number | null;
+  saldo_em: string | null;
+  conta_id: string | null;
+  conta: string | null;
+  ignorada: boolean;
+  ultima_sync: string | null;
+};
+
+export type ItemPluggy = {
+  id: string;
+  item_id: string;
+  entidade_id: string;
+  entidade: string | null;
+  instituicao: string | null;
+  status: string | null;
+  atualizado_em: string | null;
+  ultima_sync: string | null;
+  ultimo_erro: string | null;
+  contas: ContaPluggy[];
+};
+
+export type OpenFinance = {
+  conexao: {
+    client_id_fim: string;
+    criada_em: string;
+    ultima_sync: string | null;
+    ultimo_erro: string | null;
+  } | null;
+  itens: ItemPluggy[];
+};
+
+export type RelatorioSincronizacao = {
+  itens: number;
+  contas: number;
+  contas_sem_vinculo: number;
+  novas: number;
+  casadas: number;
+  divergencias: number;
+  transferencias: number;
+  erros?: string[];
 };

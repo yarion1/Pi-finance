@@ -34,6 +34,11 @@ function textoAlerta(a: Alerta): { titulo: string; detalhe?: string } {
         titulo: `${desc} ficou mais cara`,
         detalhe: `de ${moeda(d.de_centavos)} para ${moeda(d.para_centavos)}`,
       };
+    case "saldo_divergente":
+      return {
+        titulo: `Saldo de ${typeof d.conta === "string" ? d.conta : "uma conta"} diferente do banco`,
+        detalhe: `banco ${moeda(d.banco_centavos)}, painel ${moeda(d.calculado_centavos)}`,
+      };
     case "assinatura_detectada":
       return { titulo: `Nova cobrança recorrente: ${desc}`, detalhe: moeda(d.valor_centavos) };
     default:

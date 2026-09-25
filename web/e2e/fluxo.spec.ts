@@ -372,4 +372,79 @@ test.describe
       }
       expect(violacoes).toEqual([]);
     });
+    test("fase 3: Open Finance conecta as próprias contas e a diferença de saldo vira alerta", async ({
+      page,
+    }) => {
+      const violacoes: string[] = [];
+      vigiarCSP(page, violacoes);
+      page.on("dialog", (d) => d.accept()); // confirmações nativas
+
+      await page.goto("/entrar");
+      await page.getByLabel("E-mail").fill("ana@teste.com");
+      await page.getByLabel("Senha").fill(senha);
+      await page.getByRole("button", { name: "Continuar" }).click();
+      await page.getByRole("button", { name: "Usar código de recuperação" }).click();
+      await page.getByLabel("Código de recuperação").fill(codigosAna[3] ?? "");
+      await page.getByRole("button", { name: "Confirmar" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Ana");
+
+      // credenciais do Meu Pluggy (a API falsa do e2e), com a senha de novo
+      await page.goto("/open-finance");
+      await expect(page.getByText("Como conectar")).toBeVisible();
+      await page.getByLabel("Client ID").fill("demo-client-id");
+      await page.getByLabel("Client Secret").fill("errado");
+      await page.getByRole("button", { name: "Conectar" }).click();
+      const reauth = page.getByRole("dialog", { name: "Confirme sua senha" });
+      await reauth.getByLabel("Senha").fill(senha);
+      await reauth.getByRole("button", { name: "Confirmar" }).click();
+      await expect(page.getByText("recusou o Client ID")).toBeVisible();
+      await page.getByLabel("Client Secret").fill("demo-client-secret");
+      await page.getByRole("button", { name: "Conectar" }).click();
+      await expect(page.getByText("Meu Pluggy conectado")).toBeVisible();
+      await expect(page.getByText("demo-client-secret")).toHaveCount(0);
+
+      // o banco e as contas dele
+      await page.getByLabel("Id do item no Meu Pluggy").fill("item-demo");
+      await page.getByRole("button", { name: "Adicionar banco" }).click();
+      const contasDoBanco = page.getByRole("list", { name: "Contas de Nubank" }).getByRole("listitem");
+      await expect(contasDoBanco).toHaveCount(2);
+
+      // a conta corrente liga à "Nubank" que já existe; o cartão vira conta nova
+      const corrente = contasDoBanco.filter({ hasText: "Conta Nubank" });
+      await corrente.getByLabel("O que fazer com esta conta").selectOption({ label: "Ligar a “Nubank”" });
+      await corrente.getByRole("button", { name: "Confirmar" }).click();
+      await expect(corrente.getByText("Ligada a")).toBeVisible();
+      const cartao = contasDoBanco.filter({ hasText: "Nubank Ultravioleta" });
+      await cartao.getByLabel("O que fazer com esta conta").selectOption("criar");
+      await cartao.getByRole("button", { name: "Confirmar" }).click();
+      await expect(cartao.getByText("Ligada a")).toBeVisible();
+
+      // sincroniza (o botão tem uma trava de alguns segundos entre uma e outra)
+      await expect(async () => {
+        await page.getByRole("button", { name: "Sincronizar agora" }).click();
+        await expect(page.getByText(/Sincronizado: 4 transações novas/)).toBeVisible({ timeout: 2000 });
+      }).toPass({ timeout: 30_000 });
+      await expect(page.getByText(/1 conta ficou com saldo diferente do banco/)).toBeVisible();
+
+      // a diferença vira alerta no início e aparece na conta, com o acerto
+      await page.goto("/");
+      await expect(page.getByText("Saldo de Nubank diferente do banco")).toBeVisible();
+      await page.goto("/contas");
+      const nubank = page
+        .getByRole("listitem")
+        .filter({ has: page.getByRole("link", { name: /^Nubank/ }) })
+        .first();
+      await expect(nubank.getByText(/· Open Finance/)).toBeVisible();
+      await expect(nubank.getByText(/banco: R\$\s2\.345,67/)).toBeVisible();
+      await nubank.getByRole("button", { name: "Acertar pelo banco" }).click();
+      await expect(nubank.getByText("confere com o banco")).toBeVisible();
+
+      await page.setViewportSize({ width: 360, height: 740 });
+      for (const rota of ["/open-finance", "/contas"]) {
+        await page.goto(rota);
+        await page.waitForLoadState("networkidle");
+        await semRolagemHorizontal(page);
+      }
+      expect(violacoes).toEqual([]);
+    });
   });

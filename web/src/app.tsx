@@ -19,6 +19,7 @@ import { Importar } from "./pages/importar";
 import { Inicio } from "./pages/inicio";
 import { Mais } from "./pages/mais";
 import { Metas } from "./pages/metas";
+import { OpenFinance } from "./pages/open-finance";
 import { Orcamento } from "./pages/orcamento";
 import { Patrimonio } from "./pages/patrimonio";
 import { Recorrencias } from "./pages/recorrencias";
@@ -108,6 +109,7 @@ export function App() {
           <Route path="/patrimonio" element={<Patrimonio />} />
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/recorrencias" element={<Recorrencias />} />
+          <Route path="/open-finance" element={<OpenFinance />} />
           <Route
             path="/investimentos"
             element={
