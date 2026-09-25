@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { arvoreCategorias, limitesMes, nomeMes, rotuloCategoria, somarMes } from "./dados";
-import type { Categoria } from "./tipos";
+import { arvoreCategorias, gastoOrcado, limitesMes, nomeMes, rotuloCategoria, somarMes } from "./dados";
+import type { Categoria, ItemOrcamento } from "./tipos";
 
 const cat = (
   id: string,
@@ -39,5 +39,15 @@ describe("dados", () => {
     expect(arvore[0]?.filhas.map((c) => c.nome)).toEqual(["Energia"]);
     expect(rotuloCategoria(todas, "e")).toBe("Moradia › Energia");
     expect(rotuloCategoria(todas, null)).toBe("Sem categoria");
+  });
+});
+
+describe("gastoOrcado", () => {
+  const item = (nome: string, pai: string | null, gasto: number) =>
+    ({ categoria_id: nome, nome, pai, gasto_centavos: gasto }) as ItemOrcamento;
+  it("não soma a filha quando a mãe também tem limite", () => {
+    expect(gastoOrcado([item("Alimentação", null, 9000), item("Mercado", "Alimentação", 5000)])).toBe(9000);
+    expect(gastoOrcado([item("Mercado", "Alimentação", 5000), item("Lazer", null, 1000)])).toBe(6000);
+    expect(gastoOrcado([])).toBe(0);
   });
 });

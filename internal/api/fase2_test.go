@@ -39,7 +39,7 @@ func novoCartao(t *testing.T, a *cliente, pf string) string {
 
 // Critério de aceite da fase 2: compra de R$ 1.200 em 12× aparece nas 12 faturas certas.
 func TestCompraParceladaNasFaturasCertas(t *testing.T) {
-	_, a, pf, _, _ := prepara(t)
+	_, a, pf, _, inter := prepara(t)
 	cartao := novoCartao(t, a, pf)
 	// 20/09 é depois do fechamento (dia 5): 1ª parcela vence em 12/10, a última em 12/09 do ano seguinte
 	a.exigir("POST", "/api/transacoes", map[string]any{"conta_id": cartao, "data": "2026-09-20", "descricao": "Geladeira",
@@ -63,6 +63,30 @@ func TestCompraParceladaNasFaturasCertas(t *testing.T) {
 	}
 	if total != 120000 {
 		t.Fatalf("soma das faturas: %d", total)
+	}
+
+	// parcelas futuras não aparecem como "últimas" no início
+	var r struct {
+		Ultimas []struct{ Data, Descricao string } `json:"ultimas"`
+	}
+	a.exigir("GET", "/api/resumo", nil, http.StatusOK).json(t, &r)
+	hoje := financeiro.Hoje().Format("2006-01-02")
+	for _, u := range r.Ultimas {
+		if u.Data > hoje {
+			t.Errorf("transação futura nas últimas: %+v", u)
+		}
+	}
+
+	// o cartão (com as parcelas futuras) e o cheque especial ficam separados no patrimônio
+	a.exigir("POST", "/api/transacoes", map[string]any{"conta_id": inter, "data": hoje, "descricao": "Tarifa",
+		"valor_centavos": -5000}, http.StatusCreated)
+	var p struct {
+		Cartoes   int64 `json:"cartoes_centavos"`
+		Negativas int64 `json:"contas_negativas_centavos"`
+	}
+	a.exigir("GET", "/api/patrimonio", nil, http.StatusOK).json(t, &p)
+	if p.Cartoes != 120000 || p.Negativas != 5000 {
+		t.Fatalf("patrimônio: cartões %d, contas negativas %d", p.Cartoes, p.Negativas)
 	}
 
 	var l listaTransacoes

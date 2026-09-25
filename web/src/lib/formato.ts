@@ -9,7 +9,7 @@ export function formatarMoeda(centavos: number, moeda = "BRL"): string {
     f = new Intl.NumberFormat("pt-BR", { style: "currency", currency: moeda });
     moedas.set(moeda, f);
   }
-  return f.format(centavos / 100);
+  return f.format((centavos || 0) / 100); // nunca "-R$ 0,00"
 }
 
 const datas = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" });
@@ -90,4 +90,39 @@ export function centavosParaTexto(c: number): string {
   return new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
     c / 100,
   );
+}
+
+/** Taxa digitada em % ("0,99") para a fração que a API guarda ("0.0099"), sem float. null se inválida. */
+export function percentualParaFracao(texto: string): string | null {
+  const s = texto.replace(/\s|%/g, "").replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(s)) return null;
+  const [inteiro = "0", fracao = ""] = s.split(".");
+  const casas = fracao.length + 2;
+  const cheio = (inteiro + fracao).padStart(casas + 1, "0");
+  const i = cheio.slice(0, cheio.length - casas).replace(/^0+(?=\d)/, "");
+  const f = cheio.slice(cheio.length - casas).replace(/0+$/, "");
+  return f ? `${i}.${f}` : i;
+}
+
+/** Fração da API ("0.0099") para % na tela ("0,99"). */
+export function fracaoParaPercentual(fracao: string): string {
+  const [inteiro = "0", resto = ""] = fracao.split(".");
+  const digitos = inteiro + resto.padEnd(2, "0");
+  const casas = Math.max(resto.length - 2, 0);
+  const cheio = digitos.padStart(casas + 1, "0");
+  const i = cheio.slice(0, cheio.length - casas).replace(/^0+(?=\d)/, "");
+  const f = cheio.slice(cheio.length - casas).replace(/0+$/, "");
+  return f ? `${i},${f}` : i;
+}
+
+/** Só a data ("2026-10-05T00:00:00Z" → "2026-10-05"), sem passar pelo fuso. */
+export const soData = (valor: string) => valor.slice(0, 10);
+
+/** Hoje em São Paulo, "AAAA-MM-DD". */
+export const hojeSP = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+
+/** Dias entre duas datas "AAAA-MM-DD" (b − a). */
+export function diasEntre(a: string, b: string): number {
+  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 }

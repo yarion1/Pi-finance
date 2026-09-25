@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { formatarData, formatarMoeda, formatarPercentual, mascararDocumento } from "./formato";
+import {
+  diasEntre,
+  formatarData,
+  formatarMoeda,
+  formatarPercentual,
+  fracaoParaPercentual,
+  hojeSP,
+  mascararDocumento,
+  percentualParaFracao,
+  soData,
+} from "./formato";
 
 const semEspacoDuro = (s: string) => s.replace(/ /g, " ");
 
@@ -43,4 +53,30 @@ describe("valores digitados", () => {
   it("ida e volta", () => {
     for (const c of [0, 5, 123456, -4500]) expect(lerCentavos(centavosParaTexto(c))).toBe(c);
   });
+});
+
+describe("taxas sem float", () => {
+  it("percentual para fração", () => {
+    expect(percentualParaFracao("0,99")).toBe("0.0099");
+    expect(percentualParaFracao("1")).toBe("0.01");
+    expect(percentualParaFracao("12,5 %")).toBe("0.125");
+    expect(percentualParaFracao("100")).toBe("1");
+    expect(percentualParaFracao("abc")).toBeNull();
+    expect(percentualParaFracao("")).toBeNull();
+  });
+  it("fração para percentual", () => {
+    expect(fracaoParaPercentual("0.00990000")).toBe("0,99");
+    expect(fracaoParaPercentual("0.01000000")).toBe("1");
+    expect(fracaoParaPercentual("0.125")).toBe("12,5");
+    expect(fracaoParaPercentual("0.5")).toBe("50");
+  });
+  it("datas", () => {
+    expect(soData("2026-10-05T00:00:00Z")).toBe("2026-10-05");
+    expect(diasEntre("2026-09-25", "2026-10-05")).toBe(10);
+    expect(hojeSP()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+it("zero negativo vira zero", () => {
+  expect(semEspacoDuro(formatarMoeda(-0))).toBe("R$ 0,00");
 });

@@ -281,4 +281,95 @@ test.describe
       }
       expect(violacoes).toEqual([]);
     });
+    test("fase 2: compra de R$ 1.200 em 12× nas 12 faturas certas e orçamento com ritmo", async ({
+      page,
+    }) => {
+      const violacoes: string[] = [];
+      vigiarCSP(page, violacoes);
+
+      await page.goto("/entrar");
+      await page.getByLabel("E-mail").fill("ana@teste.com");
+      await page.getByLabel("Senha").fill(senha);
+      await page.getByRole("button", { name: "Continuar" }).click();
+      await page.getByRole("button", { name: "Usar código de recuperação" }).click();
+      await page.getByLabel("Código de recuperação").fill(codigosAna[2] ?? "");
+      await page.getByRole("button", { name: "Confirmar" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Ana");
+      await expect(page.getByText("Patrimônio líquido")).toBeVisible();
+
+      // cartão com fechamento e vencimento
+      await page.goto("/contas");
+      await page.getByRole("button", { name: "Nova conta" }).click();
+      let d = page.getByRole("dialog");
+      await d.getByLabel("Nome").fill("Cartão Roxo");
+      await d.getByLabel("Tipo").selectOption("cartao");
+      await d.getByLabel("Limite").fill("5.000,00");
+      await d.getByLabel("Dia do fechamento").fill("5");
+      await d.getByLabel("Dia do vencimento").fill("12");
+      await d.getByRole("button", { name: "Salvar" }).click();
+      await expect(page.getByRole("link", { name: /^Cartão Roxo/ })).toBeVisible();
+
+      // compra parcelada lançada à mão
+      await page.goto("/gastos");
+      await page.getByRole("button", { name: "Nova", exact: true }).click();
+      d = page.getByRole("dialog");
+      await d.getByLabel("Valor").fill("1.200,00");
+      await d.getByLabel("Descrição").fill("Geladeira");
+      await d.getByLabel("Conta", { exact: true }).selectOption({ label: "Cartão Roxo" });
+      await d.getByLabel("Parcelas").fill("12");
+      await expect(d.getByText(/12× de cerca de R\$\s100,00/)).toBeVisible();
+      await d.getByRole("button", { name: "Lançar" }).click();
+      await expect(d).toBeHidden();
+
+      // uma parcela de R$ 100 em cada uma das 12 próximas faturas
+      await page.goto("/cartoes");
+      const faturas = page.getByRole("list", { name: "Próximas faturas" }).getByRole("listitem");
+      await expect(faturas).toHaveCount(12);
+      for (const f of await faturas.all()) await expect(f).toContainText("100,00");
+      await expect(page.getByText("Melhor dia de compra: 5")).toBeVisible();
+      await expect(page.getByText(/Geladeira \(12\/12\)/)).toBeVisible();
+
+      // orçamento: limite para Alimentação e a barra com o ritmo do mês
+      await page.goto("/orcamento");
+      await page.getByRole("button", { name: "Definir limites" }).first().click();
+      d = page.getByRole("dialog");
+      await d.getByLabel("Alimentação", { exact: true }).fill("100,00");
+      await d.getByRole("button", { name: "Salvar limites" }).click();
+      await expect(d).toBeHidden();
+      const item = page.getByRole("list", { name: "Limites por categoria" }).getByRole("listitem").first();
+      await expect(item).toContainText("Alimentação");
+      await expect(item).toContainText("91,80");
+      await expect(item.getByRole("meter")).toBeVisible();
+      await expect(item.getByText(/No ritmo|Acima do ritmo|Estourou/)).toBeVisible();
+      await expect(page.getByText(/Dia \d+ de \d+/)).toBeVisible();
+
+      // meta de reserva ligada à conta
+      await page.goto("/metas");
+      await page.getByRole("button", { name: "Nova meta" }).click();
+      d = page.getByRole("dialog");
+      await d.getByLabel("Nome").fill("Reserva");
+      await d.getByLabel("Quanto quer juntar").fill("10.000,00");
+      await d.getByLabel(/Inter/).check();
+      await d.getByRole("button", { name: "Salvar" }).click();
+      await expect(page.getByRole("heading", { name: "Reserva" })).toBeVisible();
+      await expect(page.getByRole("meter", { name: "Progresso de Reserva" })).toBeVisible();
+
+      // telas novas sem rolagem lateral no celular
+      await page.setViewportSize({ width: 360, height: 740 });
+      for (const rota of [
+        "/",
+        "/cartoes",
+        "/orcamento",
+        "/metas",
+        "/patrimonio",
+        "/agenda",
+        "/recorrencias",
+        "/mais",
+      ]) {
+        await page.goto(rota);
+        await page.waitForLoadState("networkidle");
+        await semRolagemHorizontal(page);
+      }
+      expect(violacoes).toEqual([]);
+    });
   });

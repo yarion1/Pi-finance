@@ -234,6 +234,7 @@ type Patrimonio struct {
 	Investimentos int64             `json:"investimentos_centavos"`
 	Bens          int64             `json:"bens_centavos"`
 	Cartoes       int64             `json:"cartoes_centavos"`
+	Negativas     int64             `json:"contas_negativas_centavos"` // cheque especial: conta com saldo abaixo de zero
 	Dividas       int64             `json:"dividas_centavos"`
 }
 
@@ -295,18 +296,18 @@ func CalcularPatrimonio(ctx context.Context, tx pgx.Tx, ents []string, hoje time
 			continue
 		}
 		switch {
-		case c.tipo == "cartao" || *saldo < 0:
+		case c.tipo == "cartao":
 			p.Cartoes -= min(*saldo, 0)
-			if *saldo > 0 {
-				p.Contas += *saldo
-			}
+			p.Contas += max(*saldo, 0) // crédito na fatura
+		case *saldo < 0:
+			p.Negativas -= *saldo
 		case c.tipo == "investimento":
 			p.Investimentos += *saldo
 		default:
 			p.Contas += *saldo
 		}
 	}
-	p.Hoje = PontoPatrimonio{Data: hoje.Format(formatoData), Ativos: p.Contas + p.Investimentos + p.Bens, Passivos: p.Cartoes + p.Dividas}
+	p.Hoje = PontoPatrimonio{Data: hoje.Format(formatoData), Ativos: p.Contas + p.Investimentos + p.Bens, Passivos: p.Cartoes + p.Negativas + p.Dividas}
 	p.Hoje.Liquido = p.Hoje.Ativos - p.Hoje.Passivos
 
 	fimMesPassado := core.DiaNoMes(hoje.Year(), hoje.Month(), 1).AddDate(0, 0, -1)

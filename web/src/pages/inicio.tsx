@@ -13,13 +13,35 @@ import {
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Link } from "react-router";
-import { SeletorMes, Valor } from "../components/extras";
+import { Barra, SeletorMes, Valor } from "../components/extras";
 import { Aviso, Cartao, Esqueleto, Etiqueta, Pagina, TituloCartao, Vazio } from "../components/ui";
 import { mensagemDe, obter } from "../lib/api";
-import { mesAtual, useCasas, useEntidades } from "../lib/dados";
-import { formatarDataHora, formatarMoeda, formatarPercentual } from "../lib/formato";
+import { gastoOrcado, mesAtual, nomeMes, useCasas, useEntidades } from "../lib/dados";
+import { formatarData, formatarDataHora, formatarMoeda, formatarPercentual } from "../lib/formato";
 import { useSessao } from "../lib/sessao";
-import type { Alerta, Resumo } from "../lib/tipos";
+import type { Alerta, Indicadores, Orcamento, Resumo } from "../lib/tipos";
+
+/** Texto de cada tipo de alerta. */
+function textoAlerta(a: Alerta): { titulo: string; detalhe?: string } {
+  const d = a.dados as Record<string, unknown>;
+  const desc = typeof d.descricao === "string" ? d.descricao : "";
+  const moeda = (v: unknown) => (typeof v === "number" ? formatarMoeda(Math.abs(v)) : "");
+  switch (a.tipo) {
+    case "login_aparelho_novo":
+      return { titulo: "Login em aparelho novo", detalhe: typeof d.ip === "string" ? d.ip : undefined };
+    case "recorrencia_subiu":
+      return {
+        titulo: `${desc} ficou mais cara`,
+        detalhe: `de ${moeda(d.de_centavos)} para ${moeda(d.para_centavos)}`,
+      };
+    case "assinatura_detectada":
+      return { titulo: `Nova cobrança recorrente: ${desc}`, detalhe: moeda(d.valor_centavos) };
+    default:
+      return { titulo: a.tipo };
+  }
+}
+
+const temEntidade = (l?: { papel: string }[]) => !!l?.some((e) => e.papel === "dono");
 
 function saudacao() {
   const h = Number(
@@ -42,6 +64,16 @@ export function Inicio() {
   const entidades = useEntidades();
   const casas = useCasas();
   const alertas = useQuery({ queryKey: ["alertas"], queryFn: () => obter<Alerta[]>("/api/alertas") });
+  const indicadores = useQuery({
+    queryKey: ["indicadores"],
+    queryFn: () => obter<Indicadores>("/api/indicadores"),
+  });
+  const orcamento = useQuery({
+    queryKey: ["orcamento", mes, ""],
+    queryFn: () => obter<Orcamento>(`/api/orcamento?mes=${mes}`),
+    enabled: temEntidade(entidades.data),
+  });
+  const metas = useQuery({ queryKey: ["metas"], queryFn: () => obter<{ metas: unknown[] }>("/api/metas") });
   const r = resumo.data;
   const primeiroNome = sessao?.nome?.split(" ")[0];
 
@@ -49,7 +81,8 @@ export function Inicio() {
   const temContas = (r?.contas.length ?? 0) > 0;
   const temTransacoes = (r?.ultimas.length ?? 0) > 0;
   const categoriasOk = temTransacoes && r?.sem_categoria === 0;
-  const passosFeitos = temPF && temContas && temTransacoes && categoriasOk;
+  const passosFeitos =
+    temPF && temContas && temTransacoes && categoriasOk && (metas.data?.metas.length ?? 0) > 0;
 
   return (
     <Pagina
@@ -105,6 +138,13 @@ export function Inicio() {
           </Link>
         </Aviso>
       ) : null}
+
+      <PainelIndicadores
+        i={indicadores.data}
+        carregando={indicadores.isPending}
+        orcamento={orcamento.data}
+        mes={mes}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Cartao>
@@ -235,20 +275,21 @@ export function Inicio() {
             <Esqueleto className="h-12 w-full" />
           ) : alertas.data?.length ? (
             <ul className="flex flex-col divide-y divide-borda">
-              {alertas.data.slice(0, 5).map((a) => (
-                <li key={a.id} className="flex items-start gap-3 py-2.5">
-                  <ShieldAlert className="mt-0.5 size-5 shrink-0 text-alerta" aria-hidden />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">
-                      {a.tipo === "login_aparelho_novo" ? "Login em aparelho novo" : a.tipo}
-                    </p>
-                    <p className="truncate text-xs text-texto-2">
-                      {formatarDataHora(a.criado_em)}
-                      {typeof a.dados.ip === "string" ? ` · ${a.dados.ip}` : ""}
-                    </p>
-                  </div>
-                </li>
-              ))}
+              {alertas.data.slice(0, 5).map((a) => {
+                const t = textoAlerta(a);
+                return (
+                  <li key={a.id} className="flex items-start gap-3 py-2.5">
+                    <ShieldAlert className="mt-0.5 size-5 shrink-0 text-alerta" aria-hidden />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{t.titulo}</p>
+                      <p className="truncate text-xs text-texto-2">
+                        {formatarDataHora(a.criado_em)}
+                        {t.detalhe ? ` · ${t.detalhe}` : ""}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <Vazio
@@ -275,7 +316,11 @@ export function Inicio() {
             <Passo feito={categoriasOk} para="/gastos?sem_categoria=1" icone={<Tags className="size-4" />}>
               Revisar categorias
             </Passo>
-            <Passo feito={false} icone={<Target className="size-4" />} fase="fase 2">
+            <Passo
+              feito={(metas.data?.metas.length ?? 0) > 0}
+              para="/metas"
+              icone={<Target className="size-4" />}
+            >
               Definir uma meta
             </Passo>
           </ol>
@@ -305,12 +350,14 @@ function CartaoNumero({
   valor,
   cor,
   carregando,
+  pequeno,
   children,
 }: {
   titulo: string;
   valor?: number;
   cor: string;
   carregando: boolean;
+  pequeno?: boolean;
   children?: ReactNode;
 }) {
   return (
@@ -319,7 +366,7 @@ function CartaoNumero({
       {carregando ? (
         <Esqueleto className="mt-2 h-9 w-40" />
       ) : (
-        <p className={`valor num mt-2 text-3xl font-bold tracking-tight ${cor}`}>
+        <p className={`valor num mt-2 font-bold tracking-tight ${pequeno ? "text-2xl" : "text-3xl"} ${cor}`}>
           {formatarMoeda(valor ?? 0)}
         </p>
       )}
@@ -433,5 +480,132 @@ function Passo({
         conteudo
       )}
     </li>
+  );
+}
+
+/** Os números que o painel sempre mostra (SPEC §2). */
+function PainelIndicadores({
+  i,
+  carregando,
+  orcamento: o,
+  mes,
+}: {
+  i?: Indicadores;
+  carregando: boolean;
+  orcamento?: Orcamento;
+  mes: string;
+}) {
+  const custo = i?.custo_de_vida.medio_6_meses_centavos ?? 0;
+  const proximo = i?.comprometido[1];
+  const t = o?.totais;
+  const gasto = gastoOrcado(o?.itens ?? []);
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Link to="/patrimonio" className="block rounded-cartao hover:brightness-110">
+        <CartaoNumero
+          titulo="Patrimônio líquido"
+          carregando={carregando}
+          valor={i?.patrimonio.hoje.liquido_centavos}
+          cor={(i?.patrimonio.hoje.liquido_centavos ?? 0) < 0 ? "text-saida" : "text-texto"}
+          pequeno
+        >
+          {i ? (
+            <>
+              <span
+                className={`valor num font-semibold ${i.patrimonio.variacao_mes_centavos < 0 ? "text-saida" : "text-entrada"}`}
+              >
+                {i.patrimonio.variacao_mes_centavos >= 0 ? "+" : ""}
+                {formatarMoeda(i.patrimonio.variacao_mes_centavos)}
+              </span>{" "}
+              no mês
+            </>
+          ) : null}
+        </CartaoNumero>
+      </Link>
+      <Link to="/metas" className="block rounded-cartao hover:brightness-110">
+        <CartaoNumero
+          titulo="Custo de vida (média 6 meses)"
+          carregando={carregando}
+          valor={custo}
+          cor="text-texto"
+          pequeno
+        >
+          {i?.meses_de_reserva != null ? (
+            <>
+              Reserva cobre{" "}
+              <strong className="valor num">
+                {i.meses_de_reserva.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} meses
+              </strong>
+            </>
+          ) : custo === 0 ? (
+            "Aparece depois do primeiro mês fechado com gastos."
+          ) : (
+            "Crie uma meta de reserva para ver quantos meses ela cobre."
+          )}
+        </CartaoNumero>
+      </Link>
+      <Link to="/agenda" className="block rounded-cartao hover:brightness-110">
+        <CartaoNumero
+          titulo="Saldo em 30 dias"
+          carregando={carregando}
+          valor={i?.saldo_projetado_30_dias_centavos}
+          cor={(i?.saldo_projetado_30_dias_centavos ?? 0) < 0 ? "text-saida" : "text-texto"}
+          pequeno
+        >
+          {i ? (
+            <>
+              Menor saldo:{" "}
+              <span
+                className={`valor num font-semibold ${i.menor_saldo_30_dias.saldo_centavos < 0 ? "text-saida" : ""}`}
+              >
+                {formatarMoeda(i.menor_saldo_30_dias.saldo_centavos)}
+              </span>{" "}
+              em {formatarData(i.menor_saldo_30_dias.data)}
+            </>
+          ) : null}
+        </CartaoNumero>
+      </Link>
+      <Link to="/cartoes" className="block rounded-cartao hover:brightness-110">
+        <CartaoNumero
+          titulo={
+            proximo ? `Comprometido em ${nomeMes(proximo.mes).split(" ")[0]?.toLowerCase()}` : "Comprometido"
+          }
+          carregando={carregando}
+          valor={proximo?.total_centavos}
+          cor="text-texto"
+          pequeno
+        >
+          {proximo ? "Parcelas, financiamentos e contas fixas já assumidos." : null}
+        </CartaoNumero>
+      </Link>
+      {t && t.disponivel_centavos > 0 && o ? (
+        <Link
+          to="/orcamento"
+          className="block rounded-cartao hover:brightness-110 sm:col-span-2 lg:col-span-4"
+        >
+          <Cartao>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-sm text-texto-2">Categorias orçadas em {nomeMes(mes).toLowerCase()}</p>
+              <p className="valor num text-sm">
+                <strong>{formatarMoeda(gasto)}</strong>
+                <span className="text-texto-2"> / {formatarMoeda(t.disponivel_centavos)}</span>
+              </p>
+            </div>
+            <Barra
+              fracao={gasto / t.disponivel_centavos}
+              marca={o.dia / o.dias_no_mes}
+              cor={
+                gasto > t.disponivel_centavos
+                  ? "var(--saida)"
+                  : gasto > t.ritmo_ideal_centavos
+                    ? "var(--alerta)"
+                    : "var(--entrada)"
+              }
+              rotulo="Gasto do mês em relação ao orçamento"
+            />
+          </Cartao>
+        </Link>
+      ) : null}
+    </div>
   );
 }

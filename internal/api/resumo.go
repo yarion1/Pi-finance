@@ -57,6 +57,9 @@ var fusoSP, _ = time.LoadLocation("America/Sao_Paulo")
 // resumo: "como estou este mês?" — só das entidades de que o usuário é dono (ou de
 // uma entidade escolhida). Transferências entre contas não entram como gasto nem
 // receita; estornos abatem o gasto.
+// hojeSQL: a data de hoje no fuso de São Paulo, dentro do banco.
+const hojeSQL = "(now() at time zone 'America/Sao_Paulo')::date"
+
 func (s *Servidor) resumo(w http.ResponseWriter, r *http.Request) {
 	agora := time.Now().In(fusoSP)
 	mes := r.URL.Query().Get("mes")
@@ -128,10 +131,11 @@ func (s *Servidor) resumo(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := tx.QueryRow(ctx, `select count(*) from transacoes t where t.categoria_id is null
-			and t.tipo in ('gasto', 'receita') and t.entidade_id in `+ents, args...).Scan(&res.SemCategoria); err != nil {
+			and t.tipo in ('gasto', 'receita') and t.data <= `+hojeSQL+` and t.entidade_id in `+ents, args...).Scan(&res.SemCategoria); err != nil {
 			return err
 		}
-		linhas, err = tx.Query(ctx, consultaTransacoes+" where t.entidade_id in "+ents+
+		// parcelas futuras já lançadas não são "últimas"
+		linhas, err = tx.Query(ctx, consultaTransacoes+" where t.entidade_id in "+ents+" and t.data <= "+hojeSQL+
 			" order by t.data desc, t.criada_em desc limit 8", args...)
 		if err != nil {
 			return err

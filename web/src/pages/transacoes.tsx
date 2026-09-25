@@ -6,7 +6,7 @@ import { Dialogo, SeletorCategoria, SeletorMes, Valor } from "../components/extr
 import { Aviso, Botao, Campo, CarregandoLista, Cartao, Pagina, Selecao, Vazio } from "../components/ui";
 import { api, mensagemDe, obter } from "../lib/api";
 import { limitesMes, mesAtual, useCategorias, useContas } from "../lib/dados";
-import { formatarData, lerCentavos } from "../lib/formato";
+import { formatarData, formatarMoeda, lerCentavos } from "../lib/formato";
 import type { Transacao } from "../lib/tipos";
 
 type Pagina_ = { itens: Transacao[]; total: number };
@@ -16,8 +16,8 @@ function useInvalidarTransacoes() {
   const cliente = useQueryClient();
   return () =>
     Promise.all(
-      ["transacoes", "resumo", "contas", "importacoes"].map((k) =>
-        cliente.invalidateQueries({ queryKey: [k] }),
+      ["transacoes", "resumo", "contas", "importacoes", "faturas", "indicadores", "agenda", "orcamento"].map(
+        (k) => cliente.invalidateQueries({ queryKey: [k] }),
       ),
     );
 }
@@ -519,7 +519,9 @@ function NovaTransacao({ contaInicial, aoFechar }: { contaInicial: string; aoFec
   const [valor, setValor] = useState("");
   const [saida, setSaida] = useState(true);
   const [categoria, setCategoria] = useState("");
+  const [parcelas, setParcelas] = useState("1");
   const conta = editaveis.find((c) => c.id === contaId);
+  const parcelavel = conta?.tipo === "cartao" && saida;
   const criar = useMutation({
     mutationFn: () => {
       const c = lerCentavos(valor);
@@ -530,6 +532,7 @@ function NovaTransacao({ contaInicial, aoFechar }: { contaInicial: string; aoFec
         descricao,
         valor_centavos: saida ? -Math.abs(c) : Math.abs(c),
         categoria_id: categoria || null,
+        parcelas: parcelavel && Number(parcelas) > 1 ? Number(parcelas) : undefined,
       });
     },
     onSuccess: async () => {
@@ -602,6 +605,21 @@ function NovaTransacao({ contaInicial, aoFechar }: { contaInicial: string; aoFec
         </Selecao>
         <Campo rotulo="Data" type="date" value={data} onChange={(e) => setData(e.target.value)} required />
       </div>
+      {parcelavel ? (
+        <Campo
+          rotulo="Parcelas"
+          type="number"
+          min={1}
+          max={72}
+          value={parcelas}
+          onChange={(e) => setParcelas(e.target.value)}
+          dica={
+            Number(parcelas) > 1 && lerCentavos(valor)
+              ? `${parcelas}× de cerca de ${formatarMoeda(Math.floor(Math.abs(lerCentavos(valor) ?? 0) / Number(parcelas)))}, uma em cada fatura.`
+              : "O valor é o total da compra."
+          }
+        />
+      ) : null}
       <SeletorCategoria
         categorias={categorias.data ?? []}
         entidadeId={conta?.entidade_id}

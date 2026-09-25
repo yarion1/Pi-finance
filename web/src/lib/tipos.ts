@@ -204,3 +204,249 @@ export const nomesPapel: Record<string, string> = {
   leitor: "Leitor",
   contador: "Contador",
 };
+
+// ---- Fase 2: planejamento ----
+
+export type Fatura = {
+  vencimento: string;
+  fechamento: string;
+  status: "aberta" | "futura" | "fechada" | "anterior";
+  compras_centavos: number;
+  projetado_centavos: number;
+  pagamentos_centavos: number;
+  transacoes: number;
+  paga: boolean;
+};
+
+export type ParcelaFutura = {
+  conta_id: string;
+  conta: string;
+  descricao: string;
+  parcela: number;
+  total: number;
+  valor_centavos: number;
+  mes: string;
+  data: string;
+  fatura_em?: string;
+  projetada: boolean;
+};
+
+export type RespostaFaturas = { faturas: Fatura[]; parcelas_futuras: ParcelaFutura[] };
+
+export type PontoPatrimonio = {
+  data: string;
+  ativos_centavos: number;
+  passivos_centavos: number;
+  liquido_centavos: number;
+};
+
+export type Patrimonio = {
+  hoje: PontoPatrimonio;
+  variacao_mes_centavos: number;
+  variacao_ano_centavos: number;
+  serie: PontoPatrimonio[] | null;
+  contas_centavos: number;
+  investimentos_centavos: number;
+  bens_centavos: number;
+  cartoes_centavos: number;
+  contas_negativas_centavos: number;
+  dividas_centavos: number;
+};
+
+export type CustoDeVida = {
+  medio_3_meses_centavos: number;
+  medio_6_meses_centavos: number;
+  medio_12_meses_centavos: number;
+};
+
+export type MesComprometido = {
+  mes: string;
+  parcelas_centavos: number;
+  dividas_centavos: number;
+  recorrentes_centavos: number;
+  compromissos_centavos: number;
+  total_centavos: number;
+};
+
+export type SaldoDia = { data: string; saldo_centavos: number };
+
+export type Indicadores = {
+  patrimonio: Patrimonio;
+  custo_de_vida: CustoDeVida;
+  comprometido: MesComprometido[];
+  saldo_projetado_30_dias_centavos: number;
+  menor_saldo_30_dias: SaldoDia;
+  reserva_centavos: number;
+  meses_de_reserva: number | null;
+};
+
+export type ItemAgenda = {
+  data: string;
+  descricao: string;
+  valor_centavos: number;
+  origem: "recorrencia" | "fatura" | "divida" | "compromisso" | "lancamento";
+  id: string;
+  conta_id: string | null;
+  conta: string | null;
+  pago: boolean;
+  atrasado: boolean;
+  no_cartao: boolean;
+};
+
+export type Agenda = {
+  itens: ItemAgenda[] | null;
+  saldo_inicial_centavos: number;
+  saldos: SaldoDia[] | null;
+  saldo_final_centavos: number;
+  menor_saldo: SaldoDia;
+};
+
+export type Recorrencia = {
+  id: string;
+  entidade_id: string;
+  conta_id: string | null;
+  conta: string | null;
+  conta_cartao: boolean;
+  descricao: string;
+  categoria_id: string | null;
+  categoria: string | null;
+  valor_centavos: number;
+  valor_anterior_centavos: number | null;
+  frequencia: "mensal" | "anual" | "semanal";
+  dia: number;
+  ultima_data: string | null;
+  proxima: string;
+  atrasada: boolean;
+  tipo: "assinatura" | "conta_fixa" | "receita";
+  ativa: boolean;
+  detectada: boolean;
+  subiu: boolean;
+};
+
+export type ItemOrcamento = {
+  categoria_id: string;
+  nome: string;
+  pai: string | null;
+  cor: string | null;
+  limite_centavos: number;
+  sobra_anterior_centavos: number;
+  disponivel_centavos: number;
+  gasto_centavos: number;
+  ritmo_ideal_centavos: number;
+  situacao: "ok" | "acima_do_ritmo" | "estourado" | "";
+  media_3_meses_centavos: number;
+};
+
+export type Grupo503020 = { alvo_centavos: number; valor_centavos: number };
+
+export type Orcamento = {
+  entidade_id: string;
+  mes: string;
+  modo: "categoria" | "envelopes" | "50_30_20";
+  grupos: Record<string, "necessidades" | "desejos"> | null;
+  dias_no_mes: number;
+  dia: number;
+  itens: ItemOrcamento[] | null;
+  sem_orcamento: ItemOrcamento[] | null;
+  totais: {
+    limite_centavos: number;
+    disponivel_centavos: number;
+    gasto_centavos: number;
+    ritmo_ideal_centavos: number;
+  };
+  regra_50_30_20: {
+    renda_centavos: number;
+    necessidades: Grupo503020;
+    desejos: Grupo503020;
+    poupanca: Grupo503020;
+  } | null;
+};
+
+export type Meta = {
+  id: string;
+  entidade_id: string;
+  nome: string;
+  tipo: "reserva" | "viagem" | "compra" | "aposentadoria" | "outra";
+  alvo_centavos: number;
+  data_alvo: string | null;
+  contas_vinculadas: string[];
+  valor_manual_centavos: number;
+  aporte_planejado_centavos: number | null;
+  atual_centavos: number;
+  percentual: number;
+  aporte_necessario_centavos: number;
+  meses_restantes: number;
+  data_prevista: string | null;
+  meses_de_custo_de_vida: number | null;
+  concluida: boolean;
+};
+
+export type Bem = {
+  id: string;
+  entidade_id: string;
+  nome: string;
+  tipo: "imovel" | "veiculo" | "outro";
+  valor_centavos: number;
+  atualizado_em: string;
+  fipe_codigo: string | null;
+  notas: string | null;
+};
+
+export type ParcelaDivida = {
+  numero: number;
+  vencimento: string;
+  prestacao_centavos: number;
+  juros_centavos: number;
+  amortizacao_centavos: number;
+  saldo_devedor_centavos: number;
+};
+
+export type Divida = {
+  id: string;
+  entidade_id: string;
+  nome: string;
+  tipo: "financiamento" | "emprestimo" | "outro";
+  sistema: "price" | "sac";
+  principal_centavos: number;
+  taxa_mensal: string;
+  prazo_meses: number;
+  primeiro_vencimento: string;
+  conta_id: string | null;
+  bem_id: string | null;
+  saldo_devedor_centavos: number;
+  proxima_parcela: ParcelaDivida | null;
+  parcelas_restantes: number;
+};
+
+export type RespostaPatrimonio = Patrimonio & { bens: Bem[]; dividas: Divida[] };
+
+export type Compromisso = {
+  id: string;
+  entidade_id: string;
+  conta_id: string | null;
+  descricao: string;
+  valor_centavos: number;
+  vencimento: string;
+  categoria_id: string | null;
+  pago_em: string | null;
+};
+
+export const nomesTipoMeta: Record<Meta["tipo"], string> = {
+  reserva: "Reserva de emergência",
+  viagem: "Viagem",
+  compra: "Compra",
+  aposentadoria: "Aposentadoria",
+  outra: "Outra",
+};
+
+export const nomesTipoRecorrencia: Record<Recorrencia["tipo"], string> = {
+  assinatura: "Assinatura",
+  conta_fixa: "Conta fixa",
+  receita: "Receita",
+};
+
+export const nomesFrequencia: Record<Recorrencia["frequencia"], string> = {
+  mensal: "Mensal",
+  anual: "Anual",
+  semanal: "Semanal",
+};

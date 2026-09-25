@@ -10,7 +10,7 @@ export class ErroApi extends Error {
   }
 }
 
-type Metodo = "GET" | "POST" | "PATCH" | "DELETE";
+type Metodo = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export async function api<T = unknown>(metodo: Metodo, caminho: string, corpo?: unknown): Promise<T> {
   let resposta: Response;

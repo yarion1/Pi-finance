@@ -1,4 +1,19 @@
-import { Building2, ChevronRight, Landmark, LogOut, Shield, Tags, Upload, Users } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  ChevronRight,
+  CreditCard,
+  Landmark,
+  LogOut,
+  PiggyBank,
+  Repeat,
+  Scale,
+  Shield,
+  Tags,
+  Target,
+  Upload,
+  Users,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { useSair } from "../components/shell";
@@ -10,6 +25,30 @@ export function Mais() {
   const sair = useSair();
   return (
     <Pagina titulo="Mais" subtitulo={sessao?.nome}>
+      <Cartao className="p-2 sm:p-2">
+        <nav aria-label="Planejamento">
+          <ul className="flex flex-col">
+            <Item para="/orcamento" icone={<PiggyBank className="size-5" />}>
+              Orçamento
+            </Item>
+            <Item para="/agenda" icone={<CalendarDays className="size-5" />}>
+              Agenda e saldo projetado
+            </Item>
+            <Item para="/cartoes" icone={<CreditCard className="size-5" />}>
+              Cartões e parcelas
+            </Item>
+            <Item para="/recorrencias" icone={<Repeat className="size-5" />}>
+              Assinaturas e recorrências
+            </Item>
+            <Item para="/metas" icone={<Target className="size-5" />}>
+              Metas
+            </Item>
+            <Item para="/patrimonio" icone={<Scale className="size-5" />}>
+              Patrimônio, bens e dívidas
+            </Item>
+          </ul>
+        </nav>
+      </Cartao>
       <Cartao className="p-2 sm:p-2">
         <nav aria-label="Mais opções">
           <ul className="flex flex-col">

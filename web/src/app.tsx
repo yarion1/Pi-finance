@@ -4,7 +4,9 @@ import { Shell } from "./components/shell";
 import { Aviso, Esqueleto } from "./components/ui";
 import { mensagemDe } from "./lib/api";
 import { useSessao } from "./lib/sessao";
+import { Agenda } from "./pages/agenda";
 import { Cadastro } from "./pages/cadastro";
+import { Cartoes } from "./pages/cartoes";
 import { Casas, DetalheCasa } from "./pages/casa";
 import { Categorias } from "./pages/categorias";
 import { Configurar2FA } from "./pages/configurar-2fa";
@@ -16,6 +18,10 @@ import { Entrar } from "./pages/entrar";
 import { Importar } from "./pages/importar";
 import { Inicio } from "./pages/inicio";
 import { Mais } from "./pages/mais";
+import { Metas } from "./pages/metas";
+import { Orcamento } from "./pages/orcamento";
+import { Patrimonio } from "./pages/patrimonio";
+import { Recorrencias } from "./pages/recorrencias";
 import { Seguranca } from "./pages/seguranca";
 import { Transacoes } from "./pages/transacoes";
 import { Verificar } from "./pages/verificar";
@@ -96,6 +102,12 @@ export function App() {
           <Route path="/contas" element={<Contas />} />
           <Route path="/importar" element={<Importar />} />
           <Route path="/categorias" element={<Categorias />} />
+          <Route path="/cartoes" element={<Cartoes />} />
+          <Route path="/orcamento" element={<Orcamento />} />
+          <Route path="/metas" element={<Metas />} />
+          <Route path="/patrimonio" element={<Patrimonio />} />
+          <Route path="/agenda" element={<Agenda />} />
+          <Route path="/recorrencias" element={<Recorrencias />} />
           <Route
             path="/investimentos"
             element={

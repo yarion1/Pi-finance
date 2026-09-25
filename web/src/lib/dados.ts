@@ -1,7 +1,7 @@
 // Consultas compartilhadas entre telas (mesma chave = mesmo cache).
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { obter } from "./api";
-import type { Casa, Categoria, Conta, Entidade, Instituicao } from "./tipos";
+import type { Casa, Categoria, Conta, Entidade, Instituicao, ItemOrcamento } from "./tipos";
 
 export const useEntidades = () =>
   useQuery({ queryKey: ["entidades"], queryFn: () => obter<Entidade[]>("/api/entidades") });
@@ -78,4 +78,38 @@ export function lerBase64(arquivo: File): Promise<string> {
     leitor.onerror = () => erro(leitor.error);
     leitor.readAsDataURL(arquivo);
   });
+}
+
+/** Entidades em que o usuário pode lançar (dono ou membro); PF primeiro. */
+export function useEditaveis() {
+  const entidades = useEntidades();
+  const lista = (entidades.data ?? [])
+    .filter((e) => e.papel === "dono" || e.papel === "membro")
+    .sort((a, b) => (a.tipo === b.tipo ? 0 : a.tipo === "PF" ? -1 : 1));
+  return { ...entidades, lista };
+}
+
+/** Tudo que muda quando um planejamento muda (agenda, indicadores, patrimônio...). */
+export const chavesPlanejamento = [
+  "indicadores",
+  "agenda",
+  "recorrencias",
+  "orcamento",
+  "metas",
+  "patrimonio",
+  "compromissos",
+  "faturas",
+  "contas",
+  "resumo",
+];
+
+export function useInvalidarPlanejamento() {
+  const cliente = useQueryClient();
+  return () => Promise.all(chavesPlanejamento.map((k) => cliente.invalidateQueries({ queryKey: [k] })));
+}
+
+/** Gasto que conta contra o orçado: só categorias com limite, sem somar mãe e filha duas vezes. */
+export function gastoOrcado(itens: ItemOrcamento[]): number {
+  const maes = new Set(itens.filter((i) => !i.pai).map((i) => i.nome));
+  return itens.filter((i) => !i.pai || !maes.has(i.pai)).reduce((s, i) => s + i.gasto_centavos, 0);
 }

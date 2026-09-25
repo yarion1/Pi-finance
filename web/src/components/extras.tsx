@@ -158,3 +158,77 @@ export function Dialogo({
     </dialog>
   );
 }
+
+/** Barra de progresso; `marca` (0–1) desenha o ritmo ideal do mês. */
+export function Barra({
+  fracao,
+  marca,
+  cor = "var(--primaria)",
+  rotulo,
+}: {
+  fracao: number;
+  marca?: number;
+  cor?: string;
+  rotulo: string;
+}) {
+  const p = Math.min(Math.max(fracao, 0), 1);
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: <meter> nativo não aceita o marcador do ritmo
+    <span
+      role="meter"
+      aria-label={rotulo}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(fracao * 100)}
+      className="relative mt-1.5 block h-2.5 rounded-full bg-superficie-2"
+    >
+      <span className="block h-2.5 rounded-full" style={{ width: `${p * 100}%`, backgroundColor: cor }} />
+      {marca !== undefined && marca > 0 && marca < 1 ? (
+        <span
+          className="absolute -top-1 block h-4.5 w-0.5 rounded bg-texto"
+          style={{ left: `${marca * 100}%` }}
+          title="Ritmo ideal para hoje"
+          aria-hidden
+        />
+      ) : null}
+    </span>
+  );
+}
+
+/** <select> de entidade quando há mais de uma editável. */
+export function SeletorEntidade({
+  entidades,
+  valor,
+  onChange,
+}: {
+  entidades: { id: string; nome: string }[];
+  valor: string;
+  onChange: (id: string) => void;
+}) {
+  if (entidades.length <= 1) return null;
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-sm font-medium">De quem é</span>
+      <select
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        className="min-h-11 rounded-xl border border-borda bg-superficie-2 px-3 text-base text-texto focus:border-primaria focus:outline-none"
+      >
+        {entidades.map((e) => (
+          <option key={e.id} value={e.id}>
+            {e.nome}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/** Aviso fixo das telas que simulam (SPEC: não substitui contador nem assessor). */
+export function AvisoSimulacao() {
+  return (
+    <p className="text-center text-xs text-texto-2">
+      O painel organiza e simula; não substitui contador nem assessor de investimentos.
+    </p>
+  );
+}
