@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.4.4
+
+- Inclui tudo da v0.4.3, que não chegou ao Pi (o build parou no DNS antigo do Tailscale).
+- **Gastos como fluxo de caixa**: despesas do mês por categoria, despesas futuras por mês
+  (parcelas, financiamentos e contas fixas), entradas e saídas ao lado do mês, alternar
+  Todos/Entradas/Saídas e a lista agrupada por dia; linhas mais compactas no celular.
+- **Investimentos**: tela nova com a carteira por classe e cada ativo com instituição,
+  vencimento e rendimento. Os investimentos do Open Finance (CDB, LCI, Tesouro, fundos)
+  entram sozinhos com o saldo do banco; resgatados ficam como encerrados; LCI e LCA
+  marcadas como isentas. A carteira entra no patrimônio e no bloco de Investimentos do
+  Início.
+
 ## v0.4.3
 
 - **Categoria do banco**: as transações do Open Finance usam a categoria que o banco dá
