@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4.6 — fase 4: B3, ativos e IR mensal
+
+- **Importar da B3**: em Investimentos, o extrato de negociação (compras e vendas) e o de
+  movimentação (proventos, desdobros, bonificações) da Área do Investidor, em .xlsx ou
+  .csv, com prévia. Os ativos que faltam são criados; importar de novo não duplica.
+- **Ativos à mão**: ações, FIIs, Tesouro, CDB (indexador, taxa, vencimento, isenção),
+  cripto; cada ativo abre com quantidade, preço médio, custo, proventos e a lista de
+  operações, para lançar compra, venda, provento, juros ou amortização e trocar a classe.
+  Venda maior que a posição é recusada.
+- **IR mensal**: ganho de capital de ações, ETFs, BDRs e FIIs mês a mês, com a isenção de
+  R$ 20 mil em ações, compensação de prejuízo por grupo, IR retido abatido, DARF abaixo de
+  R$ 10 somado ao mês seguinte e o vencimento (código 6015), com as regras vigentes.
+
 ## v0.4.5
 
 - **Convidar amigos**: em Mais › Convidar pessoas sai um link de uso único (48 h) para

@@ -1,7 +1,9 @@
-import { Briefcase, ChevronDown, LineChart, Plug, TrendingUp } from "lucide-react";
+import { Briefcase, ChevronDown, FileUp, LineChart, Plus, Receipt, TrendingUp } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { AvisoSimulacao, Barra } from "../components/extras";
-import { Aviso, CarregandoLista, Etiqueta, Pagina, Vazio } from "../components/ui";
+import { DialogoAtivo, DialogoB3, DialogoNovoAtivo } from "../components/investimentos";
+import { Aviso, Botao, CarregandoLista, Etiqueta, Pagina, Vazio } from "../components/ui";
 import { Bloco } from "../components/visao";
 import { mensagemDe } from "../lib/api";
 import { useCarteira } from "../lib/dados";
@@ -16,9 +18,35 @@ export function Investimentos() {
   const porClasse = new Map<string, AtivoCarteira[]>();
   for (const a of ativos) porClasse.set(a.classe, [...(porClasse.get(a.classe) ?? []), a]);
   const rendimento = (c?.total_centavos ?? 0) - (c?.custo_centavos ?? 0);
+  const [dialogo, setDialogo] = useState<"b3" | "novo" | null>(null);
+  const [aberto, setAberto] = useState<AtivoCarteira | null>(null);
+  // o ativo aberto acompanha a carteira recarregada depois de cada operação
+  const ativoAberto = aberto ? (c?.ativos.find((a) => a.id === aberto.id) ?? aberto) : null;
 
   return (
-    <Pagina titulo="Investimentos" subtitulo="Minha carteira está indo bem?">
+    <Pagina
+      titulo="Investimentos"
+      subtitulo="Minha carteira está indo bem?"
+      acao={
+        <div className="flex flex-wrap gap-2">
+          <Botao variante="secundario" onClick={() => setDialogo("b3")}>
+            <FileUp className="size-4" aria-hidden /> Importar da B3
+          </Botao>
+          <Botao variante="secundario" onClick={() => setDialogo("novo")}>
+            <Plus className="size-4" aria-hidden /> Novo ativo
+          </Botao>
+          <Link
+            to="/investimentos/ir"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-borda bg-superficie-2 px-4 text-sm font-semibold hover:border-texto-2"
+          >
+            <Receipt className="size-4" aria-hidden /> IR mensal
+          </Link>
+        </div>
+      }
+    >
+      <DialogoB3 aberto={dialogo === "b3"} aoFechar={() => setDialogo(null)} />
+      <DialogoNovoAtivo aberto={dialogo === "novo"} aoFechar={() => setDialogo(null)} />
+      <DialogoAtivo ativo={ativoAberto} aoFechar={() => setAberto(null)} />
       {dados.error ? <Aviso tipo="erro">{mensagemDe(dados.error)}</Aviso> : null}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -73,8 +101,11 @@ export function Investimentos() {
           }
         >
           <p className="p-5 text-sm text-texto-2">
-            Rentabilidade contra CDI, IPCA e Ibovespa, proventos e o IR mensal chegam com as cotações e a
-            importação da B3. Os investimentos do Open Finance usam o valor que o banco informa.
+            {c?.ativos.some((a) => a.proventos_centavos > 0)
+              ? `Proventos recebidos: ${formatarMoeda(c.ativos.reduce((s, a) => s + a.proventos_centavos, 0))}. `
+              : ""}
+            Os investimentos do Open Finance usam o valor que o banco informa; os da B3 e os lançados à mão, a
+            última cotação (sem cotação, o custo).
           </p>
         </Bloco>
       </div>
@@ -97,9 +128,9 @@ export function Investimentos() {
           </div>
         ) : ativos.length === 0 ? (
           <Vazio
-            icone={<Plug className="size-8" />}
+            icone={<Briefcase className="size-8" />}
             titulo="Nenhum investimento ainda"
-            texto="Conecte o banco pelo Open Finance: os investimentos (CDB, Tesouro, fundos) entram sozinhos."
+            texto="Conecte o banco pelo Open Finance (CDB, Tesouro e fundos entram sozinhos), importe o extrato da B3 ou lance um ativo à mão."
             acao={
               <Link to="/open-finance" className="text-sm font-semibold text-primaria">
                 Abrir Open Finance
@@ -117,7 +148,7 @@ export function Investimentos() {
               </div>
               <ul className="divide-y divide-borda">
                 {lista.map((a) => (
-                  <LinhaAtivo key={a.id} a={a} />
+                  <LinhaAtivo key={a.id} a={a} abrir={setAberto} />
                 ))}
               </ul>
             </div>
@@ -130,7 +161,7 @@ export function Investimentos() {
             </summary>
             <ul className="divide-y divide-borda">
               {encerrados.map((a) => (
-                <LinhaAtivo key={a.id} a={a} />
+                <LinhaAtivo key={a.id} a={a} abrir={setAberto} />
               ))}
             </ul>
           </details>
@@ -141,30 +172,44 @@ export function Investimentos() {
   );
 }
 
-function LinhaAtivo({ a }: { a: AtivoCarteira }) {
-  const detalhe = [a.instituicao, a.subtipo, a.vencimento ? `vence ${formatarData(a.vencimento)}` : null]
+function LinhaAtivo({ a, abrir }: { a: AtivoCarteira; abrir: (a: AtivoCarteira) => void }) {
+  const detalhe = [
+    a.origem === "pluggy" ? null : a.codigo !== a.nome ? a.codigo : null,
+    a.instituicao,
+    a.subtipo,
+    a.origem !== "pluggy" && a.quantidade !== "0" ? `${a.quantidade.replace(".", ",")} un.` : null,
+    a.vencimento ? `vence ${formatarData(a.vencimento)}` : null,
+  ]
     .filter(Boolean)
     .join(" · ");
   return (
-    <li className="flex min-h-16 items-center gap-3 px-5 py-2.5">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-superficie-2 text-texto-2">
-        <TrendingUp className="size-4" aria-hidden />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium">{a.nome}</span>
-        <span className="flex flex-wrap items-center gap-1 text-xs text-texto-2">
-          <span className="truncate">{detalhe}</span>
-          {a.isento_ir ? <Etiqueta cor="entrada">isento de IR</Etiqueta> : null}
+    <li>
+      <button
+        type="button"
+        onClick={() => abrir(a)}
+        className="flex min-h-16 w-full items-center gap-3 px-5 py-2.5 text-left hover:bg-superficie-2"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-superficie-2 text-texto-2">
+          <TrendingUp className="size-4" aria-hidden />
         </span>
-      </span>
-      <span className="shrink-0 text-right">
-        <span className="valor num block font-semibold text-entrada">{formatarMoeda(a.valor_centavos)}</span>
-        <span className="valor num block text-xs text-texto-2">
-          {a.custo_centavos > 0 && a.valor_centavos > 0
-            ? `${a.rendimento_centavos >= 0 ? "+" : ""}${formatarPercentual(a.rendimento_centavos / a.custo_centavos)}`
-            : formatarPercentual(a.percentual)}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{a.nome}</span>
+          <span className="flex flex-wrap items-center gap-1 text-xs text-texto-2">
+            <span className="truncate">{detalhe}</span>
+            {a.isento_ir ? <Etiqueta cor="entrada">isento de IR</Etiqueta> : null}
+          </span>
         </span>
-      </span>
+        <span className="shrink-0 text-right">
+          <span className="valor num block font-semibold text-entrada">
+            {formatarMoeda(a.valor_centavos)}
+          </span>
+          <span className="valor num block text-xs text-texto-2">
+            {a.custo_centavos > 0 && a.valor_centavos > 0
+              ? `${a.rendimento_centavos >= 0 ? "+" : ""}${formatarPercentual(a.rendimento_centavos / a.custo_centavos)}`
+              : formatarPercentual(a.percentual)}
+          </span>
+        </span>
+      </button>
     </li>
   );
 }

@@ -19,6 +19,7 @@ import { Entrar } from "./pages/entrar";
 import { Importar } from "./pages/importar";
 import { Inicio } from "./pages/inicio";
 import { Investimentos } from "./pages/investimentos";
+import { InvestimentosIR } from "./pages/investimentos-ir";
 import { Mais } from "./pages/mais";
 import { Metas } from "./pages/metas";
 import { OpenFinance } from "./pages/open-finance";
@@ -114,6 +115,7 @@ export function App() {
           <Route path="/open-finance" element={<OpenFinance />} />
           <Route path="/convidar" element={<Convidar />} />
           <Route path="/investimentos" element={<Investimentos />} />
+          <Route path="/investimentos/ir" element={<InvestimentosIR />} />
           <Route
             path="/cnpj"
             element={<EmBreve titulo="CNPJ" pergunta="Como está a empresa?" fase="fase 5" />}

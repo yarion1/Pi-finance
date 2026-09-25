@@ -167,6 +167,14 @@ func (s *Servidor) Handler() http.Handler {
 
 	// Investimentos (fase 4)
 	mux.Handle("GET /api/investimentos", s.sessaoCompleta(s.carteira))
+	mux.Handle("GET /api/investimentos/ir", s.sessaoCompleta(s.irInvestimentos))
+	mux.Handle("POST /api/investimentos/b3", s.sessaoCompleta(s.importarB3))
+	mux.Handle("POST /api/investimentos/ativos", s.sessaoCompleta(s.criarAtivo))
+	mux.Handle("PATCH /api/investimentos/ativos/{id}", s.sessaoCompleta(s.editarAtivo))
+	mux.Handle("DELETE /api/investimentos/ativos/{id}", s.sessaoCompleta(s.apagarAtivo))
+	mux.Handle("GET /api/investimentos/ativos/{id}/operacoes", s.sessaoCompleta(s.listarOperacoes))
+	mux.Handle("POST /api/investimentos/ativos/{id}/operacoes", s.sessaoCompleta(s.criarOperacao))
+	mux.Handle("DELETE /api/investimentos/ativos/{id}/operacoes/{operacao}", s.sessaoCompleta(s.apagarOperacao))
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		erroJSON(w, http.StatusNotFound, "nao_encontrado", "rota inexistente")
@@ -196,6 +204,7 @@ var RotasLeitura = []string{
 	"/api/compromissos", "/api/compromissos?entidade_id={entidade}",
 	"/api/open-finance", "/api/convites-conta",
 	"/api/investimentos", "/api/investimentos?entidade_id={entidade}",
+	"/api/investimentos/ir", "/api/investimentos/ir?entidade_id={entidade}", "/api/investimentos/ativos/{ativo}/operacoes",
 }
 
 // ---------------------------------------------------------------------------

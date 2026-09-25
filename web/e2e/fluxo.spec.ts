@@ -445,8 +445,54 @@ test.describe
       await expect(page.getByText("1 encerrados (resgatados)")).toBeVisible();
       await expect(page.getByText("isento de IR")).toBeVisible();
 
+      // fase 4: extrato de negociação da B3 (prévia, importar, de novo não duplica)
+      const negociacao = Buffer.from(
+        "Data do Negócio;Tipo de Movimentação;Mercado;Prazo/Vencimento;Instituição;Código de Negociação;Quantidade;Preço;Valor\n" +
+          "02/01/2026;Compra;Mercado à Vista;-;XP;PETR4;1000;30,00;30.000,00\n" +
+          "05/01/2026;Compra;Mercado à Vista;-;XP;ITSA4;100;10,00;1.000,00\n" +
+          "20/04/2026;Venda;Mercado à Vista;-;XP;PETR4;1000;35,00;35.000,00\n",
+      );
+      for (const vez of [1, 2]) {
+        await page.getByRole("button", { name: "Importar da B3" }).click();
+        const d = page.getByRole("dialog", { name: "Importar da B3" });
+        await d.locator('input[type="file"]').setInputFiles({
+          name: "negociacao.csv",
+          mimeType: "text/csv",
+          buffer: negociacao,
+        });
+        await d.getByRole("button", { name: "Ver prévia" }).click();
+        if (vez === 1) {
+          await expect(d.getByText(/3 linhas novas/)).toBeVisible();
+          await expect(d.getByText("Ativos que serão criados: PETR4, ITSA4.")).toBeVisible();
+          await d.getByRole("button", { name: "Importar 3 linhas" }).click();
+          await expect(d.getByText(/Importado: extrato de negociação/)).toBeVisible();
+        } else {
+          await expect(d.getByText(/0 linhas novas, 3 já importadas/)).toBeVisible();
+          await expect(d.getByRole("button", { name: /Importar 0/ })).toBeDisabled();
+        }
+        await d.getByRole("button", { name: "Fechar" }).click();
+      }
+      await expect(page.getByRole("heading", { name: /Carteira \(3 ativos\)/ })).toBeVisible();
+
+      // provento lançado à mão no ativo
+      await page.getByRole("button", { name: /ITSA4/ }).click();
+      const ativo = page.getByRole("dialog", { name: "ITSA4" });
+      await expect(ativo.getByText(/05\/01\/2026 · 100 × 10/)).toBeVisible();
+      await ativo.getByLabel("Tipo").selectOption("provento");
+      await ativo.getByLabel("Valor recebido (R$)").fill("12,34");
+      await ativo.getByRole("button", { name: "Lançar" }).click();
+      await expect(ativo.getByText("Proventos recebidos")).toBeVisible();
+      await expect(ativo.getByText("R$ 12,34").first()).toBeVisible();
+      await ativo.getByRole("button", { name: "Fechar" }).click();
+
+      // venda de R$ 35 mil com R$ 5 mil de ganho: DARF de R$ 750 no fim de maio
+      await page.getByRole("link", { name: "IR mensal" }).click();
+      await expect(page.getByRole("heading", { name: "IR dos investimentos" })).toBeVisible();
+      await expect(page.getByText("R$ 750,00").first()).toBeVisible();
+      await expect(page.getByText("DARF 6015 até 29/05/2026")).toBeVisible();
+
       await page.setViewportSize({ width: 360, height: 740 });
-      for (const rota of ["/open-finance", "/contas", "/investimentos", "/gastos"]) {
+      for (const rota of ["/open-finance", "/contas", "/investimentos", "/investimentos/ir", "/gastos"]) {
         await page.goto(rota);
         await page.waitForLoadState("networkidle");
         await semRolagemHorizontal(page);

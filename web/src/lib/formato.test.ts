@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  decimalBR,
   diasEntre,
   formatarData,
   formatarMoeda,
@@ -79,4 +80,17 @@ describe("taxas sem float", () => {
 
 it("zero negativo vira zero", () => {
   expect(semEspacoDuro(formatarMoeda(-0))).toBe("R$ 0,00");
+});
+
+describe("decimalBR", () => {
+  it("lê quantidade e preço em pt-BR", () => {
+    expect(decimalBR("1.234,56")).toBe("1234.56");
+    expect(decimalBR("0,5")).toBe("0.5");
+    expect(decimalBR("1.000")).toBe("1000");
+    expect(decimalBR("30.5")).toBe("30.5");
+    expect(decimalBR(" 100 ")).toBe("100");
+    expect(decimalBR("abc")).toBeNull();
+    expect(decimalBR("-1")).toBeNull();
+    expect(decimalBR("")).toBeNull();
+  });
 });

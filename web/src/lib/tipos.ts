@@ -556,3 +556,83 @@ export const nomesClasse: Record<string, string> = {
   previdencia: "Previdência",
   outro: "Outros",
 };
+
+export type ResultadoB3 = {
+  formato: "b3_negociacao" | "b3_movimentacao";
+  novas: number;
+  duplicadas: number;
+  ativos_novos: string[];
+  avisos: string[];
+};
+
+export type OperacaoAtivo = {
+  id: string;
+  data: string;
+  tipo: string;
+  quantidade: string;
+  preco: string;
+  valor_centavos: number;
+  taxas_centavos: number;
+  ir_retido_centavos: number;
+  descricao: string | null;
+  origem: string;
+  evento: boolean;
+};
+
+export type GrupoIR = {
+  grupo: "comum" | "day_trade" | "fii";
+  vendas_centavos: number;
+  ganho_centavos: number;
+  isento_centavos: number;
+  prejuizo_anterior_centavos: number;
+  base_centavos: number;
+  imposto_centavos: number;
+  prejuizo_acumulado_centavos: number;
+  aliquota: string;
+};
+
+export type MesIR = {
+  mes: string;
+  grupos: GrupoIR[];
+  vendas_acoes_centavos: number;
+  isento_acoes: boolean;
+  imposto_centavos: number;
+  ir_retido_centavos: number;
+  darf_centavos: number;
+  darf_acumulado_centavos: number;
+  vencimento: string;
+  codigo_darf: string;
+};
+
+export type ApuracaoIR = {
+  meses: MesIR[];
+  vendas: {
+    mes: string;
+    data: string;
+    ativo: string;
+    classe: string;
+    valor_centavos: number;
+    custo_centavos: number;
+    ganho_centavos: number;
+    day_trade: boolean;
+  }[];
+  fonte: string;
+};
+
+export const nomesOperacao: Record<string, string> = {
+  compra: "Compra",
+  venda: "Venda",
+  provento: "Provento",
+  juros: "Juros",
+  amortizacao: "Amortização",
+  ajuste: "Ajuste de quantidade",
+  desdobramento: "Desdobramento",
+  grupamento: "Grupamento",
+  bonificacao: "Bonificação",
+};
+
+export const nomesGrupoIR: Record<GrupoIR["grupo"], string> = {
+  comum: "Ações, ETFs e BDRs",
+  day_trade: "Day trade",
+  fii: "Fundos imobiliários",
+};

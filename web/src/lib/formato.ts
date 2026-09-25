@@ -126,3 +126,14 @@ export const hojeSP = () =>
 export function diasEntre(a: string, b: string): number {
   return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 }
+
+/**
+ * Quantidade ou preço digitado em pt-BR ("1.234,56", "0,5", "1.000") para o texto que a
+ * API lê ("1234.56"), sem float. Sem vírgula, "1.000" é mil; "30.5" é trinta e meio. null se inválido.
+ */
+export function decimalBR(texto: string): string | null {
+  let s = texto.replace(/\s/g, "");
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+  return /^\d+(\.\d+)?$/.test(s) ? s : null;
+}

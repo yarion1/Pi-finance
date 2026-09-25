@@ -55,12 +55,15 @@ func falhar(w http.ResponseWriter, r *http.Request, err error) {
 		erroJSON(w, http.StatusGone, "convite", err.Error())
 	case errors.Is(err, auth.ErrEmailEmUso):
 		erroJSON(w, http.StatusConflict, "email", err.Error())
+	case errors.As(err, new(financeiro.ErrCampo)):
+		erroJSON(w, http.StatusBadRequest, "validacao", err.Error())
 	case errors.Is(err, financeiro.ErrMoeda):
 		erroJSON(w, http.StatusBadRequest, "validacao", err.Error())
 	case errors.Is(err, auth.ErrDadosInvalidos), errors.Is(err, auth.ErrUltimoFator), errors.Is(err, auth.ErrPasskeyIndisponivel),
 		errors.Is(err, errValidacao):
 		erroJSON(w, http.StatusBadRequest, "validacao", mensagemValidacao(err))
-	case errors.Is(err, pgx.ErrNoRows), errors.Is(err, errNaoEncontrado), errors.Is(err, financeiro.ErrContaNaoEditavel):
+	case errors.Is(err, pgx.ErrNoRows), errors.Is(err, errNaoEncontrado), errors.Is(err, financeiro.ErrContaNaoEditavel),
+		errors.Is(err, financeiro.ErrSemPermissao):
 		erroJSON(w, http.StatusNotFound, "nao_encontrado", "não encontrado")
 	case errors.As(err, &pgErr) && pgErr.Code == "42501":
 		erroJSON(w, http.StatusForbidden, "proibido", "sem permissão")

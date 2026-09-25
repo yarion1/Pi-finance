@@ -191,6 +191,14 @@ func TestIsolamentoPorRota(t *testing.T) {
 	if r := a.exigir("GET", "/api/investimentos", nil, 200); !bytes.Contains(r.corpo, []byte("INVESTIMENTO-SECRETO")) {
 		t.Fatal("A deveria ver o próprio investimento")
 	}
+	// fase 4: ativo manual com compra e venda (entra no IR)
+	var ativo struct{ ID string }
+	a.exigir("POST", "/api/investimentos/ativos", map[string]any{"entidade_id": pf.ID, "codigo": "ATIVO-SECRETO", "classe": "acao"}, http.StatusCreated).json(t, &ativo)
+	a.exigir("POST", "/api/investimentos/ativos/"+ativo.ID+"/operacoes", map[string]any{"data": "2026-01-05", "tipo": "compra", "quantidade": "1000", "preco": "31.4159"}, http.StatusCreated)
+	a.exigir("POST", "/api/investimentos/ativos/"+ativo.ID+"/operacoes", map[string]any{"data": "2026-02-05", "tipo": "venda", "quantidade": "1000", "preco": "42.4242"}, http.StatusCreated)
+	if r := a.exigir("GET", "/api/investimentos/ir", nil, 200); !bytes.Contains(r.corpo, []byte("ATIVO-SECRETO")) {
+		t.Fatal("A deveria ver a própria venda no IR")
+	}
 	// A enxerga o próprio segredo pelas rotas (controle positivo)
 	if r := a.exigir("GET", "/api/transacoes", nil, 200); !bytes.Contains(r.corpo, []byte("SEGREDO-DA-ANA")) {
 		t.Fatal("A deveria ver a própria transação")
@@ -204,10 +212,10 @@ func TestIsolamentoPorRota(t *testing.T) {
 		"CARTAO-SECRETO", cartao.ID, "COMPRA-SECRETA", "META-SECRETA", "BEM-SECRETO", "DIVIDA-SECRETA", divida.ID,
 		"COMPROMISSO-SECRETO", "RECORRENCIA-SECRETA", "7777777", "50000000",
 		"ITEM-SECRETO", "BANCO-SECRETO", "CONTA-PLUGGY-SECRETA", "9876543", "QRST", "SECRET-SECRETO",
-		"INVESTIMENTO-SECRETO", "765432"}
+		"INVESTIMENTO-SECRETO", "765432", "ATIVO-SECRETO", ativo.ID, "31.4159", "4242420", "1100830"}
 	for _, rota := range api.RotasLeitura {
 		caminho := strings.NewReplacer("{casa}", casa.ID, "{entidade}", pf.ID, "{conta}", contaPrivada,
-			"{importacao}", imp.ImportacaoID, "{cartao}", cartao.ID, "{divida}", divida.ID).Replace(rota)
+			"{importacao}", imp.ImportacaoID, "{cartao}", cartao.ID, "{divida}", divida.ID, "{ativo}", ativo.ID).Replace(rota)
 		r := b.fazer("GET", caminho, nil)
 		if r.status >= 500 {
 			t.Errorf("%s: status %d", caminho, r.status)
