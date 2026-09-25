@@ -19,7 +19,8 @@ SAUDE_URL="${SAUDE_URL:-http://127.0.0.1:3100/api/health}"
 LIMITE_SAUDE="${LIMITE_SAUDE:-90}"
 
 [ -r "$ENV_FILE" ] || { echo "sem leitura em $ENV_FILE" >&2; exit 1; }
-[ -r /etc/financas/master.key ] || { echo "chave mestra ausente em /etc/financas/master.key" >&2; exit 1; }
+# a chave é do uid 65532 (0600): o runner só confere que ela existe; quem lê é o container
+[ -e /etc/financas/master.key ] || { echo "chave mestra ausente em /etc/financas/master.key" >&2; exit 1; }
 mkdir -p "$ESTADO" "$BACKUPS"
 
 set -a
