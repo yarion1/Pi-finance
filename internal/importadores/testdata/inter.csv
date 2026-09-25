@@ -1,0 +1,8 @@
+Extrato Conta Corrente 
+Conta ;12345678
+Período ;01/09/2026 a 20/09/2026
+Saldo ;1.234,56
+
+Data Lançamento;Histórico;Descrição;Valor;Saldo
+03/09/2026;Pix enviado ;Maria Silva;-1.200,00;34,56
+04/09/2026;Pix recebido ;João;250,00;284,56

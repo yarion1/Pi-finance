@@ -84,9 +84,33 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("POST /api/entidades/{id}/acessos", s.sessaoCompleta(s.darAcesso))
 	mux.Handle("DELETE /api/entidades/{id}/acessos/{usuario}", s.sessaoCompleta(s.removerAcesso))
 
-	// dinheiro (leitura mínima; a fase 1 completa)
+	// contas e transações (fase 1)
+	mux.Handle("GET /api/instituicoes", s.sessaoCompleta(s.listarInstituicoes))
 	mux.Handle("GET /api/contas", s.sessaoCompleta(s.listarContas))
+	mux.Handle("POST /api/contas", s.sessaoCompleta(s.criarConta))
+	mux.Handle("PATCH /api/contas/{id}", s.sessaoCompleta(s.editarConta))
+	mux.Handle("DELETE /api/contas/{id}", s.sessaoCompleta(s.apagarConta))
 	mux.Handle("GET /api/transacoes", s.sessaoCompleta(s.listarTransacoes))
+	mux.Handle("POST /api/transacoes", s.sessaoCompleta(s.criarTransacao))
+	mux.Handle("POST /api/transacoes/lote", s.sessaoCompleta(s.categorizarLote))
+	mux.Handle("PATCH /api/transacoes/{id}", s.sessaoCompleta(s.editarTransacao))
+	mux.Handle("DELETE /api/transacoes/{id}", s.sessaoCompleta(s.apagarTransacao))
+	mux.Handle("GET /api/importacoes", s.sessaoCompleta(s.listarImportacoes))
+	mux.Handle("POST /api/importacoes", s.sessaoCompleta(s.importar))
+	mux.Handle("POST /api/importacoes/cabecalhos", s.sessaoCompleta(s.cabecalhosCSV))
+	mux.Handle("DELETE /api/importacoes/{id}", s.sessaoCompleta(s.desfazerImportacao))
+	mux.Handle("GET /api/mapeamentos", s.sessaoCompleta(s.listarMapeamentos))
+	mux.Handle("POST /api/mapeamentos", s.sessaoCompleta(s.salvarMapeamento))
+	mux.Handle("DELETE /api/mapeamentos/{id}", s.sessaoCompleta(s.apagarMapeamento))
+	mux.Handle("GET /api/categorias", s.sessaoCompleta(s.listarCategorias))
+	mux.Handle("POST /api/categorias", s.sessaoCompleta(s.criarCategoria))
+	mux.Handle("PATCH /api/categorias/{id}", s.sessaoCompleta(s.editarCategoria))
+	mux.Handle("DELETE /api/categorias/{id}", s.sessaoCompleta(s.apagarCategoria))
+	mux.Handle("GET /api/regras", s.sessaoCompleta(s.listarRegras))
+	mux.Handle("POST /api/regras", s.sessaoCompleta(s.criarRegra))
+	mux.Handle("POST /api/regras/aplicar", s.sessaoCompleta(s.aplicarRegras))
+	mux.Handle("DELETE /api/regras/{id}", s.sessaoCompleta(s.apagarRegra))
+	mux.Handle("GET /api/resumo", s.sessaoCompleta(s.resumo))
 	mux.Handle("GET /api/alertas", s.sessaoCompleta(s.listarAlertas))
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -100,8 +124,13 @@ func (s *Servidor) Handler() http.Handler {
 // Rotas usadas no teste de isolamento: toda rota GET com dados precisa estar aqui.
 var RotasLeitura = []string{
 	"/api/auth/sessao", "/api/auth/passkeys", "/api/casas", "/api/casas/{casa}",
-	"/api/entidades", "/api/entidades/{entidade}", "/api/contas", "/api/transacoes",
-	"/api/transacoes?conta_id={conta}", "/api/alertas",
+	"/api/entidades", "/api/entidades/{entidade}", "/api/alertas", "/api/instituicoes",
+	"/api/contas", "/api/contas?entidade_id={entidade}",
+	"/api/transacoes", "/api/transacoes?conta_id={conta}", "/api/transacoes?entidade_id={entidade}",
+	"/api/transacoes?busca=SEGREDO", "/api/transacoes?importacao_id={importacao}",
+	"/api/importacoes", "/api/importacoes?entidade_id={entidade}", "/api/mapeamentos",
+	"/api/categorias", "/api/categorias?entidade_id={entidade}", "/api/regras", "/api/regras?entidade_id={entidade}",
+	"/api/resumo", "/api/resumo?entidade_id={entidade}",
 }
 
 // ---------------------------------------------------------------------------
@@ -190,7 +219,11 @@ func (s *Servidor) origemConfere(h http.Handler) http.Handler {
 
 func limitarCorpo(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, limiteCorpo)
+		limite := int64(limiteCorpo)
+		if strings.HasPrefix(r.URL.Path, "/api/importacoes") {
+			limite = limiteArquivo*4/3 + limiteCorpo // arquivo em base64
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, limite)
 		h.ServeHTTP(w, r)
 	})
 }

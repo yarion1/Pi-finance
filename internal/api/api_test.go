@@ -134,7 +134,6 @@ func (c *cliente) cadastrarCom2FA(nome, email, convite string) {
 
 func TestIsolamentoPorRota(t *testing.T) {
 	amb := novoAmbiente(t)
-	ctx := context.Background()
 	a := amb.novoCliente()
 	a.cadastrarCom2FA("Ana", "ana@teste.com", "")
 
@@ -146,16 +145,20 @@ func TestIsolamentoPorRota(t *testing.T) {
 	a.exigir("POST", "/api/casas/"+casa.ID+"/convites", map[string]string{"papel": "membro"}, http.StatusCreated).json(t, &convite)
 	token := convite.Link[strings.LastIndex(convite.Link, "/")+1:]
 
-	// dados privados de A (a fase 1 terá rotas de escrita; aqui entram direto)
-	var contaPrivada string
-	err := amb.banco.Dono.QueryRow(ctx, `insert into contas (entidade_id, nome, tipo) values ($1, 'CONTA-SECRETA', 'corrente') returning id`, pf.ID).Scan(&contaPrivada)
-	if err != nil {
-		t.Fatal(err)
+	// dados privados de A, criados pelas próprias rotas
+	var conta struct{ ID string }
+	a.exigir("POST", "/api/contas", map[string]any{"entidade_id": pf.ID, "nome": "CONTA-SECRETA", "tipo": "corrente"}, http.StatusCreated).json(t, &conta)
+	contaPrivada := conta.ID
+	var imp struct {
+		ImportacaoID string `json:"importacao_id"`
 	}
-	if _, err := amb.banco.Dono.Exec(ctx, `insert into transacoes (entidade_id, conta_id, data, descricao_original, descricao, valor_centavos, tipo)
-		values ($1, $2, current_date, 'SEGREDO-DA-ANA', 'SEGREDO-DA-ANA', -99999, 'gasto')`, pf.ID, contaPrivada); err != nil {
-		t.Fatal(err)
-	}
+	a.exigir("POST", "/api/importacoes", map[string]any{
+		"conta_id": contaPrivada, "arquivo": "ARQUIVO-SECRETO.ofx", "conteudo": ofxBase64("SEGREDO-DA-ANA", "-999.99", "fit-1"),
+	}, http.StatusCreated).json(t, &imp)
+	var cat struct{ ID string }
+	a.exigir("POST", "/api/categorias", map[string]any{"entidade_id": pf.ID, "nome": "CATEGORIA-SECRETA", "tipo": "gasto"}, http.StatusCreated).json(t, &cat)
+	a.exigir("POST", "/api/regras", map[string]any{"entidade_id": pf.ID, "texto": "REGRA-SECRETA", "categoria_id": cat.ID}, http.StatusCreated)
+	a.exigir("POST", "/api/mapeamentos", map[string]any{"nome": "MAPA-SECRETO", "config": map[string]string{"coluna_data": "x"}}, http.StatusCreated)
 	// A enxerga o próprio segredo pelas rotas (controle positivo)
 	if r := a.exigir("GET", "/api/transacoes", nil, 200); !bytes.Contains(r.corpo, []byte("SEGREDO-DA-ANA")) {
 		t.Fatal("A deveria ver a própria transação")
@@ -164,9 +167,11 @@ func TestIsolamentoPorRota(t *testing.T) {
 	b := amb.novoCliente()
 	b.cadastrarCom2FA("Bruno", "bruno@teste.com", token)
 
-	proibidos := []string{"SEGREDO-DA-ANA", "CONTA-SECRETA", contaPrivada, pf.ID, "982.247", "52998224725"}
+	proibidos := []string{"SEGREDO-DA-ANA", "CONTA-SECRETA", contaPrivada, pf.ID, "982.247", "52998224725",
+		"ARQUIVO-SECRETO", imp.ImportacaoID, "CATEGORIA-SECRETA", "REGRA-SECRETA", "MAPA-SECRETO"}
 	for _, rota := range api.RotasLeitura {
-		caminho := strings.NewReplacer("{casa}", casa.ID, "{entidade}", pf.ID, "{conta}", contaPrivada).Replace(rota)
+		caminho := strings.NewReplacer("{casa}", casa.ID, "{entidade}", pf.ID, "{conta}", contaPrivada,
+			"{importacao}", imp.ImportacaoID).Replace(rota)
 		r := b.fazer("GET", caminho, nil)
 		if r.status >= 500 {
 			t.Errorf("%s: status %d", caminho, r.status)
@@ -187,6 +192,16 @@ func TestIsolamentoPorRota(t *testing.T) {
 	b.exigir("DELETE", "/api/entidades/"+pf.ID, nil, http.StatusForbidden) // pede reautenticação antes
 	b.exigir("POST", "/api/entidades/"+pf.ID+"/acessos", map[string]string{"email": "bruno@teste.com", "papel": "membro"}, http.StatusForbidden)
 	b.exigir("POST", "/api/casas/"+casa.ID+"/convites", map[string]string{"papel": "membro"}, http.StatusForbidden)
+	b.exigir("POST", "/api/importacoes", map[string]any{"conta_id": contaPrivada, "arquivo": "x.ofx", "conteudo": ofxBase64("x", "-1.00", "z")}, http.StatusNotFound)
+	b.exigir("DELETE", "/api/importacoes/"+imp.ImportacaoID, nil, http.StatusNotFound)
+	b.exigir("POST", "/api/transacoes", map[string]any{"conta_id": contaPrivada, "data": "2026-09-01", "descricao": "x", "valor_centavos": -100}, http.StatusNotFound)
+	b.exigir("POST", "/api/categorias", map[string]any{"entidade_id": pf.ID, "nome": "x", "tipo": "gasto"}, http.StatusForbidden)
+	b.exigir("POST", "/api/contas", map[string]any{"entidade_id": pf.ID, "nome": "x", "tipo": "corrente"}, http.StatusForbidden)
+	b.exigir("PATCH", "/api/contas/"+contaPrivada, map[string]any{"nome": "x", "tipo": "corrente"}, http.StatusNotFound)
+	b.exigir("GET", "/api/resumo?entidade_id="+pf.ID, nil, http.StatusNotFound)
+	if r := a.exigir("GET", "/api/transacoes?busca=SEGREDO", nil, 200); !bytes.Contains(r.corpo, []byte("SEGREDO-DA-ANA")) {
+		t.Fatal("a importação de A deveria continuar intacta")
+	}
 
 	// e A vê B como membro
 	var detalhe struct {
