@@ -80,7 +80,7 @@ O `/api/health` diz `backup=pendente` até o primeiro dump.
 ## D9 — /api/health
 
 Responde 200 quando banco e worker estão de pé; 503 caso contrário (é o que o deploy
-confere). `pluggy` é `ok` enquanto não há conexões (fase 3). `FORCAR_FALHA_HEALTH=1`
+confere). `pluggy` segue a D23 (não derruba o 200). `FORCAR_FALHA_HEALTH=1`
 força 503 — é assim que o deploy quebrado de propósito é testado.
 
 ## D10 — Regras fiscais semeadas
@@ -189,3 +189,58 @@ são pequenos); a fila do worker entra com o Open Finance (fase 3).
   conectores externos entrarem (fase 3 em diante); até lá o valor é manual.
 - Taxa de dívida: digitada em % ao mês na tela, guardada como fração em `numeric(12,8)`,
   convertida sem ponto flutuante.
+
+## D20 — Open Finance pelo Meu Pluggy (fase 3)
+
+- **Uma conexão por pessoa**: Client ID e Client Secret do Meu Pluggy dela, os dois cifrados
+  (`cripto.Cifrador`, contexto = nome da coluna); a tela só mostra os 4 últimos caracteres do
+  Client ID e nunca o segredo. As tabelas `conexoes_pluggy`, `itens_pluggy` e `contas_pluggy`
+  têm RLS por `usuario_id`: nem a casa nem quem tem acesso à entidade veem as credenciais ou
+  os bancos conectados. Cadastrar, trocar e apagar as credenciais pedem reautenticação.
+- As credenciais são conferidas na Pluggy antes de gravar; o **item** (banco conectado no Meu
+  Pluggy) é conferido com as credenciais da própria pessoa, então o item de outra pessoa é
+  recusado. Cada item diz para qual entidade vão as contas dele.
+- Nenhuma conta da Pluggy importa nada sozinha: a pessoa decide se **liga a uma conta que já
+  existe** (da mesma entidade e do mesmo tipo), **cria uma nova** ou **ignora**. Conta criada
+  pela Pluggy tem o saldo inicial acertado com o do banco na primeira sincronização.
+- Transações pela `v2/transactions` (a v1 é desligada em 31/12/2026), paginadas por cursor.
+  Pendentes ficam de fora até serem confirmadas. Sinal: numa conta, `DEBIT` sai e `CREDIT`
+  entra; num cartão a Pluggy manda a compra positiva e o pagamento negativo. Valores viram
+  centavos sem float. Parcela de cartão ganha "(n/N)" e a data do mês da parcela (D16).
+- Janela: 365 dias na primeira leitura de cada conta; depois, desde a última sincronização
+  menos 10 dias. Sincronização sem nada novo não entra no histórico de importações.
+- **Quando sincroniza**: o worker roda de hora em hora e sincroniza quem está há mais de
+  20 h sem sincronizar (o Meu Pluggy atualiza os bancos a cada 24 h); o botão "Sincronizar
+  agora" roda na hora, com trava de 10 s. O erro de um banco (login pedido de novo, banco
+  fora) fica gravado no item e aparece na tela; não impede os outros bancos.
+- Investimentos que a Pluggy também traz ficam para a fase 4.
+
+## D21 — Arquivo e Open Finance na mesma conta viram uma transação só (fase 3)
+
+A descrição do OFX e a da Pluggy quase nunca são iguais, então a chave de deduplicação não
+basta. Uma linha nova **casa** com uma transação que já está na mesma conta, veio pela outra
+fonte e ainda não tem par: **mesmo valor e até 1 dia de diferença** (a mais próxima primeiro,
+uma para uma). Linha da Pluggy casa com o que veio de arquivo ou foi lançado à mão; linha de
+arquivo casa com o que veio da Pluggy. A existente guarda o id da nova fonte (`id_pluggy`,
+ou a chave e o FITID do arquivo), então as próximas importações reconhecem direto. O id da
+Pluggy fica numa coluna própria para não disputar lugar com o FITID.
+
+## D22 — Conciliação de saldo (fase 3)
+
+- A cada sincronização, para cada **conta** ligada (corrente, poupança), grava-se o saldo do
+  banco e o calculado até hoje (`conciliacoes`, um registro por conta por dia). Se diferem,
+  vira o alerta `saldo_divergente` para quem sincronizou, sem repetir a mesma diferença no
+  mesmo dia.
+- **Cartão fica fora** da comparação: o saldo que a Pluggy dá (fatura) e o do painel
+  (compras lançadas, com parcelas futuras) medem coisas diferentes. O saldo do banco do
+  cartão aparece na tela de Open Finance.
+- A conta mostra o saldo do banco quando difere e o botão **Acertar pelo banco**, que muda o
+  saldo inicial para fechar a diferença (útil quando o histórico importado começa no meio).
+
+## D23 — /api/health com o Open Finance (fase 3)
+
+`pluggy` é `ok` sem conexões ou com todas em dia, `erro` se alguma credencial ou banco
+falhou na última sincronização e `atrasada` se a última passou de 36 h. `last_sync` é a
+sincronização mais recente de qualquer pessoa. Nenhum dos dois derruba o 200 (o deploy só
+depende de banco e worker); é informação para o monitor do PiControl. A leitura usa uma
+função `SECURITY DEFINER` que devolve só contagens e datas, nunca credenciais.

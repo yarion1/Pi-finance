@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.4.0 — Fase 3: Open Finance
+
+- **Meu Pluggy por pessoa**: cada um cola o próprio Client ID e Secret (conferidos na Pluggy,
+  guardados cifrados, pedem a senha de novo) e adiciona os bancos conectados lá, escolhendo
+  de quem são as contas. Ninguém mais vê as credenciais nem os bancos de outra pessoa.
+- **Contas**: cada conta que o banco devolve é ligada a uma conta que já existe, vira conta
+  nova (com banco, limite e dias do cartão) ou é ignorada.
+- **Sincronização** diária pelo worker e botão "Sincronizar agora": transações pela mesma
+  fila dos arquivos (deduplicar, categorizar, transferências, recorrências), pendentes só
+  quando confirmadas, parcelas do cartão com "(n/N)".
+- **Arquivo e Open Finance juntos não duplicam**: a mesma transação vinda do OFX e da Pluggy
+  (mesmo valor, até 1 dia de diferença) vira uma só, nos dois sentidos.
+- **Conciliação**: saldo do banco × saldo calculado por dia; diferença vira alerta, aparece
+  na conta e se resolve com "Acertar pelo banco".
+- `/api/health` com `pluggy` (ok, erro, atrasada) e `last_sync`.
+- Testes e e2e contra uma API da Pluggy falsa (`cmd/pluggy-falsa`), que não vai para a imagem.
+
 ## v0.3.0 — Fase 2: planejamento
 
 - **Cartões**: faturas por fechamento e vencimento (aberta, futuras e anteriores), limite

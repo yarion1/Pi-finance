@@ -20,6 +20,8 @@ CNPJ de várias pessoas da mesma casa, com privacidade garantida no banco (RLS),
 - **Fase 2 (planejamento)**: faturas do cartão com parcelas futuras, recorrências
   detectadas, orçamento com o ritmo do mês (categoria, envelopes, 50/30/20), metas,
   patrimônio com bens e dívidas (Price/SAC) e agenda com saldo projetado.
+- **Fase 3 (Open Finance)**: Meu Pluggy por pessoa (credenciais cifradas), sincronização
+  diária, arquivo e Open Finance sem duplicar e conciliação de saldo com alerta.
 
 As próximas fases estão na seção 12 da SPEC.
 

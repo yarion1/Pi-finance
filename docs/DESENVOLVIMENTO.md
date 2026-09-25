@@ -38,6 +38,11 @@ PUBLIC_URL=http://localhost:3100 ... /tmp/financas serve   # (mesmas variáveis 
 cd web && npx playwright test          # CHROMIUM_PATH=... para usar um Chromium já instalado
 ```
 
+O e2e do Open Finance usa uma API da Pluggy falsa: `go run ./cmd/pluggy-falsa` (escuta em
+`127.0.0.1:3200`) e suba o servidor com `PLUGGY_URL=http://127.0.0.1:3200`. Ela também serve
+para testar a tela à mão: Client ID `demo-client-id`, Secret `demo-client-secret`, item
+`item-demo`. Sem `PLUGGY_URL`, o servidor fala com a Pluggy de verdade.
+
 O e2e cria a primeira conta, então precisa de um banco recém-migrado. Ele faz vários logins
 seguidos do mesmo IP: suba o servidor com `LIMITE_AUTH_POR_MINUTO=100` (em produção o padrão
 é 10).
