@@ -23,6 +23,7 @@ type Config struct {
 	LimiteAuthPorMinuto int
 	HSTS                bool
 	URLPluggy           string
+	TokenBrapi          string
 }
 
 func env(chave, padrao string) string {
@@ -45,6 +46,7 @@ func Carregar() (Config, error) {
 		LimiteAuthPorMinuto: 10,
 		HSTS:                strings.HasPrefix(env("PUBLIC_URL", ""), "https:"),
 		URLPluggy:           env("PLUGGY_URL", ""),
+		TokenBrapi:          env("BRAPI_TOKEN", ""),
 	}
 	if v := env("LIMITE_AUTH_POR_MINUTO", ""); v != "" {
 		n, err := strconv.Atoi(v)

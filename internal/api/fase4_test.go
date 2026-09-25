@@ -1,10 +1,14 @@
 package api_test
 
 import (
+	"context"
 	"encoding/base64"
+	"math"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/yarion1/pi-finance/internal/financeiro"
 )
 
 const negociacaoB3 = "Data do Negócio;Tipo de Movimentação;Mercado;Prazo/Vencimento;Instituição;Código de Negociação;Quantidade;Preço;Valor\n" +
@@ -31,20 +35,25 @@ type resultadoB3 struct {
 }
 
 type carteiraTeste struct {
-	Total  int64 `json:"total_centavos"`
+	Total  int64    `json:"total_centavos"`
+	Rent   *float64 `json:"rentabilidade_aa"`
+	CDI    *float64 `json:"cdi_aa"`
+	Desde  *string  `json:"rentabilidade_desde"`
 	Ativos []struct {
-		ID          string  `json:"id"`
-		Codigo      string  `json:"codigo"`
-		Classe      string  `json:"classe"`
-		Origem      string  `json:"origem"`
-		Quantidade  string  `json:"quantidade"`
-		PrecoMedio  string  `json:"preco_medio"`
-		Custo       int64   `json:"custo_centavos"`
-		Valor       int64   `json:"valor_centavos"`
-		Proventos   int64   `json:"proventos_centavos"`
-		Encerrado   bool    `json:"encerrado"`
-		Vencimento  *string `json:"vencimento"`
-		Instituicao *string `json:"instituicao"`
+		ID          string   `json:"id"`
+		Codigo      string   `json:"codigo"`
+		Classe      string   `json:"classe"`
+		Origem      string   `json:"origem"`
+		Quantidade  string   `json:"quantidade"`
+		PrecoMedio  string   `json:"preco_medio"`
+		Custo       int64    `json:"custo_centavos"`
+		Valor       int64    `json:"valor_centavos"`
+		Proventos   int64    `json:"proventos_centavos"`
+		Encerrado   bool     `json:"encerrado"`
+		Vencimento  *string  `json:"vencimento"`
+		NaCurva     bool     `json:"na_curva"`
+		Rent        *float64 `json:"rentabilidade_aa"`
+		Instituicao *string  `json:"instituicao"`
 	} `json:"ativos"`
 }
 
@@ -192,9 +201,47 @@ func TestOperacoesManuais(t *testing.T) {
 
 	var c carteiraTeste
 	a.exigir("GET", "/api/investimentos", nil, http.StatusOK).json(t, &c)
-	if len(c.Ativos) != 1 || c.Ativos[0].Quantidade != "2" || c.Ativos[0].Custo != 600200 || c.Total != 600200 {
-		t.Fatalf("sem cotação, vale o custo: %+v", c)
+	// sem cotação, o Tesouro IPCA+ rende pela taxa contratada (sem IPCA publicado, só a taxa real)
+	if len(c.Ativos) != 1 || c.Ativos[0].Quantidade != "2" || c.Ativos[0].Custo != 600200 || !c.Ativos[0].NaCurva ||
+		c.Ativos[0].Valor <= 600200 || c.Ativos[0].Valor > 600200*1065/1000 {
+		t.Fatalf("na curva: %+v", c)
 	}
 	a.exigir("DELETE", "/api/investimentos/ativos/"+at.ID, nil, http.StatusNoContent)
 	a.exigir("GET", base, nil, http.StatusNotFound)
+}
+
+// Critério de aceite da fase 4 (na tela): um CDB a 100 % do CDI rende o mesmo que o CDI
+// no período, até 0,01 p.p. ao ano; a 120 %, rende mais.
+func TestRentabilidadeContraCDI(t *testing.T) {
+	amb, a, pf, _, _ := prepara(t)
+	ctx := context.Background()
+	inicio := financeiro.Hoje().AddDate(0, -8, 0)
+	if _, err := amb.banco.Dono.Exec(ctx, `insert into indices (serie, data, valor)
+		select 'cdi', d, 0.055131 from generate_series($1::date, $2::date, '1 day') d where extract(isodow from d) < 6`,
+		inicio.AddDate(0, 0, -10), financeiro.Hoje()); err != nil {
+		t.Fatal(err)
+	}
+	var cdb struct{ ID string }
+	a.exigir("POST", "/api/investimentos/ativos", map[string]any{"entidade_id": pf, "codigo": "CDB 100",
+		"classe": "renda_fixa", "indexador": "cdi", "taxa": "1"}, http.StatusCreated).json(t, &cdb)
+	a.exigir("POST", "/api/investimentos/ativos/"+cdb.ID+"/operacoes", map[string]any{"data": inicio.Format("2006-01-02"),
+		"tipo": "compra", "quantidade": "1", "preco": "10000"}, http.StatusCreated)
+
+	var c carteiraTeste
+	a.exigir("GET", "/api/investimentos", nil, http.StatusOK).json(t, &c)
+	if c.Rent == nil || c.CDI == nil || c.Desde == nil || *c.Desde != inicio.Format("2006-01-02") {
+		t.Fatalf("rentabilidade: %+v", c)
+	}
+	if d := math.Abs(*c.Rent-*c.CDI) * 100; d > 0.01 {
+		t.Fatalf("100 %% do CDI: carteira %.6f × CDI %.6f (%.4f p.p.)", *c.Rent, *c.CDI, d)
+	}
+	if *c.CDI < 0.13 || *c.CDI > 0.16 || c.Ativos[0].Rent == nil {
+		t.Fatalf("CDI ao ano: %v", *c.CDI)
+	}
+
+	a.exigir("PATCH", "/api/investimentos/ativos/"+cdb.ID, map[string]any{"taxa": "1.2"}, http.StatusNoContent)
+	a.exigir("GET", "/api/investimentos", nil, http.StatusOK).json(t, &c)
+	if *c.Rent <= *c.CDI {
+		t.Fatalf("120 %% do CDI rende mais que o CDI: %v × %v", *c.Rent, *c.CDI)
+	}
 }

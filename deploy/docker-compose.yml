@@ -22,6 +22,7 @@ x-app: &app
     DATABASE_URL: postgres://financas_app:${APP_DB_PASSWORD:?}@postgres:5432/financas?sslmode=disable
     MASTER_KEY_FILE: /run/financas/master.key
     PUBLIC_URL: ${PUBLIC_URL:?}
+    BRAPI_TOKEN: ${BRAPI_TOKEN:-}
 
 services:
   postgres:

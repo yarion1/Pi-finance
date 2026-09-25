@@ -296,3 +296,23 @@ se cadastrar sem entrar em casa nenhuma (ela ganha só a entidade PF dela). O ca
 continua fechado para quem não tem convite, e o Cloudflare Access (D11) precisa liberar o
 e-mail do amigo antes. Cada um conecta o próprio Meu Pluggy (credenciais cifradas por
 usuário); o painel não compartilha as credenciais de ninguém.
+
+## D28 — Cotações e benchmarks da fase 4
+
+- **Fontes**: brapi (ações, FIIs, ETFs, BDRs; uma requisição por ticker, como o plano
+  gratuito pede, com `BRAPI_TOKEN` opcional no `.env`), CoinGecko (cripto, pelo id:
+  `bitcoin`) e o SGS do Banco Central (CDI série 12, IPCA 433, PTAX 1). O worker roda a
+  cada 6 h; só o código do ativo sai do Pi (a função `app_codigos_para_cotar` devolve
+  código e classe, sem dono). Falha de uma fonte fica no log e no sinal de vida
+  `cotacoes`, sem parar as outras.
+- **Tesouro Direto e CDB sem cotação** valem **na curva** (taxa contratada com o CDI e o
+  IPCA do Banco Central), antes do IR. O CSV de preços do Tesouro Transparente (dezenas de
+  MB) fica para depois; o Tesouro do Open Finance já vem com o valor do banco.
+- **Rentabilidade** mostrada é o **XIRR ao ano** (ativo e carteira, com proventos e vendas),
+  comparado ao CDI e ao IPCA acumulados no mesmo período e anualizados na mesma convenção
+  (dias corridos/365). Só aparece com 30 dias ou mais de história. Os ativos do Open
+  Finance ficam fora (não têm operações). O TWR já está no `core` e entra com o gráfico da
+  cota na fase 7; o Ibovespa entra junto (a brapi pede token para índices).
+- **Critério de aceite**: `TestRentabilidadeContraCDI` (CDB a 100 % do CDI rende o CDI do
+  período até 0,01 p.p. ao ano) e a planilha de referência de `core/testdata`.
+- A alocação alvo (tabela `alocacao_alvo`) ganha tela na fase 7, com os gráficos.

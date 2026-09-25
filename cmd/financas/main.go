@@ -21,6 +21,7 @@ import (
 	"github.com/yarion1/pi-finance/internal/api"
 	"github.com/yarion1/pi-finance/internal/auth"
 	"github.com/yarion1/pi-finance/internal/config"
+	"github.com/yarion1/pi-finance/internal/cotacoes"
 	"github.com/yarion1/pi-finance/internal/cripto"
 	"github.com/yarion1/pi-finance/internal/db"
 	"github.com/yarion1/pi-finance/internal/openfinance"
@@ -138,7 +139,7 @@ func rodarWorker(ctx context.Context) error {
 	}
 	defer pool.Close()
 	of := &openfinance.Servico{Banco: pool, Cifrador: cifrador, Pluggy: pluggy.Novo(cfg.URLPluggy)}
-	return worker.Rodar(ctx, pool, versao, of)
+	return worker.Rodar(ctx, pool, versao, of, cotacoes.Padrao(cfg.TokenBrapi))
 }
 
 func migrar(ctx context.Context) error {

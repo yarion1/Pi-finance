@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.5.0 — fase 4: investimentos
+
+- **Cotações automáticas** a cada 6 horas: ações, FIIs, ETFs e BDRs pela brapi, cripto pela
+  CoinGecko, CDI, IPCA e dólar pelo Banco Central. Para cotar além de PETR4, VALE3, ITUB4 e
+  MGLU3, crie um token grátis em brapi.dev e ponha `BRAPI_TOKEN=` no `/etc/financas/.env`.
+- **Renda fixa na curva**: CDB, LCI e Tesouro lançados à mão rendem pela taxa contratada
+  (% do CDI, prefixado ou IPCA+) até ter cotação.
+- **Rentabilidade ao ano** da carteira e de cada ativo (XIRR, com proventos e vendas) ao
+  lado do CDI e do IPCA do mesmo período.
+- Fecha a fase 4 junto com a v0.4.6 (B3, ativos à mão, IR mensal e DARF). Decisões em
+  `docs/DECISOES.md` D28.
+
 ## v0.4.6 — fase 4: B3, ativos e IR mensal
 
 - **Importar da B3**: em Investimentos, o extrato de negociação (compras e vendas) e o de

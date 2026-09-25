@@ -352,3 +352,42 @@ func TestRendaFixaNaCurva(t *testing.T) {
 		t.Error("isento, prejuízo ou sem tabela")
 	}
 }
+
+func TestFluxosDasOperacoes(t *testing.T) {
+	ops := []Operacao{
+		{Data: data("2025-01-02"), Tipo: OpCompra, Quantidade: d8("100"), Preco: d8("10"), Taxas: 500},
+		{Data: data("2025-06-02"), Tipo: OpProvento, Valor: 3000, IRRetido: 450},
+		{Data: data("2025-09-02"), Tipo: OpVenda, Quantidade: d8("50"), Preco: d8("12"), Taxas: 300, IRRetido: 3},
+		{Data: data("2026-03-01"), Tipo: OpCompra, Quantidade: d8("1"), Preco: d8("1")}, // depois da data: fora
+	}
+	fs := FluxosDasOperacoes(ops, 70000, data("2026-01-02"))
+	quer := []Fluxo{
+		{data("2025-01-02"), -100500},
+		{data("2025-06-02"), 2550},
+		{data("2025-09-02"), 59697},
+		{data("2026-01-02"), 70000},
+	}
+	if len(fs) != len(quer) {
+		t.Fatalf("%+v", fs)
+	}
+	for i := range quer {
+		if fs[i] != quer[i] {
+			t.Fatalf("fluxo %d: %+v, quer %+v", i, fs[i], quer[i])
+		}
+	}
+	if fs := FluxosDasOperacoes(ops[:1], 0, data("2026-01-02")); len(fs) != 1 {
+		t.Fatalf("sem valor final: %+v", fs)
+	}
+}
+
+func TestAnualizar(t *testing.T) {
+	if a := Anualizar(0.21, 730); math.Abs(a-0.1) > 1e-12 {
+		t.Fatalf("21 %% em 2 anos = 10 %% a.a.: %v", a)
+	}
+	if a := Anualizar(NoPeriodo(0.1375, 91), 91); math.Abs(a-0.1375) > 1e-12 {
+		t.Fatalf("ida e volta: %v", a)
+	}
+	if Anualizar(0.5, 0) != 0 {
+		t.Fatal("sem dias")
+	}
+}

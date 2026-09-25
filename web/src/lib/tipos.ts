@@ -532,6 +532,8 @@ export type AtivoCarteira = {
   percentual: number;
   encerrado: boolean;
   isento_ir: boolean;
+  rentabilidade_aa: number | null;
+  na_curva: boolean;
 };
 
 export type Carteira = {
@@ -541,6 +543,10 @@ export type Carteira = {
   ativos: AtivoCarteira[];
   encerrados: number;
   valor_em: string;
+  rentabilidade_aa: number | null;
+  rentabilidade_desde: string | null;
+  cdi_aa: number | null;
+  ipca_aa: number | null;
 };
 
 export const nomesClasse: Record<string, string> = {

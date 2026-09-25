@@ -1,6 +1,7 @@
 // Package worker roda as tarefas em segundo plano sobre a fila do Postgres (River).
 // Sinal de vida a cada minuto, limpeza de sessões vencidas e, de hora em hora, a
-// sincronização do Open Finance de quem está há mais de 20 h sem sincronizar.
+// sincronização do Open Finance de quem está há mais de 20 h sem sincronizar; a cada
+// 6 h, as cotações e os índices (CDI, IPCA, dólar).
 package worker
 
 import (
@@ -14,6 +15,7 @@ import (
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
 	"github.com/yarion1/pi-finance/internal/auth"
+	"github.com/yarion1/pi-finance/internal/cotacoes"
 	"github.com/yarion1/pi-finance/internal/openfinance"
 )
 
@@ -88,6 +90,28 @@ func SincronizarAtrasados(ctx context.Context, pool *pgxpool.Pool, of *openfinan
 	return nil
 }
 
+// CotacoesArgs atualiza cotações e índices.
+type CotacoesArgs struct{}
+
+func (CotacoesArgs) Kind() string { return "cotacoes" }
+
+type atualizarCotacoes struct {
+	river.WorkerDefaults[CotacoesArgs]
+	pool   *pgxpool.Pool
+	fontes *cotacoes.Fontes
+}
+
+func (t *atualizarCotacoes) Timeout(*river.Job[CotacoesArgs]) time.Duration { return 10 * time.Minute }
+
+func (t *atualizarCotacoes) Work(ctx context.Context, _ *river.Job[CotacoesArgs]) error {
+	rel, err := cotacoes.Atualizar(ctx, t.pool, t.fontes)
+	if err != nil {
+		return err
+	}
+	slog.Info("cotações atualizadas", "cotacoes", rel.Cotacoes, "indices", rel.Indices, "erros", len(rel.Erros))
+	return GravarSinal(ctx, t.pool, "cotacoes", map[string]any{"cotacoes": rel.Cotacoes, "indices": rel.Indices, "erros": rel.Erros})
+}
+
 // GravarSinal registra que um serviço está vivo.
 func GravarSinal(ctx context.Context, pool *pgxpool.Pool, servico string, dados map[string]any) error {
 	if dados == nil {
@@ -99,11 +123,12 @@ func GravarSinal(ctx context.Context, pool *pgxpool.Pool, servico string, dados 
 }
 
 // Rodar inicia o worker e bloqueia até o contexto acabar.
-func Rodar(ctx context.Context, pool *pgxpool.Pool, versao string, of *openfinance.Servico) error {
+func Rodar(ctx context.Context, pool *pgxpool.Pool, versao string, of *openfinance.Servico, fontes *cotacoes.Fontes) error {
 	trabalhadores := river.NewWorkers()
 	river.AddWorker(trabalhadores, &sinalVida{pool: pool, versao: versao})
 	river.AddWorker(trabalhadores, &limpeza{pool: pool})
 	river.AddWorker(trabalhadores, &sincronizarOpenFinance{pool: pool, of: of})
+	river.AddWorker(trabalhadores, &atualizarCotacoes{pool: pool, fontes: fontes})
 
 	cliente, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
 		Logger:  slog.Default(),
@@ -118,6 +143,9 @@ func Rodar(ctx context.Context, pool *pgxpool.Pool, versao string, of *openfinan
 				&river.PeriodicJobOpts{RunOnStart: true}),
 			river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
 				func() (river.JobArgs, *river.InsertOpts) { return OpenFinanceArgs{}, nil },
+				&river.PeriodicJobOpts{RunOnStart: true}),
+			river.NewPeriodicJob(river.PeriodicInterval(6*time.Hour),
+				func() (river.JobArgs, *river.InsertOpts) { return CotacoesArgs{}, nil },
 				&river.PeriodicJobOpts{RunOnStart: true}),
 		},
 	})

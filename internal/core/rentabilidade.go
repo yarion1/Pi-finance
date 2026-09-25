@@ -220,3 +220,35 @@ func IRRendaFixa(rendimento Centavos, dias int, faixas []FaixaIR, isento bool) C
 	}
 	return 0
 }
+
+// FluxosDasOperacoes monta os fluxos do XIRR de um ativo até a data: compra sai (com as
+// taxas); venda, provento, juros e amortização entram (líquidos de taxas e IR retido); e o
+// valor na data entra como se fosse resgatado.
+func FluxosDasOperacoes(ops []Operacao, valorFinal Centavos, data time.Time) []Fluxo {
+	var out []Fluxo
+	for _, o := range ops {
+		if o.Data.After(data) {
+			continue
+		}
+		switch o.Tipo {
+		case OpCompra:
+			out = append(out, Fluxo{Data: o.Data, Valor: -(Valor(o.Quantidade, o.Preco) + o.Taxas)})
+		case OpVenda:
+			out = append(out, Fluxo{Data: o.Data, Valor: Valor(o.Quantidade, o.Preco) - o.Taxas - o.IRRetido})
+		default:
+			out = append(out, Fluxo{Data: o.Data, Valor: o.Valor - o.Taxas - o.IRRetido})
+		}
+	}
+	if valorFinal > 0 {
+		out = append(out, Fluxo{Data: data, Valor: valorFinal})
+	}
+	return out
+}
+
+// Anualizar: retorno de n dias corridos para a taxa equivalente ao ano (inverso de NoPeriodo).
+func Anualizar(retorno float64, dias int) float64 {
+	if dias <= 0 {
+		return 0
+	}
+	return math.Pow(1+retorno, 365/float64(dias)) - 1
+}

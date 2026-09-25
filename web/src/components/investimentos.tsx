@@ -7,6 +7,7 @@ import {
   decimalBR,
   formatarData,
   formatarMoeda,
+  formatarPercentual,
   hojeSP,
   lerCentavos,
   percentualParaFracao,
@@ -348,11 +349,21 @@ export function DialogoAtivo({ ativo, aoFechar }: { ativo: AtivoCarteira | null;
             {ativo.proventos_centavos ? (
               <Dado rotulo="Proventos recebidos" valor={formatarMoeda(ativo.proventos_centavos)} />
             ) : null}
+            {ativo.rentabilidade_aa !== null ? (
+              <Dado rotulo="Rentabilidade ao ano" valor={formatarPercentual(ativo.rentabilidade_aa, 2)} />
+            ) : null}
           </dl>
           {doBanco ? (
             <Aviso>Vem do Open Finance: o valor é o que a instituição informa a cada sincronização.</Aviso>
+          ) : ativo.na_curva ? (
+            <p className="text-xs text-texto-2">
+              Renda fixa sem cotação: o valor segue a taxa contratada (CDI e IPCA do Banco Central), antes do
+              IR.
+            </p>
           ) : !ativo.cotacao && ativo.valor_centavos > 0 ? (
-            <p className="text-xs text-texto-2">Ainda sem cotação: o valor mostrado é o custo.</p>
+            <p className="text-xs text-texto-2">
+              Ainda sem cotação: o valor mostrado é o custo. As cotações são atualizadas a cada 6 horas.
+            </p>
           ) : null}
 
           {doBanco ? null : (

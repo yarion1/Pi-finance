@@ -100,13 +100,33 @@ export function Investimentos() {
               : "Valor de hoje menos o que foi aplicado"
           }
         >
-          <p className="p-5 text-sm text-texto-2">
-            {c?.ativos.some((a) => a.proventos_centavos > 0)
-              ? `Proventos recebidos: ${formatarMoeda(c.ativos.reduce((s, a) => s + a.proventos_centavos, 0))}. `
-              : ""}
-            Os investimentos do Open Finance usam o valor que o banco informa; os da B3 e os lançados à mão, a
-            última cotação (sem cotação, o custo).
-          </p>
+          <div className="flex flex-col gap-3 p-5 text-sm">
+            {c?.rentabilidade_aa != null ? (
+              <dl className="grid grid-cols-3 gap-2" aria-label="Rentabilidade ao ano">
+                <Comparativo rotulo="Carteira" valor={c.rentabilidade_aa} destaque />
+                <Comparativo rotulo="CDI" valor={c.cdi_aa} />
+                <Comparativo rotulo="IPCA" valor={c.ipca_aa} />
+              </dl>
+            ) : null}
+            {c?.rentabilidade_desde ? (
+              <p className="text-xs text-texto-2">
+                Ao ano, desde {formatarData(c.rentabilidade_desde)}, pelos ativos com operações (B3 e lançados
+                à mão), com proventos e vendas.
+              </p>
+            ) : null}
+            {c?.ativos.some((a) => a.proventos_centavos > 0) ? (
+              <p className="text-texto-2">
+                Proventos recebidos:{" "}
+                <span className="valor num text-texto">
+                  {formatarMoeda(c.ativos.reduce((s, a) => s + a.proventos_centavos, 0))}
+                </span>
+              </p>
+            ) : null}
+            <p className="text-xs text-texto-2">
+              Open Finance: o valor que o banco informa. B3 e manuais: a última cotação; renda fixa sem
+              cotação, pela taxa contratada.
+            </p>
+          </div>
         </Bloco>
       </div>
 
@@ -204,12 +224,35 @@ function LinhaAtivo({ a, abrir }: { a: AtivoCarteira; abrir: (a: AtivoCarteira) 
             {formatarMoeda(a.valor_centavos)}
           </span>
           <span className="valor num block text-xs text-texto-2">
-            {a.custo_centavos > 0 && a.valor_centavos > 0
-              ? `${a.rendimento_centavos >= 0 ? "+" : ""}${formatarPercentual(a.rendimento_centavos / a.custo_centavos)}`
-              : formatarPercentual(a.percentual)}
+            {a.rentabilidade_aa !== null
+              ? `${a.rentabilidade_aa >= 0 ? "+" : ""}${formatarPercentual(a.rentabilidade_aa)} a.a.`
+              : a.custo_centavos > 0 && a.valor_centavos > 0
+                ? `${a.rendimento_centavos >= 0 ? "+" : ""}${formatarPercentual(a.rendimento_centavos / a.custo_centavos)}`
+                : formatarPercentual(a.percentual)}
           </span>
         </span>
       </button>
     </li>
+  );
+}
+
+function Comparativo({
+  rotulo,
+  valor,
+  destaque,
+}: {
+  rotulo: string;
+  valor: number | null;
+  destaque?: boolean;
+}) {
+  return (
+    <div className="rounded-xl bg-superficie-2 p-2.5">
+      <dt className="text-xs text-texto-2">{rotulo}</dt>
+      <dd
+        className={`valor num font-semibold ${destaque ? (valor !== null && valor < 0 ? "text-saida" : "text-entrada") : ""}`}
+      >
+        {valor === null ? "—" : formatarPercentual(valor, 2)}
+      </dd>
+    </div>
   );
 }
