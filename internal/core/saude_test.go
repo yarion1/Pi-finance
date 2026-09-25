@@ -35,3 +35,24 @@ func TestEstadoBackup(t *testing.T) {
 		}
 	}
 }
+
+func TestEstadoPluggy(t *testing.T) {
+	agora := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
+	ontem, velha := agora.Add(-20*time.Hour), agora.Add(-40*time.Hour)
+	casos := []struct {
+		conexoes, erros int
+		ultima          *time.Time
+		quer            string
+	}{
+		{0, 0, nil, "ok"},
+		{2, 0, &ontem, "ok"},
+		{2, 1, &ontem, "erro"},
+		{1, 0, &velha, "atrasada"},
+		{1, 0, nil, "atrasada"},
+	}
+	for _, c := range casos {
+		if got := EstadoPluggy(c.conexoes, c.erros, c.ultima, agora); got != c.quer {
+			t.Errorf("EstadoPluggy(%d, %d, %v) = %s, esperado %s", c.conexoes, c.erros, c.ultima, got, c.quer)
+		}
+	}
+}

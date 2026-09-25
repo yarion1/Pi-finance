@@ -31,12 +31,19 @@ type conta struct {
 	Limite        *int64  `json:"limite_centavos"`
 	Arquivada     bool    `json:"arquivada"`
 	PodeEditar    bool    `json:"pode_editar"`
+	// Open Finance: último saldo informado pelo banco e se a conta está ligada à Pluggy
+	SaldoBanco   *int64     `json:"saldo_banco_centavos"`
+	SaldoBancoEm *time.Time `json:"saldo_banco_em"`
+	OpenFinance  bool       `json:"open_finance"`
 }
 
 const consultaContas = `select c.id, c.entidade_id, e.nome, app_dono_conta(c.id), c.instituicao_id, i.nome, c.nome,
 	c.tipo::text, c.moeda, c.visibilidade::text, c.casa_id, c.saldo_inicial_centavos, app_saldo_conta(c.id),
-	c.fechamento, c.vencimento, c.limite_centavos, c.arquivada, app_pode_editar_entidade(c.entidade_id)
+	c.fechamento, c.vencimento, c.limite_centavos, c.arquivada, app_pode_editar_entidade(c.entidade_id),
+	x.saldo_banco_centavos, x.criada_em, exists (select 1 from contas_pluggy cp where cp.conta_id = c.id)
 	from contas c
+	left join lateral (select saldo_banco_centavos, criada_em from conciliacoes
+		where conta_id = c.id order by data desc limit 1) x on true
 	left join entidades e on e.id = c.entidade_id
 	left join instituicoes i on i.id = c.instituicao_id`
 

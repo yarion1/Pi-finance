@@ -40,6 +40,8 @@ const (
 	FormatoNubankCartao = "nubank_cartao"
 	FormatoInter        = "inter"
 	FormatoGenerico     = "generico"
+	// FormatoPluggy: linhas vindas do Open Finance (não é arquivo; id externo é o da Pluggy).
+	FormatoPluggy = "pluggy"
 )
 
 // ErrFormato indica arquivo que não é OFX nem um CSV reconhecido (o usuário

@@ -566,3 +566,9 @@ func alertar(ctx context.Context, tx pgx.Tx, tipo string, dados map[string]any, 
 	_, err := tx.Exec(ctx, "insert into alertas (usuario_id, tipo, dados) values (app_usuario_id(), $1, $2)", tipo, dados)
 	return err
 }
+
+// Alertar cria um alerta para o usuário da sessão; não repete um igual (mesmo tipo
+// e mesmos valores nas chaves dadas).
+func Alertar(ctx context.Context, tx pgx.Tx, tipo string, dados map[string]any, chaves ...string) error {
+	return alertar(ctx, tx, tipo, dados, chaves...)
+}

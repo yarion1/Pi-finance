@@ -16,6 +16,7 @@ import (
 	"github.com/yarion1/pi-finance/internal/auth"
 	"github.com/yarion1/pi-finance/internal/config"
 	"github.com/yarion1/pi-finance/internal/cripto"
+	"github.com/yarion1/pi-finance/internal/openfinance"
 )
 
 const (
@@ -32,6 +33,8 @@ type Servidor struct {
 	Config   config.Config
 	Versao   string
 	Front    fs.FS // conteúdo de web/dist; nil = sem front
+	// OpenFinance sincroniza com o Meu Pluggy (fase 3).
+	OpenFinance *openfinance.Servico
 
 	limiteAuth    *limitador
 	limiteConvite *limitador
@@ -149,6 +152,16 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("DELETE /api/compromissos/{id}", s.sessaoCompleta(s.apagarCompromisso))
 	mux.Handle("GET /api/alertas", s.sessaoCompleta(s.listarAlertas))
 
+	// Open Finance (Meu Pluggy): cada pessoa só vê e mexe na própria conexão
+	mux.Handle("GET /api/open-finance", s.sessaoCompleta(s.openFinance))
+	mux.Handle("PUT /api/open-finance/credenciais", s.sessaoCompleta(s.salvarCredenciais))
+	mux.Handle("DELETE /api/open-finance", s.sessaoCompleta(s.apagarConexao))
+	mux.Handle("POST /api/open-finance/itens", s.sessaoCompleta(s.adicionarItem))
+	mux.Handle("DELETE /api/open-finance/itens/{id}", s.sessaoCompleta(s.apagarItem))
+	mux.Handle("PATCH /api/open-finance/contas/{id}", s.sessaoCompleta(s.vincularConta))
+	mux.Handle("POST /api/open-finance/sincronizar", s.sessaoCompleta(s.sincronizarAgora))
+	mux.Handle("POST /api/contas/{id}/acertar-saldo", s.sessaoCompleta(s.acertarSaldo))
+
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		erroJSON(w, http.StatusNotFound, "nao_encontrado", "rota inexistente")
 	})
@@ -175,6 +188,7 @@ var RotasLeitura = []string{
 	"/api/metas", "/api/metas?entidade_id={entidade}",
 	"/api/patrimonio", "/api/patrimonio?entidade_id={entidade}", "/api/dividas/{divida}/tabela",
 	"/api/compromissos", "/api/compromissos?entidade_id={entidade}",
+	"/api/open-finance",
 }
 
 // ---------------------------------------------------------------------------

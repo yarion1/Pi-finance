@@ -39,6 +39,7 @@ type resultadoImp struct {
 type listaTransacoes struct {
 	Itens []struct {
 		ID          string  `json:"id"`
+		Data        string  `json:"data"`
 		Descricao   string  `json:"descricao"`
 		Valor       int64   `json:"valor_centavos"`
 		Tipo        string  `json:"tipo"`

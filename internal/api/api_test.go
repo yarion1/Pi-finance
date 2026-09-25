@@ -19,6 +19,9 @@ import (
 	"github.com/yarion1/pi-finance/internal/config"
 	"github.com/yarion1/pi-finance/internal/cripto"
 	"github.com/yarion1/pi-finance/internal/db/dbteste"
+	"github.com/yarion1/pi-finance/internal/openfinance"
+	"github.com/yarion1/pi-finance/internal/pluggy"
+	"github.com/yarion1/pi-finance/internal/pluggy/pluggyfalsa"
 	"github.com/yarion1/pi-finance/internal/worker"
 )
 
@@ -28,6 +31,8 @@ type ambiente struct {
 	t       *testing.T
 	handler http.Handler
 	banco   *dbteste.Banco
+	pluggy  *pluggyfalsa.Falsa   // a API da Pluggy de mentira que o servidor usa
+	of      *openfinance.Servico // o mesmo serviço do servidor (o worker usa igual)
 }
 
 func novoAmbiente(t *testing.T, ajustar ...func(*config.Config)) *ambiente {
@@ -42,12 +47,17 @@ func novoAmbiente(t *testing.T, ajustar ...func(*config.Config)) *ambiente {
 	for _, f := range ajustar {
 		f(&cfg)
 	}
+	falsa := pluggyfalsa.Nova()
+	srvPluggy := httptest.NewServer(falsa)
+	t.Cleanup(srvPluggy.Close)
+	of := &openfinance.Servico{Banco: banco.App, Cifrador: cif, Pluggy: pluggy.Novo(srvPluggy.URL)}
 	srv := &api.Servidor{
 		Auth: &auth.Servico{Pool: banco.App, Cifrador: cif, WebAuthn: wa},
 		Pool: banco.App, Cifrador: cif, Config: cfg, Versao: "v0.0.0-teste",
-		Front: fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Finanças</title>")}},
+		Front:       fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Finanças</title>")}},
+		OpenFinance: of,
 	}
-	return &ambiente{t: t, handler: srv.Handler(), banco: banco}
+	return &ambiente{t: t, handler: srv.Handler(), banco: banco, pluggy: falsa, of: of}
 }
 
 // cliente guarda os cookies como um navegador faria.
@@ -170,6 +180,12 @@ func TestIsolamentoPorRota(t *testing.T) {
 	a.exigir("POST", "/api/compromissos", map[string]any{"entidade_id": pf.ID, "descricao": "COMPROMISSO-SECRETO", "valor_centavos": -30000, "vencimento": time.Now().AddDate(0, 0, 3).Format("2006-01-02")}, http.StatusCreated)
 	a.exigir("POST", "/api/recorrencias", map[string]any{"entidade_id": pf.ID, "descricao": "RECORRENCIA-SECRETA", "valor_centavos": -3990, "frequencia": "mensal", "proxima": time.Now().AddDate(0, 0, 5).Format("2006-01-02"), "tipo": "assinatura"}, http.StatusCreated)
 	a.exigir("PUT", "/api/orcamento", map[string]any{"entidade_id": pf.ID, "mes": time.Now().Format("2006-01"), "itens": []map[string]any{{"categoria_id": cat.ID, "limite_centavos": 7777777}}}, http.StatusNoContent)
+	// Open Finance de A: credenciais, banco e conta da Pluggy
+	amb.pluggy.Cliente("CLIENTE-SECRETO-QRST", "SECRET-SECRETO")
+	amb.pluggy.Item("CLIENTE-SECRETO-QRST", "ITEM-SECRETO", "BANCO-SECRETO",
+		contaBanco("acc-secreta", "CONTA-PLUGGY-SECRETA", "98765.43", txPluggy("tp", -1, "-1", "DEBIT", "PLUGGY-SECRETO")))
+	conectar(t, a, "CLIENTE-SECRETO-QRST", "SECRET-SECRETO", "ITEM-SECRETO", pf.ID)
+	sincronizar(t, amb, usuarioDe(t, a))
 	// A enxerga o próprio segredo pelas rotas (controle positivo)
 	if r := a.exigir("GET", "/api/transacoes", nil, 200); !bytes.Contains(r.corpo, []byte("SEGREDO-DA-ANA")) {
 		t.Fatal("A deveria ver a própria transação")
@@ -181,7 +197,8 @@ func TestIsolamentoPorRota(t *testing.T) {
 	proibidos := []string{"SEGREDO-DA-ANA", "CONTA-SECRETA", contaPrivada, pf.ID, "982.247", "52998224725",
 		"ARQUIVO-SECRETO", imp.ImportacaoID, "CATEGORIA-SECRETA", "REGRA-SECRETA", "MAPA-SECRETO",
 		"CARTAO-SECRETO", cartao.ID, "COMPRA-SECRETA", "META-SECRETA", "BEM-SECRETO", "DIVIDA-SECRETA", divida.ID,
-		"COMPROMISSO-SECRETO", "RECORRENCIA-SECRETA", "7777777", "50000000"}
+		"COMPROMISSO-SECRETO", "RECORRENCIA-SECRETA", "7777777", "50000000",
+		"ITEM-SECRETO", "BANCO-SECRETO", "CONTA-PLUGGY-SECRETA", "9876543", "QRST", "SECRET-SECRETO"}
 	for _, rota := range api.RotasLeitura {
 		caminho := strings.NewReplacer("{casa}", casa.ID, "{entidade}", pf.ID, "{conta}", contaPrivada,
 			"{importacao}", imp.ImportacaoID, "{cartao}", cartao.ID, "{divida}", divida.ID).Replace(rota)

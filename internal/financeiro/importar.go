@@ -32,6 +32,7 @@ type ResultadoImportacao struct {
 	Linhas         int            `json:"linhas"`
 	Novas          int            `json:"novas"`
 	Duplicadas     int            `json:"duplicadas"`
+	Casadas        int            `json:"casadas,omitempty"` // já estavam lá vindas da outra fonte (arquivo x Open Finance)
 	Transferencias int            `json:"transferencias"`
 	Categorizadas  int            `json:"categorizadas"`
 	Avisos         []string       `json:"avisos,omitempty"`
@@ -74,9 +75,15 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 		}
 	}
 
+	// na Pluggy o id externo é o dela, guardado à parte do id do arquivo (FITID)
+	pluggy := r.Formato == importadores.FormatoPluggy
+	colunaID := "id_externo"
+	if pluggy {
+		colunaID = "id_pluggy"
+	}
 	existentes := map[string]bool{}
-	rows, err := tx.Query(ctx, `select coalesce(chave_dedup, ''), coalesce(id_externo, '') from transacoes
-		where conta_id = $1 and (chave_dedup = any($2) or id_externo = any($3))`, contaID, chaves, ids)
+	rows, err := tx.Query(ctx, `select coalesce(chave_dedup, ''), coalesce(`+colunaID+`, '') from transacoes
+		where conta_id = $1 and (chave_dedup = any($2) or `+colunaID+` = any($3))`, contaID, chaves, ids)
 	if err != nil {
 		return res, err
 	}
@@ -106,8 +113,20 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 	}
 
 	var novas []string
+	casadas := map[string]bool{}
 	for _, l := range linhas {
 		dup := existentes["c:"+l.chave] || (l.IDExterno != "" && existentes["e:"+l.IDExterno])
+		if !dup {
+			// a mesma transação pode já ter vindo pela outra fonte (DECISOES D21)
+			id, err := casar(ctx, tx, contaID, l, pluggy, casadas, simular)
+			if err != nil {
+				return res, err
+			}
+			if id != "" {
+				dup = true
+				res.Casadas++
+			}
+		}
 		categoria, origem := cat.Sugerir(contaID, l.Descricao, l.Valor)
 		if dup {
 			res.Duplicadas++
@@ -128,12 +147,15 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 			continue
 		}
 		var id string
-		var idExterno *string
+		var idExterno, idPluggy *string
 		if l.IDExterno != "" {
 			idExterno = &l.IDExterno
 		}
 		origemTx := "csv"
-		if r.Formato == importadores.FormatoOFX {
+		switch {
+		case pluggy:
+			origemTx, idExterno, idPluggy = "pluggy", nil, idExterno
+		case r.Formato == importadores.FormatoOFX:
 			origemTx = "ofx"
 		}
 		// "Loja - Parcela 3/12" vira parcela 3 de 12 (as futuras entram no comprometido)
@@ -143,11 +165,11 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 		}
 		err := tx.QueryRow(ctx, `insert into transacoes (entidade_id, conta_id, data, descricao_original, descricao,
 				valor_centavos, moeda, categoria_id, tipo, origem, id_externo, importacao_id, chave_dedup,
-				fatura_em, parcela_n, parcela_total)
-			values ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+				fatura_em, parcela_n, parcela_total, id_pluggy)
+			values ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 			on conflict do nothing returning id`,
 			entidadeID, contaID, l.Data, l.Descricao, int64(l.Valor), moeda, categoria, TipoPorValor(l.Valor),
-			origemTx, idExterno, importacaoID, l.chave, conta.FaturaEm(l.Data), parcelaN, parcelaTotal).Scan(&id)
+			origemTx, idExterno, importacaoID, l.chave, conta.FaturaEm(l.Data), parcelaN, parcelaTotal, idPluggy).Scan(&id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			// corrida com outra importação: conta como duplicada
 			res.Novas--
@@ -179,6 +201,49 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 	_, err = tx.Exec(ctx, "update importacoes set novas = $2, duplicadas = $3, transferencias = $4 where id = $1",
 		importacaoID, res.Novas, res.Duplicadas, res.Transferencias)
 	return res, err
+}
+
+// casar procura, na mesma conta, a transação que já veio pela outra fonte: mesmo
+// valor, até 1 dia de diferença, ainda sem par. Linha da Pluggy casa com o que veio
+// de arquivo ou foi lançado à mão; linha de arquivo casa com o que veio da Pluggy.
+// Grava o id da nova fonte na existente (a próxima importação reconhece direto) e
+// devolve o id dela, ou "" se não achou.
+func casar(ctx context.Context, tx pgx.Tx, contaID string, l linhaChave, pluggy bool, usadas map[string]bool, simular bool) (string, error) {
+	filtro := "id_pluggy is null and origem <> 'pluggy'"
+	if !pluggy {
+		filtro = "origem = 'pluggy' and not casada"
+	}
+	usadasLista := make([]string, 0, len(usadas))
+	for id := range usadas {
+		usadasLista = append(usadasLista, id)
+	}
+	var id string
+	err := tx.QueryRow(ctx, `select id from transacoes
+		where conta_id = $1 and `+filtro+` and valor_centavos = $2 and data between $3::date - 1 and $3::date + 1
+		  and not (id = any($4::uuid[]))
+		order by abs(data - $3::date), criada_em limit 1`, contaID, int64(l.Valor), l.Data, usadasLista).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	usadas[id] = true
+	if simular {
+		return id, nil
+	}
+	if pluggy {
+		_, err = tx.Exec(ctx, "update transacoes set id_pluggy = $2, casada = true where id = $1", id, l.IDExterno)
+	} else {
+		var idExterno *string
+		if l.IDExterno != "" {
+			idExterno = &l.IDExterno
+		}
+		// a chave do arquivo passa a ser a dela: reimportar o mesmo arquivo reconhece
+		_, err = tx.Exec(ctx, `update transacoes set casada = true, chave_dedup = $2, id_externo = coalesce(id_externo, $3)
+			where id = $1`, id, l.chave, idExterno)
+	}
+	return id, err
 }
 
 // ErrMoeda é devolvido quando o arquivo e a conta têm moedas diferentes.

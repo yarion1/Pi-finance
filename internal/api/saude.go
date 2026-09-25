@@ -28,6 +28,15 @@ func (s *Servidor) saude(w http.ResponseWriter, r *http.Request) {
 	} else {
 		resp["worker"] = core.EstadoWorker(worker, agora)
 		resp["backup"] = core.EstadoBackup(backup, agora)
+		var conexoes, comErro int
+		var ultima *time.Time
+		if err := s.Pool.QueryRow(ctx, "select conexoes, com_erro, ultima_sync from app_estado_pluggy()").
+			Scan(&conexoes, &comErro, &ultima); err == nil {
+			resp["pluggy"] = core.EstadoPluggy(conexoes, comErro, ultima, agora)
+			if ultima != nil {
+				resp["last_sync"] = ultima.UTC().Format(time.RFC3339)
+			}
+		}
 	}
 
 	status := http.StatusOK

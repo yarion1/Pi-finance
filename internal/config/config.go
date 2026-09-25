@@ -22,6 +22,7 @@ type Config struct {
 	ForcarFalhaSaude    bool
 	LimiteAuthPorMinuto int
 	HSTS                bool
+	URLPluggy           string
 }
 
 func env(chave, padrao string) string {
@@ -43,6 +44,7 @@ func Carregar() (Config, error) {
 		ForcarFalhaSaude:    env("FORCAR_FALHA_HEALTH", "") == "1",
 		LimiteAuthPorMinuto: 10,
 		HSTS:                strings.HasPrefix(env("PUBLIC_URL", ""), "https:"),
+		URLPluggy:           env("PLUGGY_URL", ""),
 	}
 	if v := env("LIMITE_AUTH_POR_MINUTO", ""); v != "" {
 		n, err := strconv.Atoi(v)

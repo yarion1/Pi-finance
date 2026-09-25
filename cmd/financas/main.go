@@ -23,6 +23,8 @@ import (
 	"github.com/yarion1/pi-finance/internal/config"
 	"github.com/yarion1/pi-finance/internal/cripto"
 	"github.com/yarion1/pi-finance/internal/db"
+	"github.com/yarion1/pi-finance/internal/openfinance"
+	"github.com/yarion1/pi-finance/internal/pluggy"
 	"github.com/yarion1/pi-finance/internal/worker"
 	"github.com/yarion1/pi-finance/web"
 )
@@ -91,6 +93,9 @@ func servir(ctx context.Context) error {
 		Config:   cfg,
 		Versao:   versao,
 		Front:    web.Dist(),
+		OpenFinance: &openfinance.Servico{
+			Banco: pool, Cifrador: cifrador, Pluggy: pluggy.Novo(cfg.URLPluggy),
+		},
 	}
 	http := &http.Server{
 		Addr:              cfg.Endereco,
@@ -123,12 +128,17 @@ func rodarWorker(ctx context.Context) error {
 	if cfg.DatabaseURL == "" {
 		return errors.New("DATABASE_URL não definido")
 	}
+	cifrador, err := cripto.CarregarArquivo(cfg.ArquivoChave)
+	if err != nil {
+		return err
+	}
 	pool, err := db.Conectar(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
-	return worker.Rodar(ctx, pool, versao)
+	of := &openfinance.Servico{Banco: pool, Cifrador: cifrador, Pluggy: pluggy.Novo(cfg.URLPluggy)}
+	return worker.Rodar(ctx, pool, versao, of)
 }
 
 func migrar(ctx context.Context) error {
