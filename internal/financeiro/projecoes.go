@@ -307,6 +307,12 @@ func CalcularPatrimonio(ctx context.Context, tx pgx.Tx, ents []string, hoje time
 			p.Contas += *saldo
 		}
 	}
+	// a carteira de investimentos (ativos) entra além das contas do tipo investimento
+	carteira, err := CalcularCarteira(ctx, tx, ents, hoje)
+	if err != nil {
+		return p, err
+	}
+	p.Investimentos += int64(carteira.Total)
 	p.Hoje = PontoPatrimonio{Data: hoje.Format(formatoData), Ativos: p.Contas + p.Investimentos + p.Bens, Passivos: p.Cartoes + p.Negativas + p.Dividas}
 	p.Hoje.Liquido = p.Hoje.Ativos - p.Hoje.Passivos
 

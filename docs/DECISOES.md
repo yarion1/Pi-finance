@@ -275,3 +275,14 @@ abre com contas bancárias por banco (cores de marca em siglas, sem imagens de t
 causa da CSP), cartões com o % do limite usado segundo o banco, investimentos e a evolução
 do patrimônio em SVG próprio (ECharts continua previsto para a fase 7). O tema claro
 acompanha com o mesmo destaque.
+
+## D26 — Investimentos pelo Open Finance
+
+Cada investimento que a Pluggy devolve (CDB, LCI, Tesouro, fundos, previdência, ações) vira
+um **ativo** da entidade do banco conectado, com o **saldo informado pela instituição** e o
+valor aplicado (para o rendimento). A SPEC pede a carteira a partir das operações: isso vale
+para os ativos manuais e os da B3 (posição × última cotação); para os do banco, o valor da
+instituição é mais fiel do que uma curva estimada, e as operações dele entram depois se
+fizerem falta. Resgatados por inteiro ficam como **encerrados**. LCI, LCA, CRI e CRA são
+marcados como isentos de IR. A carteira entra no patrimônio (além das contas do tipo
+investimento); a série histórica do patrimônio ainda não tem a carteira dos meses passados.

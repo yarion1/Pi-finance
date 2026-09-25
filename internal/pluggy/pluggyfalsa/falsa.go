@@ -13,11 +13,12 @@ import (
 	"github.com/yarion1/pi-finance/internal/pluggy"
 )
 
-// Item falso: de quem é (client id) e as contas com as transações.
+// Item falso: de quem é (client id), as contas com as transações e os investimentos.
 type Item struct {
-	Dono   string
-	Item   pluggy.Item
-	Contas []*Conta
+	Dono          string
+	Item          pluggy.Item
+	Contas        []*Conta
+	Investimentos []pluggy.Investimento
 }
 
 // Conta falsa com as transações dela.
@@ -58,6 +59,13 @@ func (f *Falsa) Item(dono, id, banco string, contas ...*Conta) {
 	it.Item.ID, it.Item.Status, it.Item.LastUpdatedAt = id, "UPDATED", "2026-09-25T09:00:00.000Z"
 	it.Item.Connector.Name = banco
 	f.itens[id] = it
+}
+
+// Investimentos troca os investimentos de um item.
+func (f *Falsa) Investimentos(item string, invs ...pluggy.Investimento) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.itens[item].Investimentos = invs
 }
 
 // Status muda o estado do item (ex.: LOGIN_ERROR).
@@ -173,6 +181,17 @@ func (f *Falsa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			contas = append(contas, c.Conta)
 		}
 		escrever(w, http.StatusOK, map[string]any{"results": contas})
+	case r.URL.Path == "/investments":
+		it := item(r.URL.Query().Get("itemId"))
+		if it == nil {
+			escrever(w, http.StatusNotFound, map[string]string{"message": "not found"})
+			return
+		}
+		invs := it.Investimentos
+		if invs == nil {
+			invs = []pluggy.Investimento{}
+		}
+		escrever(w, http.StatusOK, map[string]any{"results": invs, "page": 1, "totalPages": 1, "total": len(invs)})
 	case r.URL.Path == "/v2/transactions" && f.SemV2:
 		escrever(w, http.StatusBadRequest, map[string]any{"code": 400, "message": "v2 indisponível neste teste"})
 	case r.URL.Path == "/v2/transactions", r.URL.Path == "/transactions":

@@ -50,6 +50,14 @@ func main() {
 			Transacoes: []pluggy.Transacao{tx("c1", -3, "450", "DEBIT", "RESTAURANTE")},
 		},
 	)
+	f.Investimentos("item-demo",
+		pluggy.Investimento{ID: "inv-1", Name: "CDB - PICPAY INSTITUICAO DE PAGAMENTO S/A", Type: "FIXED_INCOME", Subtype: "CDB",
+			Balance: "12726.64", AmountOriginal: "12000", Issuer: "PicPay", Status: "ACTIVE"},
+		pluggy.Investimento{ID: "inv-2", Name: "LCI BANCO X", Type: "FIXED_INCOME", Subtype: "LCI", Balance: "5000",
+			AmountOriginal: "4800", Issuer: "Banco X", Status: "ACTIVE"},
+		pluggy.Investimento{ID: "inv-3", Name: "CDB - PICPAY INSTITUICAO DE PAGAMENTO S/A", Type: "FIXED_INCOME", Subtype: "CDB",
+			Balance: "0", Status: "TOTAL_WITHDRAWAL"},
+	)
 	log.Printf("pluggy falsa em http://%s", endereco)
 	srv := &http.Server{Addr: endereco, Handler: f, ReadHeaderTimeout: 5 * time.Second}
 	log.Fatal(srv.ListenAndServe())

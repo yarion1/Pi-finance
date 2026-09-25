@@ -184,8 +184,13 @@ func TestIsolamentoPorRota(t *testing.T) {
 	amb.pluggy.Cliente("CLIENTE-SECRETO-QRST", "SECRET-SECRETO")
 	amb.pluggy.Item("CLIENTE-SECRETO-QRST", "ITEM-SECRETO", "BANCO-SECRETO",
 		contaBanco("acc-secreta", "CONTA-PLUGGY-SECRETA", "98765.43", txPluggy("tp", -1, "-1", "DEBIT", "PLUGGY-SECRETO")))
+	amb.pluggy.Investimentos("ITEM-SECRETO", pluggy.Investimento{ID: "inv-secreto", Name: "INVESTIMENTO-SECRETO",
+		Type: "FIXED_INCOME", Subtype: "CDB", Balance: "7654.32", Status: "ACTIVE"})
 	conectar(t, a, "CLIENTE-SECRETO-QRST", "SECRET-SECRETO", "ITEM-SECRETO", pf.ID)
 	sincronizar(t, amb, usuarioDe(t, a))
+	if r := a.exigir("GET", "/api/investimentos", nil, 200); !bytes.Contains(r.corpo, []byte("INVESTIMENTO-SECRETO")) {
+		t.Fatal("A deveria ver o próprio investimento")
+	}
 	// A enxerga o próprio segredo pelas rotas (controle positivo)
 	if r := a.exigir("GET", "/api/transacoes", nil, 200); !bytes.Contains(r.corpo, []byte("SEGREDO-DA-ANA")) {
 		t.Fatal("A deveria ver a própria transação")
@@ -198,7 +203,8 @@ func TestIsolamentoPorRota(t *testing.T) {
 		"ARQUIVO-SECRETO", imp.ImportacaoID, "CATEGORIA-SECRETA", "REGRA-SECRETA", "MAPA-SECRETO",
 		"CARTAO-SECRETO", cartao.ID, "COMPRA-SECRETA", "META-SECRETA", "BEM-SECRETO", "DIVIDA-SECRETA", divida.ID,
 		"COMPROMISSO-SECRETO", "RECORRENCIA-SECRETA", "7777777", "50000000",
-		"ITEM-SECRETO", "BANCO-SECRETO", "CONTA-PLUGGY-SECRETA", "9876543", "QRST", "SECRET-SECRETO"}
+		"ITEM-SECRETO", "BANCO-SECRETO", "CONTA-PLUGGY-SECRETA", "9876543", "QRST", "SECRET-SECRETO",
+		"INVESTIMENTO-SECRETO", "765432"}
 	for _, rota := range api.RotasLeitura {
 		caminho := strings.NewReplacer("{casa}", casa.ID, "{entidade}", pf.ID, "{conta}", contaPrivada,
 			"{importacao}", imp.ImportacaoID, "{cartao}", cartao.ID, "{divida}", divida.ID).Replace(rota)

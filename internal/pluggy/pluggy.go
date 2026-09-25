@@ -373,6 +373,86 @@ func (c *Cliente) transacoesV1(ctx context.Context, chave, contaID string, desde
 	return todas, nil
 }
 
+// Investimento de um item (CDB, Tesouro, fundo, ações, previdência...).
+type Investimento struct {
+	ID             string      `json:"id"`
+	Name           string      `json:"name"`
+	Code           string      `json:"code"`
+	Type           string      `json:"type"`    // FIXED_INCOME, SECURITY, MUTUAL_FUND, EQUITY, ETF, COE, OTHER
+	Subtype        string      `json:"subtype"` // CDB, LCI, LCA, TREASURY, STOCK, REAL_ESTATE_FUND, ...
+	Balance        json.Number `json:"balance"`
+	AmountOriginal json.Number `json:"amountOriginal"`
+	Quantity       json.Number `json:"quantity"`
+	CurrencyCode   string      `json:"currencyCode"`
+	DueDate        string      `json:"dueDate"`
+	Issuer         string      `json:"issuer"`
+	Rate           json.Number `json:"rate"`
+	RateType       string      `json:"rateType"`
+	Status         string      `json:"status"` // ACTIVE, PENDING, TOTAL_WITHDRAWAL
+}
+
+// Classe no painel (core/migração: acao, fii, etf, bdr, renda_fixa, tesouro, fundo,
+// cripto, exterior, previdencia, outro).
+func (i Investimento) Classe() string {
+	sub := strings.ToUpper(i.Subtype)
+	switch strings.ToUpper(i.Type) {
+	case "FIXED_INCOME":
+		if strings.Contains(sub, "TREASURY") || strings.Contains(sub, "TESOURO") {
+			return "tesouro"
+		}
+		return "renda_fixa"
+	case "MUTUAL_FUND":
+		return "fundo"
+	case "SECURITY":
+		return "previdencia"
+	case "ETF":
+		return "etf"
+	case "EQUITY":
+		switch {
+		case strings.Contains(sub, "REAL_ESTATE"):
+			return "fii"
+		case strings.Contains(sub, "ETF"):
+			return "etf"
+		case strings.Contains(sub, "BDR"):
+			return "bdr"
+		}
+		return "acao"
+	}
+	return "outro"
+}
+
+// Isento de IR para pessoa física (LCI, LCA, CRI, CRA, debêntures incentivadas).
+func (i Investimento) Isento() bool {
+	switch strings.ToUpper(i.Subtype) {
+	case "LCI", "LCA", "CRI", "CRA", "DEBENTURE_INCENTIVADA", "INCENTIVIZED_DEBENTURE":
+		return true
+	}
+	return false
+}
+
+// Ativo: ainda tem dinheiro aplicado.
+func (i Investimento) Ativo() bool { return !strings.EqualFold(i.Status, "TOTAL_WITHDRAWAL") }
+
+// Investimentos de um item (paginado).
+func (c *Cliente) Investimentos(ctx context.Context, chave, itemID string) ([]Investimento, error) {
+	var todos []Investimento
+	for pagina := 1; pagina <= 50; pagina++ {
+		q := url.Values{"itemId": {itemID}, "pageSize": {"500"}, "page": {strconv.Itoa(pagina)}}
+		var out struct {
+			Results    []Investimento `json:"results"`
+			TotalPages int            `json:"totalPages"`
+		}
+		if err := c.get(ctx, chave, "/investments?"+q.Encode(), &out); err != nil {
+			return nil, err
+		}
+		todos = append(todos, out.Results...)
+		if pagina >= out.TotalPages || len(out.Results) == 0 {
+			break
+		}
+	}
+	return todos, nil
+}
+
 // Centavos lê um número decimal da API ("-45.9", "1234.567") sem float.
 func Centavos(n json.Number) (core.Centavos, error) {
 	s := strings.TrimPrefix(strings.TrimSpace(n.String()), "+")

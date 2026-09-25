@@ -439,8 +439,14 @@ test.describe
       await nubank.getByRole("button", { name: "Acertar pelo banco" }).click();
       await expect(nubank.getByText("confere com o banco")).toBeVisible();
 
+      // os investimentos do banco entram na carteira (o resgatado fica como encerrado)
+      await page.goto("/investimentos");
+      await expect(page.getByRole("heading", { name: /Carteira \(2 ativos\)/ })).toBeVisible();
+      await expect(page.getByText("1 encerrados (resgatados)")).toBeVisible();
+      await expect(page.getByText("isento de IR")).toBeVisible();
+
       await page.setViewportSize({ width: 360, height: 740 });
-      for (const rota of ["/open-finance", "/contas"]) {
+      for (const rota of ["/open-finance", "/contas", "/investimentos", "/gastos"]) {
         await page.goto(rota);
         await page.waitForLoadState("networkidle");
         await semRolagemHorizontal(page);

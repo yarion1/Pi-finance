@@ -552,3 +552,84 @@ func TestCategoriaDoBanco(t *testing.T) {
 		t.Fatalf("uber completada: %+v", l.Itens)
 	}
 }
+
+// Investimentos do banco viram ativos com o saldo informado; ativo manual vale a posição
+// pelas operações × a última cotação; tudo entra no patrimônio.
+func TestInvestimentosDoBanco(t *testing.T) {
+	amb, a, pf, _, _ := prepara(t)
+	amb.pluggy.Cliente("cli", "sec")
+	amb.pluggy.Item("cli", "item", "MeuPluggy")
+	amb.pluggy.Investimentos("item",
+		pluggy.Investimento{ID: "i1", Name: "CDB - PICPAY", Type: "FIXED_INCOME", Subtype: "CDB", Balance: "12726.64",
+			AmountOriginal: "12000", Issuer: "PICPAY INSTITUICAO DE PAGAMENTO S/A", Status: "ACTIVE", DueDate: "2028-01-10"},
+		pluggy.Investimento{ID: "i2", Name: "LCI BANCO X", Type: "FIXED_INCOME", Subtype: "LCI", Balance: "5000", Status: "ACTIVE"},
+		pluggy.Investimento{ID: "i3", Name: "CDB - PICPAY", Type: "FIXED_INCOME", Subtype: "CDB", Balance: "0", Status: "TOTAL_WITHDRAWAL"},
+		pluggy.Investimento{ID: "i4", Name: "Tesouro Selic 2029", Type: "FIXED_INCOME", Subtype: "TREASURY", Balance: "1000", Status: "ACTIVE"},
+	)
+	conectar(t, a, "cli", "sec", "item", pf)
+	sincronizar(t, amb, usuarioDe(t, a))
+	// de novo: atualiza sem duplicar
+	amb.pluggy.Investimentos("item",
+		pluggy.Investimento{ID: "i1", Name: "CDB - PICPAY", Type: "FIXED_INCOME", Subtype: "CDB", Balance: "12800",
+			AmountOriginal: "12000", Issuer: "PICPAY INSTITUICAO DE PAGAMENTO S/A", Status: "ACTIVE"},
+		pluggy.Investimento{ID: "i2", Name: "LCI BANCO X", Type: "FIXED_INCOME", Subtype: "LCI", Balance: "5000", Status: "ACTIVE"},
+		pluggy.Investimento{ID: "i3", Name: "CDB - PICPAY", Type: "FIXED_INCOME", Subtype: "CDB", Balance: "0", Status: "TOTAL_WITHDRAWAL"},
+		pluggy.Investimento{ID: "i4", Name: "Tesouro Selic 2029", Type: "FIXED_INCOME", Subtype: "TREASURY", Balance: "1000", Status: "ACTIVE"},
+	)
+	sincronizar(t, amb, usuarioDe(t, a))
+
+	// ativo manual com uma compra e a cotação gravada pelo worker
+	ctx := context.Background()
+	var ativo string
+	if err := amb.banco.Dono.QueryRow(ctx, `insert into ativos (entidade_id, codigo, classe, cotacao_codigo) values ($1, 'PETR4', 'acao', 'PETR4') returning id`, pf).Scan(&ativo); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := amb.banco.Dono.Exec(ctx, `insert into operacoes (entidade_id, ativo_id, data, tipo, quantidade, preco) values ($1, $2, '2026-01-05', 'compra', 100, 30)`, pf, ativo); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := amb.banco.App.Exec(ctx, "insert into cotacoes (codigo, data, preco, fonte) values ('PETR4', '2026-06-01', 38.5, 'teste')"); err != nil {
+		t.Fatal(err)
+	}
+
+	var c struct {
+		Total      int64 `json:"total_centavos"`
+		Encerrados int   `json:"encerrados"`
+		Classes    []struct {
+			Classe string `json:"classe"`
+			Valor  int64  `json:"valor_centavos"`
+			Ativos int    `json:"ativos"`
+		} `json:"classes"`
+		Ativos []struct {
+			Nome        string  `json:"nome"`
+			Instituicao *string `json:"instituicao"`
+			Valor       int64   `json:"valor_centavos"`
+			Rendimento  int64   `json:"rendimento_centavos"`
+			Isento      bool    `json:"isento_ir"`
+			Quantidade  string  `json:"quantidade"`
+		} `json:"ativos"`
+	}
+	a.exigir("GET", "/api/investimentos", nil, http.StatusOK).json(t, &c)
+	// 12.800 + 5.000 + 1.000 + 100 × 38,50
+	if c.Total != 1280000+500000+100000+385000 || c.Encerrados != 1 || len(c.Classes) != 3 {
+		t.Fatalf("carteira: %+v", c)
+	}
+	if c.Ativos[0].Nome != "CDB - PICPAY" || c.Ativos[0].Rendimento != 80000 || c.Ativos[0].Instituicao == nil ||
+		*c.Ativos[0].Instituicao != "PICPAY INSTITUICAO DE PAGAMENTO S/A" {
+		t.Fatalf("CDB: %+v", c.Ativos[0])
+	}
+	for _, x := range c.Ativos {
+		if x.Nome == "LCI BANCO X" && !x.Isento {
+			t.Error("LCI é isenta")
+		}
+		if x.Nome == "PETR4" && (x.Valor != 385000 || x.Quantidade != "100") {
+			t.Errorf("PETR4: %+v", x)
+		}
+	}
+	var p struct {
+		Investimentos int64 `json:"investimentos_centavos"`
+	}
+	a.exigir("GET", "/api/patrimonio", nil, http.StatusOK).json(t, &p)
+	if p.Investimentos != c.Total {
+		t.Fatalf("patrimônio sem a carteira: %d", p.Investimentos)
+	}
+}

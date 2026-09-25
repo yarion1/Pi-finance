@@ -162,6 +162,9 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("POST /api/open-finance/sincronizar", s.sessaoCompleta(s.sincronizarAgora))
 	mux.Handle("POST /api/contas/{id}/acertar-saldo", s.sessaoCompleta(s.acertarSaldo))
 
+	// Investimentos (fase 4)
+	mux.Handle("GET /api/investimentos", s.sessaoCompleta(s.carteira))
+
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		erroJSON(w, http.StatusNotFound, "nao_encontrado", "rota inexistente")
 	})
@@ -189,6 +192,7 @@ var RotasLeitura = []string{
 	"/api/patrimonio", "/api/patrimonio?entidade_id={entidade}", "/api/dividas/{divida}/tabela",
 	"/api/compromissos", "/api/compromissos?entidade_id={entidade}",
 	"/api/open-finance",
+	"/api/investimentos", "/api/investimentos?entidade_id={entidade}",
 }
 
 // ---------------------------------------------------------------------------

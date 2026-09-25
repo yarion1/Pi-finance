@@ -283,6 +283,11 @@ func (s *Servico) sincronizarItem(ctx context.Context, usuarioID, chave string, 
 		return err
 	}
 
+	// investimentos do banco: viram ativos da entidade do item, com o saldo informado
+	if err := s.sincronizarInvestimentos(ctx, usuarioID, chave, it, item.Connector.Name); err != nil {
+		return err
+	}
+
 	// 2) transações de cada conta vinculada, cada uma na sua transação do banco
 	for _, c := range contas {
 		if c.contaID == nil || c.ignorada {
@@ -348,6 +353,60 @@ func (s *Servico) sincronizarItem(ctx context.Context, usuarioID, chave string, 
 		_, err := tx.Exec(ctx, "update itens_pluggy set ultima_sync = $2 where id = $1", it.id, s.agora())
 		return err
 	})
+}
+
+// sincronizarInvestimentos grava cada investimento como ativo (chave: id da Pluggy).
+// Os resgatados por inteiro ficam como encerrados, para o histórico.
+func (s *Servico) sincronizarInvestimentos(ctx context.Context, usuarioID, chave string, it itemLocal, banco string) error {
+	invs, err := s.Pluggy.Investimentos(ctx, chave, it.itemID)
+	if err != nil {
+		return err
+	}
+	return db.ComUsuario(ctx, s.Banco, usuarioID, func(tx pgx.Tx) error {
+		for _, inv := range invs {
+			saldo, _ := pluggy.Centavos(inv.Balance)
+			var aplicado *core.Centavos
+			if v, err := pluggy.Centavos(inv.AmountOriginal); err == nil && v > 0 {
+				aplicado = &v
+			}
+			var venc *time.Time
+			if d, err := pluggy.DataSP(inv.DueDate); err == nil {
+				venc = &d
+			}
+			nome := strings.TrimSpace(inv.Name)
+			if nome == "" {
+				nome = inv.Code
+			}
+			// pelo conector MeuPluggy o nome do "banco" é o do conector: o emissor diz mais
+			instituicao := banco
+			if strings.Contains(strings.ToLower(strings.ReplaceAll(banco, " ", "")), "meupluggy") && inv.Issuer != "" {
+				instituicao = inv.Issuer
+			}
+			moeda := strings.ToUpper(strings.TrimSpace(inv.CurrencyCode))
+			if len(moeda) != 3 {
+				moeda = "BRL"
+			}
+			if _, err := tx.Exec(ctx, `insert into ativos (entidade_id, codigo, nome, classe, emissor, vencimento, moeda, isento_ir,
+					origem, pluggy_id, instituicao, subtipo, saldo_centavos, aplicado_centavos, saldo_em, encerrado)
+				values ($1, $2, $3, $4::classe_ativo, $5, $6, $7, $8, 'pluggy', $9, $10, $11, $12, $13, now(), $14)
+				on conflict (entidade_id, pluggy_id) where pluggy_id is not null do update set nome = excluded.nome,
+					classe = excluded.classe, emissor = excluded.emissor, vencimento = excluded.vencimento,
+					instituicao = excluded.instituicao, subtipo = excluded.subtipo, saldo_centavos = excluded.saldo_centavos,
+					aplicado_centavos = excluded.aplicado_centavos, saldo_em = now(), encerrado = excluded.encerrado`,
+				it.entidade, "pluggy:"+inv.ID, nome, inv.Classe(), nullSe(inv.Issuer), venc, moeda, inv.Isento(),
+				inv.ID, nullSe(instituicao), nullSe(inv.Subtype), int64(saldo), aplicado, !inv.Ativo() || saldo == 0); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func nullSe(s string) *string {
+	if s = strings.TrimSpace(s); s == "" {
+		return nil
+	}
+	return &s
 }
 
 // acertarCartao copia do banco o limite (sempre) e os dias de fechamento e vencimento

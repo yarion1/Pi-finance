@@ -4,7 +4,7 @@ import { CreditCard, Landmark, TrendingUp, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { formatarMoeda, formatarPercentual } from "../lib/formato";
-import { type Conta, nomesTipoConta, type PontoPatrimonio } from "../lib/tipos";
+import { type Carteira, type Conta, nomesClasse, type PontoPatrimonio } from "../lib/tipos";
 import { Barra } from "./extras";
 import { Esqueleto } from "./ui";
 
@@ -211,10 +211,28 @@ export function Cartoes({ contas, carregando }: { contas: Conta[]; carregando: b
   );
 }
 
-/** Investimentos por classe (fase 4: a carteira completa entra aqui). */
-export function Investimentos({ contas, carregando }: { contas: Conta[]; carregando: boolean }) {
-  const lista = contas.filter((c) => c.tipo === "investimento" && !c.arquivada && c.moeda === "BRL");
-  const total = lista.reduce((s, c) => s + (c.saldo_centavos ?? 0), 0);
+/** Investimentos por classe: a carteira (Open Finance, B3, manuais) e as contas de investimento. */
+export function Investimentos({
+  contas,
+  carteira,
+  carregando,
+}: {
+  contas: Conta[];
+  carteira?: Carteira;
+  carregando: boolean;
+}) {
+  const contasInv = contas.filter((c) => c.tipo === "investimento" && !c.arquivada && c.moeda === "BRL");
+  const emContas = contasInv.reduce((s, c) => s + (c.saldo_centavos ?? 0), 0);
+  const total = (carteira?.total_centavos ?? 0) + emContas;
+  const linhas = [
+    ...(carteira?.classes ?? []).map((c) => ({
+      nome: nomesClasse[c.classe] ?? c.classe,
+      qtd: c.ativos,
+      valor: c.valor_centavos,
+    })),
+    ...(emContas ? [{ nome: "Contas de investimento", qtd: contasInv.length, valor: emContas }] : []),
+  ].sort((a, b) => b.valor - a.valor);
+  const ativos = (carteira?.classes ?? []).reduce((s, c) => s + c.ativos, 0);
   return (
     <Bloco
       icone={<TrendingUp className="size-4" />}
@@ -222,33 +240,38 @@ export function Investimentos({ contas, carregando }: { contas: Conta[]; carrega
       valor={total}
       cor="text-entrada"
       carregando={carregando}
-      sub={lista.length ? `${lista.length} ${lista.length === 1 ? "conta" : "contas"}` : undefined}
+      sub={
+        linhas.length
+          ? `${linhas.length} ${linhas.length === 1 ? "classe" : "classes"} · ${ativos} ${ativos === 1 ? "ativo" : "ativos"}${
+              carteira?.encerrados ? ` (${carteira.encerrados} encerrados)` : ""
+            }`
+          : undefined
+      }
     >
-      {lista.length ? (
-        <ul className="flex flex-col gap-4 p-5">
-          {lista.map((c) => (
-            <li key={c.id}>
-              <div className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="truncate">{c.nome}</span>
-                <span className="valor num shrink-0">
-                  <span className="text-texto-2">
-                    {total > 0 ? formatarPercentual((c.saldo_centavos ?? 0) / total) : ""}
-                  </span>{" "}
-                  {formatarMoeda(c.saldo_centavos ?? 0)}
+      {linhas.length ? (
+        <Link to="/investimentos" className="flex flex-col gap-4 p-5 hover:bg-superficie-2">
+          {linhas.map((l) => (
+            <span key={l.nome} className="block">
+              <span className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="truncate">
+                  {l.nome} <span className="text-texto-2">({l.qtd})</span>
                 </span>
-              </div>
-              <Barra
-                fracao={total > 0 ? (c.saldo_centavos ?? 0) / total : 0}
-                cor="var(--destaque)"
-                rotulo={c.nome}
-              />
-            </li>
+                <span className="valor num shrink-0">
+                  <span className="text-texto-2">{total > 0 ? formatarPercentual(l.valor / total) : ""}</span>{" "}
+                  {formatarMoeda(l.valor)}
+                </span>
+              </span>
+              <Barra fracao={total > 0 ? l.valor / total : 0} cor="var(--destaque)" rotulo={l.nome} />
+            </span>
           ))}
-        </ul>
+        </Link>
       ) : carregando ? null : (
         <p className="p-5 text-sm text-texto-2">
-          Cadastre uma conta do tipo “{nomesTipoConta.investimento}”. A carteira completa (ações, FIIs, renda
-          fixa) chega na próxima versão.
+          Os investimentos do banco entram pelo{" "}
+          <Link to="/open-finance" className="font-semibold text-primaria">
+            Open Finance
+          </Link>
+          .
         </p>
       )}
     </Bloco>

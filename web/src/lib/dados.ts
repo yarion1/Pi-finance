@@ -2,6 +2,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { obter } from "./api";
 import type {
+  Carteira,
   Casa,
   Categoria,
   Conta,
@@ -130,3 +131,7 @@ export const useIndicadores = () =>
 /** Resumo de um mês (mesma chave no Início e em Gastos). */
 export const useResumo = (mes: string) =>
   useQuery({ queryKey: ["resumo", mes], queryFn: () => obter<Resumo>(`/api/resumo?mes=${mes}`) });
+
+/** Carteira de investimentos de hoje. */
+export const useCarteira = () =>
+  useQuery({ queryKey: ["investimentos"], queryFn: () => obter<Carteira>("/api/investimentos") });

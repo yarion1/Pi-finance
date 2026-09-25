@@ -21,6 +21,7 @@ import {
   gastoOrcado,
   mesAtual,
   nomeMes,
+  useCarteira,
   useCasas,
   useEntidades,
   useIndicadores,
@@ -76,6 +77,7 @@ export function Inicio() {
   const casas = useCasas();
   const alertas = useQuery({ queryKey: ["alertas"], queryFn: () => obter<Alerta[]>("/api/alertas") });
   const indicadores = useIndicadores();
+  const carteira = useCarteira();
   const orcamento = useQuery({
     queryKey: ["orcamento", mes, ""],
     queryFn: () => obter<Orcamento>(`/api/orcamento?mes=${mes}`),
@@ -103,7 +105,11 @@ export function Inicio() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <ContasBancarias contas={r?.contas ?? []} carregando={resumo.isPending} />
         <Cartoes contas={r?.contas ?? []} carregando={resumo.isPending} />
-        <Investimentos contas={r?.contas ?? []} carregando={resumo.isPending} />
+        <Investimentos
+          contas={r?.contas ?? []}
+          carteira={carteira.data}
+          carregando={resumo.isPending || carteira.isPending}
+        />
       </div>
 
       <EvolucaoSaldo serie={indicadores.data?.patrimonio.serie ?? []} carregando={indicadores.isPending} />

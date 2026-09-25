@@ -507,3 +507,52 @@ export type RelatorioSincronizacao = {
   transferencias: number;
   erros?: string[];
 };
+
+// ---- Fase 4: investimentos ----
+
+export type AtivoCarteira = {
+  id: string;
+  entidade_id: string;
+  codigo: string;
+  nome: string;
+  classe: string;
+  subtipo: string | null;
+  instituicao: string | null;
+  emissor: string | null;
+  vencimento: string | null;
+  origem: "manual" | "b3" | "pluggy";
+  quantidade: string;
+  preco_medio: string;
+  cotacao: string | null;
+  cotacao_em: string | null;
+  custo_centavos: number;
+  valor_centavos: number;
+  rendimento_centavos: number;
+  proventos_centavos: number;
+  percentual: number;
+  encerrado: boolean;
+  isento_ir: boolean;
+};
+
+export type Carteira = {
+  total_centavos: number;
+  custo_centavos: number;
+  classes: { classe: string; valor_centavos: number; ativos: number; percentual: number }[];
+  ativos: AtivoCarteira[];
+  encerrados: number;
+  valor_em: string;
+};
+
+export const nomesClasse: Record<string, string> = {
+  acao: "Ações",
+  fii: "Fundos imobiliários",
+  etf: "ETFs",
+  bdr: "BDRs",
+  renda_fixa: "Renda fixa",
+  tesouro: "Tesouro Direto",
+  fundo: "Fundos",
+  cripto: "Cripto",
+  exterior: "Exterior",
+  previdencia: "Previdência",
+  outro: "Outros",
+};
