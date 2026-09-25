@@ -10,3 +10,6 @@ next-env.d.ts
 .DS_Store
 test-results/
 playwright-report/
+web/dist/*
+!web/dist/.gitkeep
+web/node_modules/

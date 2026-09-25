@@ -84,8 +84,11 @@ type Origem struct {
 
 var reCelular = regexp.MustCompile(`(?i)android|iphone|ipad|mobile`)
 
+// EhCelular decide a duração da sessão (7 dias no celular, 12 h no navegador).
+func EhCelular(userAgent string) bool { return reCelular.MatchString(userAgent) }
+
 func duracaoSessao(userAgent string) time.Duration {
-	if reCelular.MatchString(userAgent) {
+	if EhCelular(userAgent) {
 		return DuracaoCelular
 	}
 	return DuracaoNavegador

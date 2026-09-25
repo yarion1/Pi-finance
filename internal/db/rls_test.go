@@ -273,6 +273,41 @@ func TestIsolamento_entre_usuarios(t *testing.T) {
 		}
 	})
 
+	t.Run("quem sai da casa leva as contas compartilhadas", func(t *testing.T) {
+		ctx := context.Background()
+		var pfB, contaB string
+		err := db.ComUsuario(ctx, banco.App, s.b, func(tx pgx.Tx) error {
+			if err := tx.QueryRow(ctx, "insert into entidades (dono_id, tipo, nome) values ($1, 'PF', 'Bruno PF') returning id", s.b).Scan(&pfB); err != nil {
+				return err
+			}
+			if err := tx.QueryRow(ctx, `insert into contas (entidade_id, nome, tipo, visibilidade, casa_id)
+				values ($1, 'conta do Bruno', 'corrente', 'compartilhada', $2) returning id`, pfB, s.casa).Scan(&contaB); err != nil {
+				return err
+			}
+			_, err := tx.Exec(ctx, `insert into transacoes (entidade_id, conta_id, data, descricao_original, descricao, valor_centavos, tipo)
+				values ($1, $2, current_date, 'mercado', 'mercado', -1000, 'gasto')`, pfB, contaB)
+			return err
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n := contar(t, banco, s.a, "select count(*) from transacoes where conta_id = $1", contaB); n != 1 {
+			t.Fatal("A deveria ver a conta que B compartilhou")
+		}
+		if err := db.ComUsuario(ctx, banco.App, s.b, func(tx pgx.Tx) error {
+			_, err := tx.Exec(ctx, "delete from membros_casa where usuario_id = $1", s.b)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if n := contar(t, banco, s.a, "select count(*) from contas where id = $1", contaB); n != 0 {
+			t.Fatal("A continua vendo a conta de B depois que ele saiu da casa")
+		}
+		if n := contar(t, banco, s.b, "select count(*) from transacoes where conta_id = $1", s.compartilhada); n != 0 {
+			t.Fatal("B continua vendo a conta de A depois que saiu da casa")
+		}
+	})
+
 	t.Run("contador só em PJ", func(t *testing.T) {
 		err := db.ComUsuario(context.Background(), banco.App, s.a, func(tx pgx.Tx) error {
 			_, err := tx.Exec(context.Background(), "insert into acessos_entidade (entidade_id, usuario_id, papel) values ($1, $2, 'contador')", s.pfA, s.d)

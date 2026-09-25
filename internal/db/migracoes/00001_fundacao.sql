@@ -298,14 +298,25 @@ language sql stable as $$
 $$;
 -- +goose StatementEnd
 
+-- Conta visível pela casa: quem vê e o dono da entidade da conta precisam ser
+-- membros da casa. Se o dono sai da casa, as contas dele somem para os outros.
+-- +goose StatementBegin
+create function app_conta_na_minha_casa(p_entidade uuid, p_casa uuid) returns boolean
+language sql stable security definer set search_path = public, pg_temp as $$
+  select p_casa is not null
+    and exists (select 1 from membros_casa where casa_id = p_casa and usuario_id = app_usuario_id())
+    and exists (select 1 from entidades e join membros_casa m on m.usuario_id = e.dono_id and m.casa_id = p_casa
+                where e.id = p_entidade)
+$$;
+-- +goose StatementEnd
+
 -- Conta compartilhada por inteiro (transações visíveis) com uma casa do usuário.
 -- +goose StatementBegin
 create function app_conta_compartilhada_comigo(p_conta uuid) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
   select exists (
     select 1 from contas c
-    join membros_casa m on m.casa_id = c.casa_id and m.usuario_id = app_usuario_id()
-    where c.id = p_conta and c.visibilidade = 'compartilhada'
+    where c.id = p_conta and c.visibilidade = 'compartilhada' and app_conta_na_minha_casa(c.entidade_id, c.casa_id)
   )
 $$;
 -- +goose StatementEnd
@@ -452,7 +463,7 @@ create policy acessos_dono on acessos_entidade for all
 alter table contas enable row level security;
 create policy contas_ver on contas for select
   using (app_pode_ver_entidade(entidade_id)
-         or (visibilidade <> 'privada' and app_eh_membro_casa(casa_id)));
+         or (visibilidade <> 'privada' and app_conta_na_minha_casa(entidade_id, casa_id)));
 create policy contas_criar on contas for insert
   with check (app_pode_editar_entidade(entidade_id)
               and (casa_id is null or app_eh_membro_casa(casa_id)));
@@ -492,7 +503,7 @@ drop table if exists alertas, auditoria, sinais_vida, regras_fiscais, transacoes
   acessos_entidade, entidades, convites_casa, membros_casa, casas, desafios_webauthn, passkeys,
   codigos_recuperacao, dois_fatores, sessoes, usuarios cascade;
 drop function if exists app_usuario_id, app_papel_casa, app_eh_membro_casa, app_papel_entidade,
-  app_pode_ver_entidade, app_pode_editar_entidade, app_conta_compartilhada_comigo,
+  app_pode_ver_entidade, app_pode_editar_entidade, app_conta_na_minha_casa, app_conta_compartilhada_comigo,
   checa_acesso_contador, checa_tipo_entidade, criar_casa, consultar_convite, aceitar_convite,
   checa_dono_casa cascade;
 drop type if exists papel_casa, papel_entidade, tipo_entidade, regime_pj, tipo_conta,
