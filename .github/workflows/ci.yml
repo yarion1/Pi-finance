@@ -1,0 +1,116 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l cmd internal web)" || (gofmt -l cmd internal web && exit 1)
+      - run: go vet ./...
+      - name: testes (inclui RLS e isolamento por rota)
+        run: go test -count=1 ./...
+      - name: compila para o Pi (linux/arm64)
+        run: GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o /dev/null ./cmd/financas
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx biome ci .
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  # sobe o sistema inteiro (Postgres + API + worker + front) e percorre os fluxos num navegador
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: financas
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: web
+      - run: go build -o /tmp/financas ./cmd/financas
+      - name: migrar, subir API e worker
+        run: |
+          head -c 32 /dev/urandom | base64 > /tmp/master.key && chmod 600 /tmp/master.key
+          DATABASE_URL_MIGRACAO=postgres://postgres:postgres@127.0.0.1:5432/financas?sslmode=disable \
+            APP_DB_PASSWORD=app /tmp/financas migrar
+          export DATABASE_URL=postgres://financas_app:app@127.0.0.1:5432/financas?sslmode=disable
+          export MASTER_KEY_FILE=/tmp/master.key PUBLIC_URL=http://localhost:3100 ENDERECO=127.0.0.1:3100
+          nohup /tmp/financas serve > /tmp/serve.log 2>&1 &
+          nohup /tmp/financas worker > /tmp/worker.log 2>&1 &
+          for i in $(seq 30); do curl -sf -o /dev/null http://127.0.0.1:3100/api/health && break; sleep 1; done
+          curl -sf http://127.0.0.1:3100/api/health
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: npx playwright test
+        working-directory: web
+        env:
+          BASE_URL: http://localhost:3100
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e
+          path: |
+            web/playwright-report
+            web/test-results
+            /tmp/serve.log
+            /tmp/worker.log
+          retention-days: 7
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: a imagem constrói e sobe
+        run: |
+          docker build -t financas:ci --build-arg VERSAO=ci .
+          docker run --rm financas:ci versao | grep -qx ci

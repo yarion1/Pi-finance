@@ -1,0 +1,33 @@
+name: release
+# git tag vX.Y.Z && git push --tags  →  CI completo  →  deploy no Pi (runner self-hosted "financas").
+# Teste da volta automática: gh workflow run release.yml --ref vX.Y.Z -f quebrar=true
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      quebrar:
+        description: "Forçar o health a falhar (testa a volta automática)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  # Ative criando a variável PI_DEPLOY=true em Settings → Secrets and variables → Actions → Variables.
+  deploy:
+    needs: ci
+    if: vars.PI_DEPLOY == 'true' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: [self-hosted, financas]
+    concurrency: deploy-pi-financas
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: build ARM64, backup, migrações, subir e conferir o /api/health
+        run: deploy/deploy.sh "$GITHUB_REF_NAME"
+        env:
+          QUEBRAR: ${{ inputs.quebrar && '1' || '0' }}

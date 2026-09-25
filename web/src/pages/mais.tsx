@@ -1,0 +1,54 @@
+import { Building2, ChevronRight, LogOut, Shield, Users } from "lucide-react";
+import type { ReactNode } from "react";
+import { Link } from "react-router";
+import { useSair } from "../components/shell";
+import { Cartao, Pagina } from "../components/ui";
+import { useSessao } from "../lib/sessao";
+
+export function Mais() {
+  const { data: sessao } = useSessao();
+  const sair = useSair();
+  return (
+    <Pagina titulo="Mais" subtitulo={sessao?.nome}>
+      <Cartao className="p-2 sm:p-2">
+        <nav aria-label="Mais opções">
+          <ul className="flex flex-col">
+            <Item para="/casa" icone={<Building2 className="size-5" />}>
+              Casa
+            </Item>
+            <Item para="/entidades" icone={<Users className="size-5" />}>
+              Entidades
+            </Item>
+            <Item para="/seguranca" icone={<Shield className="size-5" />}>
+              Segurança
+            </Item>
+          </ul>
+        </nav>
+      </Cartao>
+      <Cartao className="p-2 sm:p-2">
+        <button
+          type="button"
+          onClick={sair}
+          className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left text-saida hover:bg-superficie-2"
+        >
+          <LogOut className="size-5" aria-hidden /> Sair
+        </button>
+      </Cartao>
+      <p className="text-center text-xs text-texto-2">
+        O painel organiza e simula; não substitui contador nem assessor de investimentos.
+      </p>
+    </Pagina>
+  );
+}
+
+function Item({ para, icone, children }: { para: string; icone: ReactNode; children: ReactNode }) {
+  return (
+    <li>
+      <Link to={para} className="flex min-h-12 items-center gap-3 rounded-xl px-3 hover:bg-superficie-2">
+        <span className="text-texto-2">{icone}</span>
+        <span className="flex-1 font-medium">{children}</span>
+        <ChevronRight className="size-4 text-texto-2" aria-hidden />
+      </Link>
+    </li>
+  );
+}

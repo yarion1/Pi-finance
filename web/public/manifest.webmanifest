@@ -1,0 +1,14 @@
+{
+  "name": "Finanças",
+  "short_name": "Finanças",
+  "description": "Finanças da casa, investimentos e CNPJ",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": [
+    { "src": "/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

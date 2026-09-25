@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+/*
+ * Tokens de cor (docs/SPEC.md §7): uma cor por significado.
+ * Escuro é o padrão; o claro é completo. Contraste de texto >= 4,5:1 nos dois.
+ */
+:root,
+[data-theme="escuro"] {
+  --fundo: #0b0f14;
+  --superficie: #121821;
+  --superficie-2: #1a2230;
+  --borda: #253245;
+  --texto: #e6edf5;
+  --texto-2: #9aa8b8;
+  --primaria: #7cb0ff;
+  --primaria-texto: #06121f;
+  --entrada: #34d399;
+  --saida: #f87171;
+  --invest: #a78bfa;
+  --imposto: #fbbf24;
+  --alerta: #fb923c;
+  --sombra: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.25);
+  color-scheme: dark;
+}
+
+[data-theme="claro"] {
+  --fundo: #f5f7fa;
+  --superficie: #ffffff;
+  --superficie-2: #eef2f7;
+  --borda: #d9e0e8;
+  --texto: #0f172a;
+  --texto-2: #4f5d6e;
+  --primaria: #1d5fd6;
+  --primaria-texto: #ffffff;
+  --entrada: #047857;
+  --saida: #b91c1c;
+  --invest: #6d28d9;
+  --imposto: #a15c07;
+  --alerta: #c2410c;
+  --sombra: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px rgb(15 23 42 / 0.06);
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-fundo: var(--fundo);
+  --color-superficie: var(--superficie);
+  --color-superficie-2: var(--superficie-2);
+  --color-borda: var(--borda);
+  --color-texto: var(--texto);
+  --color-texto-2: var(--texto-2);
+  --color-primaria: var(--primaria);
+  --color-primaria-texto: var(--primaria-texto);
+  --color-entrada: var(--entrada);
+  --color-saida: var(--saida);
+  --color-invest: var(--invest);
+  --color-imposto: var(--imposto);
+  --color-alerta: var(--alerta);
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --radius-cartao: 16px;
+  --shadow-cartao: var(--sombra);
+}
+
+html,
+body {
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* números alinhados em tabelas e cards */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.valor {
+  transition: filter 200ms ease;
+}
+
+/* modo privacidade: um toque borra todos os valores */
+[data-privado="sim"] .valor {
+  filter: blur(8px);
+  user-select: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primaria);
+  outline-offset: 2px;
+}
+
+@keyframes pulsar {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.esqueleto {
+  background: var(--superficie-2);
+  border-radius: 8px;
+  animation: pulsar 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: preferência de acessibilidade precisa vencer tudo */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: idem */
+    transition-duration: 0.01ms !important;
+  }
+}

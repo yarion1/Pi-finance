@@ -1,0 +1,89 @@
+# Finanças no Raspberry Pi. Rode sempre pelo deploy.sh (ele define VERSAO e lê /etc/financas/.env).
+# Nada fica exposto fora do Pi: a web escuta só em 127.0.0.1:3100 e o tailscale serve publica na tailnet.
+name: financas
+
+x-logs: &logs
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+x-app: &app
+  image: financas:${VERSAO:?defina VERSAO}
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  logging: *logs
+  depends_on:
+    postgres: { condition: service_healthy }
+  volumes:
+    - /etc/financas/master.key:/run/financas/master.key:ro
+  environment: &app-env
+    TZ: America/Sao_Paulo
+    DATABASE_URL: postgres://financas_app:${APP_DB_PASSWORD:?}@postgres:5432/financas?sslmode=disable
+    MASTER_KEY_FILE: /run/financas/master.key
+    PUBLIC_URL: ${PUBLIC_URL:?}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    shm_size: 128mb
+    mem_limit: 1g
+    logging: *logs
+    environment:
+      TZ: America/Sao_Paulo
+      POSTGRES_DB: financas
+      POSTGRES_USER: financas
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - /srv/financas/postgres:/var/lib/postgresql/data
+    networks: [interna]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U financas -d financas"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    <<: *app
+    command: ["serve"]
+    mem_limit: 512m
+    ports: ["127.0.0.1:3100:3100"]
+    networks: [interna, saida]
+    environment:
+      <<: *app-env
+      ENDERECO: ":3100"
+      FORCAR_FALHA_HEALTH: ${FORCAR_FALHA_HEALTH:-0}
+
+  worker:
+    <<: *app
+    command: ["worker"]
+    mem_limit: 384m
+    healthcheck: { disable: true }
+    networks: [interna, saida]
+
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: 128m
+    logging: *logs
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      TZ: America/Sao_Paulo
+      PGHOST: postgres
+      PGUSER: financas
+      PGDATABASE: financas
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      INTERVALO_SEGUNDOS: "21600"
+      RETER: "28"
+    volumes:
+      - ./backup/backup.sh:/backup.sh:ro
+      - /srv/financas/backups:/backups
+    networks: [interna]
+
+networks:
+  interna:
+    internal: true # o Postgres não tem rota para fora
+  saida: {}

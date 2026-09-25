@@ -1,0 +1,174 @@
+import { createHmac } from "node:crypto";
+import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+
+// TOTP (RFC 6238) sem dependências, para o teste digitar o código do "aplicativo".
+function totp(segredoBase32: string, momento = Date.now()): string {
+  const alfabeto = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = "";
+  for (const c of segredoBase32.replace(/=+$/, "").toUpperCase())
+    bits += alfabeto.indexOf(c).toString(2).padStart(5, "0");
+  const chave = Buffer.from(bits.match(/.{8}/g)?.map((b) => Number.parseInt(b, 2)) ?? []);
+  const contador = Buffer.alloc(8);
+  contador.writeBigUInt64BE(BigInt(Math.floor(momento / 1000 / 30)));
+  const h = createHmac("sha1", chave).update(contador).digest();
+  const o = (h[h.length - 1] ?? 0) & 0xf;
+  const n = (h.readUInt32BE(o) & 0x7fffffff) % 1_000_000;
+  return n.toString().padStart(6, "0");
+}
+
+async function autenticadorVirtual(contexto: BrowserContext, pagina: Page) {
+  const cdp = await contexto.newCDPSession(pagina);
+  await cdp.send("WebAuthn.enable");
+  await cdp.send("WebAuthn.addVirtualAuthenticator", {
+    options: {
+      protocol: "ctap2",
+      transport: "internal",
+      hasResidentKey: true,
+      hasUserVerification: true,
+      isUserVerified: true,
+      automaticPresenceSimulation: true,
+    },
+  });
+}
+
+function vigiarCSP(pagina: Page, violacoes: string[]) {
+  pagina.on("console", (m) => {
+    if (m.type() === "error" && /Content Security Policy/i.test(m.text())) violacoes.push(m.text());
+  });
+}
+
+async function semRolagemHorizontal(pagina: Page) {
+  const largura = await pagina.evaluate(() => document.documentElement.scrollWidth);
+  expect(largura, `rolagem horizontal em ${pagina.url()}`).toBeLessThanOrEqual(360);
+}
+
+const senha = "uma frase longa de teste";
+let linkConvite = "";
+let codigosAna: string[] = [];
+
+test.describe
+  .serial("fase 0", () => {
+    test("primeira conta: cadastro, TOTP obrigatório, entidade e casa", async ({ page }) => {
+      const violacoes: string[] = [];
+      vigiarCSP(page, violacoes);
+
+      await page.goto("/");
+      await expect(page).toHaveURL(/\/entrar/);
+      await page.getByRole("link", { name: "Crie a primeira" }).click();
+      await page.getByLabel("Nome").fill("Ana Teste");
+      await page.getByLabel("E-mail").fill("ana@teste.com");
+      await page.getByLabel("Senha").fill(senha);
+      await page.getByRole("button", { name: "Criar conta" }).click();
+
+      await expect(page).toHaveURL(/\/configurar-2fa/);
+      // sem segundo fator, nada de dados
+      const bloqueado = await page.evaluate(() => fetch("/api/entidades").then((r) => r.status));
+      expect(bloqueado).toBe(403);
+
+      await page.getByRole("button", { name: /Aplicativo autenticador/ }).click();
+      const segredo = (await page.locator("p.font-mono").innerText()).replace(/\s/g, "");
+      await page.getByLabel("Código de 6 dígitos").fill(totp(segredo));
+      await page.getByRole("button", { name: "Ativar" }).click();
+
+      const codigos = page.locator("ul.font-mono li");
+      await expect(codigos).toHaveCount(10);
+      codigosAna = await codigos.allInnerTexts();
+      await page.getByLabel("Guardei os códigos em lugar seguro").check();
+      await page.getByRole("button", { name: "Continuar" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Ana");
+
+      // entidade PF com CPF cifrado e mascarado
+      await page.goto("/entidades");
+      await page.getByRole("button", { name: "Nova entidade" }).click();
+      await page.getByLabel("Nome", { exact: true }).fill("Ana PF");
+      await page.getByLabel("CPF (opcional)").fill("52998224725");
+      await expect(page.getByLabel("CPF (opcional)")).toHaveValue("529.982.247-25");
+      await page.getByRole("button", { name: "Salvar" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Ana PF");
+      await expect(page.getByText("***.982.247-**")).toBeVisible();
+
+      // casa e convite
+      await page.goto("/casa");
+      await page.getByLabel("Nome").fill("Casa Teste");
+      await page.getByRole("button", { name: "Criar" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Casa Teste");
+      await page.getByRole("button", { name: "Gerar link" }).click();
+      linkConvite = await page.locator("code").innerText();
+      expect(linkConvite).toMatch(/\/convite\/[\w-]{20,}$/);
+
+      // celular de 360 px: sem rolagem horizontal
+      await page.setViewportSize({ width: 360, height: 740 });
+      for (const rota of ["/", "/entidades", "/casa", "/mais", "/seguranca"]) {
+        await page.goto(rota);
+        await page.waitForLoadState("networkidle");
+        await semRolagemHorizontal(page);
+      }
+      await expect(page.getByRole("navigation", { name: "Principal" }).last()).toBeVisible();
+
+      expect(violacoes).toEqual([]);
+    });
+
+    test("segunda pessoa: convite, passkey e login só com passkey", async ({ browser }) => {
+      const contexto = await browser.newContext();
+      const page = await contexto.newPage();
+      const violacoes: string[] = [];
+      vigiarCSP(page, violacoes);
+      await autenticadorVirtual(contexto, page);
+
+      await page.goto(new URL(linkConvite).pathname);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Convite para Casa Teste");
+      await page.getByRole("button", { name: "Criar minha conta" }).click();
+      await page.getByLabel("Nome").fill("Bruno Teste");
+      await page.getByLabel("E-mail").fill("bruno@teste.com");
+      await page.getByLabel("Senha").fill(senha);
+      await page.getByRole("button", { name: "Criar conta" }).click();
+
+      await page.getByRole("button", { name: /Passkey/ }).click();
+      await page.getByRole("button", { name: "Criar passkey" }).click();
+      await expect(page.locator("ul.font-mono li")).toHaveCount(10);
+      await page.getByLabel("Guardei os códigos em lugar seguro").check();
+      await page.getByRole("button", { name: "Continuar" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Bruno");
+
+      // entrou na casa pelo convite, e o convite não vale de novo
+      await page.goto("/casa");
+      await expect(page.getByRole("link", { name: /Casa Teste/ })).toBeVisible();
+      const reuso = await page.evaluate(
+        (u) => fetch(u).then((r) => r.json()),
+        `/api/convites/${linkConvite.split("/").pop()}`,
+      );
+      expect(reuso.valido).toBe(false);
+
+      // B não enxerga a entidade de A
+      await page.goto("/entidades");
+      await expect(page.getByText("Nenhuma entidade ainda")).toBeVisible();
+
+      // sair e voltar só com a passkey
+      await page.goto("/mais");
+      await page.getByRole("button", { name: "Sair" }).last().click();
+      await expect(page).toHaveURL(/\/entrar/);
+      await page.getByRole("button", { name: "Entrar com passkey" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Bruno");
+
+      expect(violacoes).toEqual([]);
+      await contexto.close();
+    });
+
+    test("login com senha pede o segundo fator; código de recuperação vale uma vez", async ({ page }) => {
+      await page.goto("/entrar");
+      await page.getByLabel("E-mail").fill("ana@teste.com");
+      await page.getByLabel("Senha").fill(senha);
+      await page.getByRole("button", { name: "Continuar" }).click();
+      await expect(page).toHaveURL(/\/verificar/);
+      await page.getByRole("button", { name: "Usar código de recuperação" }).click();
+      await page.getByLabel("Código de recuperação").fill(codigosAna[0] ?? "");
+      await page.getByRole("button", { name: "Confirmar" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Ana");
+
+      // tema claro e modo privacidade
+      await page.getByRole("button", { name: "Tema claro" }).first().click();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", "claro");
+      await page.getByRole("button", { name: "Esconder valores" }).first().click();
+      await expect(page.locator("html")).toHaveAttribute("data-privado", "sim");
+    });
+  });
