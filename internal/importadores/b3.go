@@ -38,6 +38,7 @@ type OperacaoB3 struct {
 	Valor       core.Centavos `json:"valor_centavos"`
 	Descricao   string        `json:"descricao"`
 	Instituicao string        `json:"instituicao,omitempty"`
+	Taxas       core.Centavos `json:"taxas_centavos,omitempty"` // nota de corretagem: parte das taxas
 	Chave       string        `json:"-"`
 }
 

@@ -962,3 +962,41 @@ export type ResumoSemana = {
 export type Relatorio =
   | (Omit<RelatorioResumo, "tipo"> & { tipo: "mes"; dados: RelatorioMes })
   | (Omit<RelatorioResumo, "tipo"> & { tipo: "semana"; dados: ResumoSemana });
+
+// Documentos lidos pela IA (fase 6)
+export type TipoDocumento = "fatura" | "nota_corretagem" | "comprovante" | "holerite";
+
+export type HoleriteLido = {
+  competencia: string;
+  empregador: string;
+  bruto_centavos: number;
+  inss_centavos: number;
+  irrf_centavos: number;
+  outros_descontos_centavos: number;
+  liquido_centavos: number;
+};
+
+export type PreviaDocumento = {
+  tipo: TipoDocumento;
+  extraido: Record<string, unknown>;
+  linhas?: { data: string; descricao: string; valor_centavos: number }[];
+  operacoes?: {
+    data: string;
+    tipo: string;
+    codigo: string;
+    quantidade: string;
+    preco: string;
+    taxas_centavos?: number;
+  }[];
+  holerite?: HoleriteLido;
+  avisos: string[];
+};
+
+export type HoleritesDoAno = {
+  ano: number;
+  itens: (HoleriteLido & { id: string; entidade_id: string })[];
+  bruto_centavos: number;
+  inss_centavos: number;
+  irrf_centavos: number;
+  liquido_centavos: number;
+};

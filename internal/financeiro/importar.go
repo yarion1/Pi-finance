@@ -171,6 +171,8 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 			origemTx, idExterno, idPluggy = "pluggy", nil, idExterno
 		case r.Formato == importadores.FormatoOFX:
 			origemTx = "ofx"
+		case r.Formato == importadores.FormatoDocumento:
+			origemTx = "ia" // lido de PDF ou foto pela IA, revisado pela pessoa
 		}
 		// "Loja - Parcela 3/12" vira parcela 3 de 12 (as futuras entram no comprometido)
 		var parcelaN, parcelaTotal *int

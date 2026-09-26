@@ -230,6 +230,9 @@ func TestIsolamentoPorRota(t *testing.T) {
 	b := amb.novoCliente()
 	b.cadastrarCom2FA("Bruno", "bruno@teste.com", token)
 
+	// fase 6: holerite de A (lançado já revisado)
+	a.exigir("POST", "/api/documentos/lancar", map[string]any{"tipo": "holerite", "entidade_id": pf.ID, "extraido": map[string]string{
+		"competencia": "2026-08", "empregador": "EMPREGADOR-SECRETO", "bruto": "9876.54", "liquido": "7654.21"}}, http.StatusOK)
 	// fase 6: relatórios de A (o resumo da semana leva as contas dos próximos dias)
 	var gerados struct{ Novos []string }
 	a.exigir("POST", "/api/relatorios/gerar", nil, http.StatusOK).json(t, &gerados)
@@ -246,7 +249,7 @@ func TestIsolamentoPorRota(t *testing.T) {
 		"ITEM-SECRETO", "BANCO-SECRETO", "CONTA-PLUGGY-SECRETA", "9876543", "QRST", "SECRET-SECRETO",
 		"INVESTIMENTO-SECRETO", "765432", "ATIVO-SECRETO", ativo.ID, "31.4159", "4242420", "1100830",
 		"PJ-SECRETA", pjSecreta.ID, "CLIENTE-SECRETO", "NOTA-SECRETA", "3141592", "271828", "1618033", "LUCRO-SECRETO",
-		"EMPRESTIMO-SECRETO", "5555555", "4321098"}
+		"EMPRESTIMO-SECRETO", "5555555", "4321098", "EMPREGADOR-SECRETO", "987654", "765421"}
 	for _, rota := range api.RotasLeitura {
 		caminho := strings.NewReplacer("{casa}", casa.ID, "{entidade}", pf.ID, "{conta}", contaPrivada,
 			"{importacao}", imp.ImportacaoID, "{cartao}", cartao.ID, "{divida}", divida.ID, "{ativo}", ativo.ID, "{pj}", pjSecreta.ID,

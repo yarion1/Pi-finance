@@ -15,7 +15,7 @@ diz onde está a proteção no código e como é testada. Rever a cada fase nova
 | 8 | Força bruta | Limite por IP nas rotas de login e bloqueio progressivo por conta; no máximo 3 hashes de senha ao mesmo tempo (a memória não estoura com rajada). | `TestBloqueioProgressivo`, `limitado`, `vagasArgon` |
 | 9 | Envio duplo | Botões ficam desabilitados enquanto a requisição corre; importações deduplicam por chave; a sincronização tem trava de 10 s. | `Botao carregando`, dedup |
 | 10 | CSRF | Cookie `SameSite=Strict` e escrita só com `Origin` igual à `PUBLIC_URL`. | `origemConfere` (testes) |
-| 11 | Upload sem validação | Arquivos em base64 com teto de 8 MB, lidos só como OFX/CSV/XLSX/XML; o `.xlsx` abre com limite de descompactação (contra zip bomb); o XML da NFS-e não resolve entidade externa (XXE) e não é guardado; nada é salvo em disco nem servido de volta. A planilha do contador escapa texto que começaria uma fórmula. | `decodificarArquivo`, `importadores`, `TestLerNFSe`, `celulaSegura` |
+| 11 | Upload sem validação | Arquivos em base64 com teto de 8 MB, lidos só como OFX/CSV/XLSX/XML (ou PDF/JPEG/PNG/WebP para a leitura por IA, reconhecidos pela assinatura do conteúdo); o `.xlsx` abre com limite de descompactação (contra zip bomb); o XML da NFS-e não resolve entidade externa (XXE) e não é guardado; nada é salvo em disco nem servido de volta. A planilha do contador escapa texto que começaria uma fórmula. | `decodificarArquivo`, `importadores`, `TestLerNFSe`, `celulaSegura` |
 | 12 | Erro revelando informação | Erro inesperado vira "erro interno" (o detalhe só no log); login não diz se o e-mail existe; tokens de convite não aparecem no log. | `falhar`, `rotaParaLog` |
 | 13 | Dependências vulneráveis | CI roda `govulncheck` e `npm audit --audit-level=high` a cada push. | `.github/workflows/ci.yml` |
 | 14 | Tokens | Sessão, convite e recuperação com 256 bits aleatórios, hash no banco, expiração curta (sessão parcial minutos; convite 48 h, uso único) e troca do token ao completar o 2FA. | `internal/auth` |
@@ -30,6 +30,11 @@ ferramentas fechadas de leitura, com o RLS de quem pergunta (teste de isolamento
 Antes de enviar, CPF, CNPJ, e-mail, números de conta e nomes em Pix são removidos
 (`TestAnonimizar`, `TestCategorizar`). Teto de gasto por pessoa. Instruções vindas de
 descrições de transações são só dados para o modelo, que não tem ferramenta de escrita.
+
+**Documentos (fase 6)**: ler PDF ou foto com a IA exige a IA ligada e a confirmação, a cada
+envio, de que o documento vai inteiro (com dados pessoais) para a API da Anthropic; o
+arquivo não é gravado. Nada entra no banco sem a pessoa conferir a prévia
+(`TestLerELancarDocumentos`). Relatórios mandam à IA só totais e nomes de categoria.
 
 Na frente de tudo, o **Cloudflare Access** só deixa chegar ao painel quem está na lista de
 e-mails (DECISOES D11 e D29).

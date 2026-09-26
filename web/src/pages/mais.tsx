@@ -3,6 +3,7 @@ import {
   CalendarDays,
   ChevronRight,
   CreditCard,
+  FileScan,
   FileText,
   Landmark,
   LineChart,
@@ -75,6 +76,9 @@ export function Mais() {
             </Item>
             <Item para="/importar" icone={<Upload className="size-5" />}>
               Importar extrato
+            </Item>
+            <Item para="/documentos" icone={<FileScan className="size-5" />}>
+              Ler documento (PDF ou foto)
             </Item>
             <Item para="/categorias" icone={<Tags className="size-5" />}>
               Categorias e regras

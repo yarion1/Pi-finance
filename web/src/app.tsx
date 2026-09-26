@@ -14,6 +14,7 @@ import { Configurar2FA } from "./pages/configurar-2fa";
 import { Contas } from "./pages/contas";
 import { Convidar } from "./pages/convidar";
 import { Convite } from "./pages/convite";
+import { Documentos } from "./pages/documentos";
 import { EmBreve } from "./pages/em-breve";
 import { DetalheEntidade, Entidades } from "./pages/entidades";
 import { Entrar } from "./pages/entrar";
@@ -110,6 +111,7 @@ export function App() {
           <Route path="/transacoes" element={<Navigate to="/gastos" replace />} />
           <Route path="/contas" element={<Contas />} />
           <Route path="/importar" element={<Importar />} />
+          <Route path="/documentos" element={<Documentos />} />
           <Route path="/categorias" element={<Categorias />} />
           <Route path="/cartoes" element={<Cartoes />} />
           <Route path="/orcamento" element={<Orcamento />} />

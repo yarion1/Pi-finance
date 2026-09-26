@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.7.5 — fase 6 (fim): leitura de documentos
+
+- **Mais › Ler documento**: a IA lê o PDF ou a foto e você confere antes de lançar.
+  - **Fatura do cartão em PDF**: os lançamentos (com as parcelas) entram no cartão pela
+    importação de sempre, sem duplicar e já categorizados pelas suas regras.
+  - **Comprovante** (foto ou PDF): vira uma transação, com data, descrição e valor
+    editáveis.
+  - **Nota de corretagem**: compras e vendas entram na carteira com as taxas no custo.
+  - **Holerite**: guarda bruto, INSS, IRRF e líquido; a tela soma o ano para o IR.
+- Cada envio pede confirmação: o documento vai inteiro para a API da Anthropic e não
+  fica guardado no painel.
+
 ## v0.7.4 — relatório do mês e resumo da semana
 
 - **Relatório do mês** (Mais › Relatórios), pronto no dia 1: receitas, gastos e sobra

@@ -485,3 +485,26 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   que resta do orçamento do mês e as contas dos próximos 7 dias.
 - O cálculo do orçamento saiu do handler HTTP para `financeiro.CalcularOrcamento` (mesmo
   resultado), para o relatório usar.
+
+## D36 — Leitura de documentos (fase 6, fim)
+
+- **Tipos**: fatura de cartão em PDF (lançamentos, com a parcela), comprovante (foto ou
+  PDF; vira uma transação), nota de corretagem (compras e vendas do pregão, taxas rateadas
+  pelo valor de cada operação) e holerite (bruto, INSS, IRRF, líquido; guardado em
+  `holerites`, base do IR do ano). Recibos de outros tipos ficam para depois.
+- **Quem lê**: o modelo pequeno (Claude Haiku 4.5; SPEC: "modelo pequeno para categorizar
+  e extrair"), com ferramenta forçada por tipo e valores como texto ("1234.56"), que o
+  servidor converte sem float. O que vier escrito dentro do documento é tratado como dado.
+- **Privacidade**: diferente das descrições do extrato, um PDF ou foto não dá para
+  anonimizar antes; por isso a leitura exige a IA ligada (que já pede senha), dentro do
+  teto, **e** a confirmação explícita a cada envio de que o documento vai inteiro para a
+  API da Anthropic. O arquivo não é gravado no Pi (nem em disco nem no banco); só o que a
+  pessoa lançar depois de conferir.
+- **Revisão antes de gravar**: `/api/documentos/ler` só devolve a prévia;
+  `/api/documentos/lancar` recebe o extraído (com as linhas que a pessoa tirou) e passa
+  pela importação de sempre (deduplicação, regras, categorias; origem `ia`) ou pela
+  importação da B3 (origem `documento`). Fatura lida no PDF e a mesma fatura pelo Open
+  Finance podem duplicar se as descrições forem diferentes: a prévia mostra as já
+  existentes.
+- **Arquivo**: tipo pelo conteúdo (assinatura de PDF, JPEG, PNG ou WebP), nunca pelo nome;
+  até 8 MB (fotos até 5 MB, limite da API).

@@ -225,3 +225,44 @@ func TestEscreverRelatorio(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestLerDocumento(t *testing.T) {
+	f := &falsa{respostas: []string{
+		msg("tool_use", `{"input_tokens":3000,"output_tokens":200}`,
+			`{"type":"tool_use","id":"tu","name":"extrair","input":{"data":"2026-09-20","descricao":"Padaria","valor":"12.50","sentido":"saida"}}`),
+		msg("end_turn", `{"input_tokens":1,"output_tokens":1}`, `{"type":"text","text":"não li"}`),
+	}}
+	srv := httptest.NewServer(f)
+	defer srv.Close()
+	c := Novo("chave", srv.URL)
+	j, uso, err := c.LerDocumento(context.Background(), DocComprovante, "image/png", []byte("\x89PNG..."))
+	if err != nil || !strings.Contains(string(j), `"valor":"12.50"`) || uso.Chamadas != 1 {
+		t.Fatalf("%s %+v %v", j, uso, err)
+	}
+	pedido, _ := json.Marshal(f.pedidos[0])
+	if !strings.Contains(string(pedido), `"type":"image"`) || f.pedidos[0]["model"] != ModeloCategorizar {
+		t.Fatalf("pedido: %s", pedido)
+	}
+	if _, _, err := c.LerDocumento(context.Background(), DocFatura, "application/pdf", []byte("%PDF-1.4")); err == nil {
+		t.Fatal("sem a ferramenta, erro")
+	}
+	pedido, _ = json.Marshal(f.pedidos[1])
+	if !strings.Contains(string(pedido), `"type":"document"`) {
+		t.Fatalf("pdf: %s", pedido)
+	}
+	if _, _, err := c.LerDocumento(context.Background(), DocNota, "application/pdf", []byte("%PDF")); err == nil {
+		t.Fatal("erro da API")
+	}
+	for _, caso := range [][2]string{{"x", "application/pdf"}, {DocHolerite, "text/html"}} {
+		if _, _, err := c.LerDocumento(context.Background(), caso[0], caso[1], []byte("x")); !errors.Is(err, ErrDocumento) {
+			t.Fatalf("%v: %v", caso, err)
+		}
+	}
+	if _, _, err := c.LerDocumento(context.Background(), DocHolerite, "application/pdf", nil); !errors.Is(err, ErrDocumento) {
+		t.Fatal("vazio")
+	}
+	var nulo *Cliente
+	if _, _, err := nulo.LerDocumento(context.Background(), DocFatura, "application/pdf", []byte("x")); !errors.Is(err, ErrDesligada) {
+		t.Fatal(err)
+	}
+}

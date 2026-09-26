@@ -104,6 +104,15 @@ func claudeFalso(w http.ResponseWriter, r *http.Request) {
 	if n := len(p.Messages); n > 0 {
 		ultimo = string(p.Messages[n-1].Content)
 	}
+	if len(p.Tools) > 0 && p.Tools[0].Name == "extrair" {
+		entrada := `{"competencia":"` + time.Now().AddDate(0, -1, 0).Format("2006-01") +
+			`","empregador":"EMPRESA TESTE","bruto":"5000.00","inss":"501.51","irrf":"0","liquido":"4498.49"}`
+		if strings.Contains(ultimo, "comprovante") {
+			entrada = `{"data":"` + time.Now().Format("2006-01-02") + `","descricao":"Pix de teste","valor":"12.34","sentido":"saida"}`
+		}
+		resp("tool_use", `{"type":"tool_use","id":"tu","name":"extrair","input":`+entrada+`}`)
+		return
+	}
 	if strings.Contains(ultimo, "tool_result") {
 		texto, _ := json.Marshal("Resposta de teste com os números da ferramenta: " + resumir(ultimo))
 		resp("end_turn", `{"type":"text","text":`+string(texto)+`}`)

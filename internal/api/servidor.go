@@ -167,6 +167,10 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("PATCH /api/compromissos/{id}", s.sessaoCompleta(s.editarCompromisso))
 	mux.Handle("DELETE /api/compromissos/{id}", s.sessaoCompleta(s.apagarCompromisso))
 	mux.Handle("GET /api/alertas", s.sessaoCompleta(s.listarAlertas))
+	mux.Handle("POST /api/documentos/ler", s.sessaoCompleta(s.lerDocumento))
+	mux.Handle("POST /api/documentos/lancar", s.sessaoCompleta(s.lancarDocumento))
+	mux.Handle("GET /api/holerites", s.sessaoCompleta(s.listarHolerites))
+	mux.Handle("DELETE /api/holerites/{id}", s.sessaoCompleta(s.apagarHolerite))
 	mux.Handle("GET /api/relatorios", s.sessaoCompleta(s.listarRelatorios))
 	mux.Handle("GET /api/relatorios/{id}", s.sessaoCompleta(s.lerRelatorio))
 	mux.Handle("POST /api/relatorios/gerar", s.sessaoCompleta(s.gerarRelatorios))
@@ -254,7 +258,7 @@ var RotasLeitura = []string{
 	"/api/cnpj/{pj}/distribuicoes", "/api/cnpj/{pj}/pacote",
 	"/api/cnpj/simulacao?receita_mensal_centavos=1000000&contador_centavos=0",
 	"/api/projecoes/fluxo", "/api/projecoes/fluxo?entidade_id={entidade}&dias=366",
-	"/api/relatorios", "/api/relatorios/{relatorio}",
+	"/api/relatorios", "/api/relatorios/{relatorio}", "/api/holerites", "/api/holerites?entidade_id={entidade}&ano=2026",
 	"/api/projecoes/futuro", "/api/projecoes/futuro?entidade_id={entidade}&aporte=100000&anos=5&perfil=arrojado",
 }
 
@@ -345,7 +349,7 @@ func (s *Servidor) origemConfere(h http.Handler) http.Handler {
 func limitarCorpo(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		limite := int64(limiteCorpo)
-		if strings.HasPrefix(r.URL.Path, "/api/importacoes") {
+		if strings.HasPrefix(r.URL.Path, "/api/importacoes") || r.URL.Path == "/api/documentos/ler" {
 			limite = limiteArquivo*4/3 + limiteCorpo // arquivo em base64
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, limite)

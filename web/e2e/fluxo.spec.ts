@@ -650,6 +650,22 @@ test.describe
       await page.getByRole("button", { name: "Comparar" }).click();
       await expect(page.getByText("Parcelar compensa")).toBeVisible();
 
+      // documento: a IA lê o holerite, a pessoa confere e guarda
+      await page.goto("/documentos");
+      await page.getByLabel("O que é").selectOption("holerite");
+      await page.locator('input[type="file"]').setInputFiles({
+        name: "holerite.pdf",
+        mimeType: "application/pdf",
+        buffer: Buffer.from("%PDF-1.4 holerite de teste"),
+      });
+      await expect(page.getByRole("button", { name: "Ler documento" })).toBeDisabled();
+      await page.getByLabel(/vai inteiro, com os meus dados pessoais/).check();
+      await page.getByRole("button", { name: "Ler documento" }).click();
+      await expect(page.getByText("Confira o que a IA leu")).toBeVisible();
+      await expect(page.getByText("EMPRESA TESTE")).toBeVisible();
+      await page.getByRole("button", { name: "Guardar holerite" }).click();
+      await expect(page.getByText("Holerite guardado.")).toBeVisible();
+
       // relatórios: gera o que falta (depende do dia em que o teste roda) e abre o primeiro
       await page.goto("/relatorios");
       await page.getByRole("button", { name: "Gerar os que faltam" }).click();
@@ -661,7 +677,7 @@ test.describe
       }
 
       await page.setViewportSize({ width: 360, height: 740 });
-      for (const rota of ["/perguntar", "/ia", "/projecoes", "/relatorios"]) {
+      for (const rota of ["/perguntar", "/ia", "/projecoes", "/relatorios", "/documentos"]) {
         await page.goto(rota);
         await page.waitForLoadState("networkidle");
         await semRolagemHorizontal(page);

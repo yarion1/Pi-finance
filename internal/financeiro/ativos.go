@@ -60,6 +60,10 @@ func ImportarB3(ctx context.Context, tx pgx.Tx, entidadeID string, lido importad
 		return res, err
 	}
 	ativos := map[string]string{} // código → id
+	origem := "b3"
+	if lido.Formato == importadores.FormatoNotaCorretagem {
+		origem = "documento"
+	}
 	for _, l := range lido.Linhas {
 		var existe bool
 		tabela := "operacoes"
@@ -107,9 +111,10 @@ func ImportarB3(ctx context.Context, tx pgx.Tx, entidadeID string, lido importad
 				entidadeID, id, l.Data, l.Quantidade.String(), l.Preco.String(), l.Chave)
 		} else {
 			_, err = tx.Exec(ctx, `insert into operacoes (entidade_id, ativo_id, data, tipo, quantidade, preco, valor_centavos,
-					descricao, origem, chave_dedup)
-				values ($1, $2, $3, $4::tipo_operacao, $5::numeric, $6::numeric, $7, $8, 'b3', $9)`,
-				entidadeID, id, l.Data, l.Tipo, l.Quantidade.String(), l.Preco.String(), int64(l.Valor), l.Descricao, l.Chave)
+					taxas_centavos, descricao, origem, chave_dedup)
+				values ($1, $2, $3, $4::tipo_operacao, $5::numeric, $6::numeric, $7, $8, $9, $10, $11)`,
+				entidadeID, id, l.Data, l.Tipo, l.Quantidade.String(), l.Preco.String(), int64(l.Valor), int64(l.Taxas), l.Descricao,
+				origem, l.Chave)
 		}
 		if err != nil {
 			return res, err
