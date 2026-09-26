@@ -24,6 +24,8 @@ type Config struct {
 	HSTS                bool
 	URLPluggy           string
 	TokenBrapi          string
+	ChaveAnthropic      string
+	URLAnthropic        string // só nos testes (API falsa)
 }
 
 func env(chave, padrao string) string {
@@ -47,6 +49,8 @@ func Carregar() (Config, error) {
 		HSTS:                strings.HasPrefix(env("PUBLIC_URL", ""), "https:"),
 		URLPluggy:           env("PLUGGY_URL", ""),
 		TokenBrapi:          env("BRAPI_TOKEN", ""),
+		ChaveAnthropic:      env("ANTHROPIC_API_KEY", ""),
+		URLAnthropic:        env("ANTHROPIC_BASE_URL", ""),
 	}
 	if v := env("LIMITE_AUTH_POR_MINUTO", ""); v != "" {
 		n, err := strconv.Atoi(v)

@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.7.0 — fase 6 (parte 1): IA
+
+- **Pergunte às suas finanças** (Mais › Pergunte às suas finanças): chat que responde com
+  os números do painel — gastos por categoria, receitas e gastos de um período, busca de
+  transações ("quanto gastei com Uber?"), saldos, próximas contas, carteira, patrimônio e
+  CNPJ. A IA só lê, pelas mesmas contas das telas; a conversa não fica guardada.
+- **Categorias automáticas**: o que as suas regras e o histórico não resolveram ganha
+  categoria pela IA, de hora em hora ou no botão "Categorizar agora"; corrigir à mão vale
+  para as próximas.
+- **Mais › Inteligência artificial**: cada pessoa liga a IA para si (pede a senha), define
+  o teto de gasto do mês e vê o consumo. Antes de enviar, o painel tira CPF, CNPJ, e-mail,
+  números de conta e nomes de quem mandou ou recebeu Pix.
+- Para usar: `ANTHROPIC_API_KEY` no `/etc/financas/.env` (chave em console.anthropic.com).
+
 ## v0.6.0 — fase 5: CNPJ (MEI e Simples)
 
 - **Tela CNPJ**: para MEI, faturamento contra o teto (R$ 81 mil, proporcional no ano de

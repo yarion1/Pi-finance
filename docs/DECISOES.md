@@ -363,3 +363,29 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   BOM para abrir no Excel e proteção contra fórmula em texto. O PDF, a separação PF/PJ
   automática das transferências e a provisão de impostos por recebimento ficam para a
   fase 7 (telas e gráficos), que já vai mexer nessas telas.
+
+## D31 — IA da fase 6, parte 1
+
+- **Chave única no servidor** (`ANTHROPIC_API_KEY` no `.env`), mas **cada pessoa liga a IA
+  para si** (ligar pede a senha de novo) e tem o **próprio teto mensal** em dólares
+  (padrão US$ 5), com o consumo registrado por mês em `ia_uso`. A SPEC fala em teto por
+  casa; como amigos usam o painel sem casa, o teto é por pessoa.
+- **Modelos**: Claude Haiku 4.5 para categorizar em lote (barato) e Claude Opus 5 para o
+  chat, com pensamento adaptativo. Preços para o consumo: tabela em `internal/ia`.
+- **O que sai do Pi**: só descrição e valor das transações a categorizar (com ids curtos,
+  nunca os uuids) e, no chat, a pergunta e os números que as ferramentas devolvem. Antes
+  de enviar, `ia.Anonimizar` troca CPF, CNPJ, e-mail, sequências de 5+ dígitos (conta,
+  agência, cartão) e o nome em "PIX enviado/recebido FULANO". O servidor não guarda as
+  conversas; o histórico fica na tela.
+- **Ferramentas fechadas e só de leitura**, cada chamada numa transação com o RLS de quem
+  pergunta: gastos por categoria, receitas e gastos do período, busca de transações,
+  saldos, próximas contas, carteira, patrimônio e CNPJ. `gastos_por_categoria` e a tela
+  Gastos usam a mesma função (`financeiro.GastosPorCategoria`): critério de aceite
+  `TestChatIgualATela`. Orçamento, metas, simulações e Monte Carlo entram na parte 2.
+- **Categorização**: regras → histórico → IA só para o que sobrou, sem passar por cima de
+  categoria escolhida pela pessoa; `categorizada_por_ia` marca a escolha (corrigir à mão
+  desmarca, e a correção vira histórico para as próximas). Roda de hora em hora no worker
+  e sob demanda. A meta de 90 % certo num mês real (critério da SPEC) só dá para medir com
+  a chave de verdade: conferir no primeiro mês e ajustar o prompt se ficar abaixo.
+- Parte 2 (v0.7.x): relatório do mês, resumo da semana, alertas inteligentes, Monte Carlo
+  do patrimônio, simulações e leitura de PDF.

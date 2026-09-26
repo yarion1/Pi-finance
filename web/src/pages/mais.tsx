@@ -5,11 +5,13 @@ import {
   CreditCard,
   Landmark,
   LogOut,
+  MessageCircleQuestion,
   PiggyBank,
   Plug,
   Repeat,
   Scale,
   Shield,
+  Sparkles,
   Tags,
   Target,
   Upload,
@@ -30,6 +32,9 @@ export function Mais() {
       <Cartao className="p-2 sm:p-2">
         <nav aria-label="Planejamento">
           <ul className="flex flex-col">
+            <Item para="/perguntar" icone={<MessageCircleQuestion className="size-5" />}>
+              Pergunte às suas finanças
+            </Item>
             <Item para="/orcamento" icone={<PiggyBank className="size-5" />}>
               Orçamento
             </Item>
@@ -74,6 +79,9 @@ export function Mais() {
             </Item>
             <Item para="/convidar" icone={<UserPlus className="size-5" />}>
               Convidar pessoas
+            </Item>
+            <Item para="/ia" icone={<Sparkles className="size-5" />}>
+              Inteligência artificial
             </Item>
             <Item para="/seguranca" icone={<Shield className="size-5" />}>
               Segurança

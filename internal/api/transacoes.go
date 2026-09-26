@@ -294,7 +294,7 @@ func recategorizar(ctx context.Context, tx pgx.Tx, id string, categoria *string)
 			return err
 		}
 	}
-	_, err = tx.Exec(ctx, "update transacoes set categoria_id = $2, tipo = $3 where id = $1", id, categoria, tipo)
+	_, err = tx.Exec(ctx, "update transacoes set categoria_id = $2, tipo = $3, categorizada_por_ia = false where id = $1", id, categoria, tipo)
 	return err
 }
 

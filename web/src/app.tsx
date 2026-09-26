@@ -17,6 +17,7 @@ import { Convite } from "./pages/convite";
 import { EmBreve } from "./pages/em-breve";
 import { DetalheEntidade, Entidades } from "./pages/entidades";
 import { Entrar } from "./pages/entrar";
+import { ConfiguracaoIA } from "./pages/ia";
 import { Importar } from "./pages/importar";
 import { Inicio } from "./pages/inicio";
 import { Investimentos } from "./pages/investimentos";
@@ -26,6 +27,7 @@ import { Metas } from "./pages/metas";
 import { OpenFinance } from "./pages/open-finance";
 import { Orcamento } from "./pages/orcamento";
 import { Patrimonio } from "./pages/patrimonio";
+import { Perguntar } from "./pages/perguntar";
 import { Recorrencias } from "./pages/recorrencias";
 import { Seguranca } from "./pages/seguranca";
 import { Transacoes } from "./pages/transacoes";
@@ -118,6 +120,8 @@ export function App() {
           <Route path="/investimentos" element={<Investimentos />} />
           <Route path="/investimentos/ir" element={<InvestimentosIR />} />
           <Route path="/cnpj" element={<CNPJ />} />
+          <Route path="/ia" element={<ConfiguracaoIA />} />
+          <Route path="/perguntar" element={<Perguntar />} />
           <Route path="/mais" element={<Mais />} />
           <Route path="/casa" element={<Casas />} />
           <Route path="/casa/:id" element={<DetalheCasa />} />

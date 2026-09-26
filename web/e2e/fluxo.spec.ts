@@ -555,4 +555,47 @@ test.describe
       await semRolagemHorizontal(page);
       expect(violacoes).toEqual([]);
     });
+    test("fase 6: ligar a IA com a senha e perguntar às finanças", async ({ page }) => {
+      const violacoes: string[] = [];
+      vigiarCSP(page, violacoes);
+
+      await page.goto("/entrar");
+      await page.getByLabel("E-mail").fill("ana@teste.com");
+      await page.getByLabel("Senha").fill(senha);
+      await page.getByRole("button", { name: "Continuar" }).click();
+      await page.getByRole("button", { name: "Usar código de recuperação" }).click();
+      await page.getByLabel("Código de recuperação").fill(codigosAna[5] ?? "");
+      await page.getByRole("button", { name: "Confirmar" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Ana");
+
+      // desligada: o chat manda para a configuração
+      await page.goto("/perguntar");
+      await expect(page.getByText("A IA está desligada para você.")).toBeVisible();
+      await page.getByRole("link", { name: "Ver configuração" }).click();
+
+      // ligar pede a senha de novo
+      await expect(page.getByRole("heading", { name: "Inteligência artificial" })).toBeVisible();
+      await page.getByRole("button", { name: "Ligar IA" }).click();
+      const reauth = page.getByRole("dialog", { name: "Confirme sua senha" });
+      await reauth.getByLabel("Senha").fill(senha);
+      await reauth.getByRole("button", { name: "Confirmar" }).click();
+      await expect(page.getByRole("button", { name: "Desligar" })).toBeVisible();
+      await page.getByRole("button", { name: "Categorizar agora" }).click();
+      await expect(page.getByText(/transações ganharam categoria/)).toBeVisible();
+
+      // pergunta pela sugestão: a resposta vem da ferramenta de gastos por categoria
+      await page.getByRole("link", { name: "Perguntar às minhas finanças" }).click();
+      await page.getByRole("button", { name: "Quanto gastei por categoria este mês?" }).click();
+      await expect(page.getByText(/Resposta de teste com os números da ferramenta/)).toBeVisible();
+      await expect(page.getByText("gastos por categoria", { exact: true })).toBeVisible();
+      await expect(page.getByText(/não substitui/)).toBeVisible();
+
+      await page.setViewportSize({ width: 360, height: 740 });
+      for (const rota of ["/perguntar", "/ia"]) {
+        await page.goto(rota);
+        await page.waitForLoadState("networkidle");
+        await semRolagemHorizontal(page);
+      }
+      expect(violacoes).toEqual([]);
+    });
   });

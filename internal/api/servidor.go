@@ -16,6 +16,7 @@ import (
 	"github.com/yarion1/pi-finance/internal/auth"
 	"github.com/yarion1/pi-finance/internal/config"
 	"github.com/yarion1/pi-finance/internal/cripto"
+	"github.com/yarion1/pi-finance/internal/ia"
 	"github.com/yarion1/pi-finance/internal/openfinance"
 )
 
@@ -35,6 +36,8 @@ type Servidor struct {
 	Front    fs.FS // conteúdo de web/dist; nil = sem front
 	// OpenFinance sincroniza com o Meu Pluggy (fase 3).
 	OpenFinance *openfinance.Servico
+	// IA conversa com o Claude (fase 6); nil = sem ANTHROPIC_API_KEY.
+	IA *ia.Cliente
 
 	limiteAuth    *limitador
 	limiteConvite *limitador
@@ -186,6 +189,12 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("POST /api/investimentos/ativos/{id}/operacoes", s.sessaoCompleta(s.criarOperacao))
 	mux.Handle("DELETE /api/investimentos/ativos/{id}/operacoes/{operacao}", s.sessaoCompleta(s.apagarOperacao))
 
+	// IA (fase 6)
+	mux.Handle("GET /api/ia", s.sessaoCompleta(s.configIA))
+	mux.Handle("PUT /api/ia", s.sessaoCompleta(s.salvarConfigIA))
+	mux.Handle("POST /api/ia/categorizar", s.sessaoCompleta(s.categorizarIA))
+	mux.Handle("POST /api/ia/chat", s.sessaoCompleta(s.chatIA))
+
 	// CNPJ (fase 5)
 	mux.Handle("GET /api/cnpj/simulacao", s.sessaoCompleta(s.simulacaoCNPJ))
 	mux.Handle("GET /api/cnpj/{entidade}/painel", s.sessaoCompleta(s.painelCNPJ))
@@ -230,6 +239,7 @@ var RotasLeitura = []string{
 	"/api/open-finance", "/api/convites-conta",
 	"/api/investimentos", "/api/investimentos?entidade_id={entidade}",
 	"/api/investimentos/ir", "/api/investimentos/ir?entidade_id={entidade}", "/api/investimentos/ativos/{ativo}/operacoes",
+	"/api/ia",
 	"/api/cnpj/{pj}/painel", "/api/cnpj/{pj}/notas", "/api/cnpj/{pj}/notas?ano=2026", "/api/cnpj/{pj}/folha",
 	"/api/cnpj/{pj}/distribuicoes", "/api/cnpj/{pj}/pacote",
 	"/api/cnpj/simulacao?receita_mensal_centavos=1000000&contador_centavos=0",

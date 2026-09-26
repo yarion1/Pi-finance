@@ -24,6 +24,7 @@ import (
 	"github.com/yarion1/pi-finance/internal/cotacoes"
 	"github.com/yarion1/pi-finance/internal/cripto"
 	"github.com/yarion1/pi-finance/internal/db"
+	"github.com/yarion1/pi-finance/internal/ia"
 	"github.com/yarion1/pi-finance/internal/openfinance"
 	"github.com/yarion1/pi-finance/internal/pluggy"
 	"github.com/yarion1/pi-finance/internal/worker"
@@ -97,6 +98,7 @@ func servir(ctx context.Context) error {
 		OpenFinance: &openfinance.Servico{
 			Banco: pool, Cifrador: cifrador, Pluggy: pluggy.Novo(cfg.URLPluggy),
 		},
+		IA: ia.Novo(cfg.ChaveAnthropic, cfg.URLAnthropic),
 	}
 	http := &http.Server{
 		Addr:              cfg.Endereco,
@@ -139,7 +141,7 @@ func rodarWorker(ctx context.Context) error {
 	}
 	defer pool.Close()
 	of := &openfinance.Servico{Banco: pool, Cifrador: cifrador, Pluggy: pluggy.Novo(cfg.URLPluggy)}
-	return worker.Rodar(ctx, pool, versao, of, cotacoes.Padrao(cfg.TokenBrapi))
+	return worker.Rodar(ctx, pool, versao, of, cotacoes.Padrao(cfg.TokenBrapi), ia.Novo(cfg.ChaveAnthropic, cfg.URLAnthropic))
 }
 
 func migrar(ctx context.Context) error {

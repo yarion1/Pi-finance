@@ -23,6 +23,7 @@ x-app: &app
     MASTER_KEY_FILE: /run/financas/master.key
     PUBLIC_URL: ${PUBLIC_URL:?}
     BRAPI_TOKEN: ${BRAPI_TOKEN:-}
+    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
 
 services:
   postgres:

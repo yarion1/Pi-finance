@@ -1,7 +1,8 @@
 // Package worker roda as tarefas em segundo plano sobre a fila do Postgres (River).
 // Sinal de vida a cada minuto, limpeza de sessões vencidas e, de hora em hora, a
 // sincronização do Open Finance de quem está há mais de 20 h sem sincronizar; a cada
-// 6 h, as cotações e os índices (CDI, IPCA, dólar).
+// 6 h, as cotações e os índices (CDI, IPCA, dólar); de hora em hora, a categorização
+// com IA de quem a ligou.
 package worker
 
 import (
@@ -16,6 +17,9 @@ import (
 
 	"github.com/yarion1/pi-finance/internal/auth"
 	"github.com/yarion1/pi-finance/internal/cotacoes"
+	"github.com/yarion1/pi-finance/internal/db"
+	"github.com/yarion1/pi-finance/internal/financeiro"
+	"github.com/yarion1/pi-finance/internal/ia"
 	"github.com/yarion1/pi-finance/internal/openfinance"
 )
 
@@ -112,6 +116,53 @@ func (t *atualizarCotacoes) Work(ctx context.Context, _ *river.Job[CotacoesArgs]
 	return GravarSinal(ctx, t.pool, "cotacoes", map[string]any{"cotacoes": rel.Cotacoes, "indices": rel.Indices, "erros": rel.Erros})
 }
 
+// CategorizarIAArgs categoriza com a IA o que ficou sem categoria, para quem ligou a IA.
+type CategorizarIAArgs struct{}
+
+func (CategorizarIAArgs) Kind() string { return "categorizar_ia" }
+
+type categorizarIA struct {
+	river.WorkerDefaults[CategorizarIAArgs]
+	pool    *pgxpool.Pool
+	cliente *ia.Cliente
+}
+
+func (t *categorizarIA) Timeout(*river.Job[CategorizarIAArgs]) time.Duration { return 15 * time.Minute }
+
+func (t *categorizarIA) Work(ctx context.Context, _ *river.Job[CategorizarIAArgs]) error {
+	return CategorizarComIA(ctx, t.pool, t.cliente)
+}
+
+// CategorizarComIA roda a categorização de cada pessoa com a IA ligada, respeitando o
+// teto de cada uma. O erro de uma pessoa não para as outras.
+func CategorizarComIA(ctx context.Context, pool *pgxpool.Pool, cliente *ia.Cliente) error {
+	if cliente == nil {
+		return nil
+	}
+	linhas, err := pool.Query(ctx, "select * from app_usuarios_com_ia()")
+	if err != nil {
+		return err
+	}
+	usuarios, err := pgx.CollectRows(linhas, pgx.RowTo[string])
+	if err != nil {
+		return err
+	}
+	for _, u := range usuarios {
+		rel, err := financeiro.CategorizarComIA(ctx, cliente, func(fn func(ctx context.Context, tx pgx.Tx) error) error {
+			return db.ComUsuario(ctx, pool, u, func(tx pgx.Tx) error { return fn(ctx, tx) })
+		})
+		if err != nil {
+			slog.Warn("ia: categorização falhou", "usuario", u, "erro", err)
+			continue
+		}
+		if rel.Analisadas > 0 {
+			slog.Info("ia: categorização", "usuario", u, "analisadas", rel.Analisadas, "categorizadas", rel.Categorizadas,
+				"custo_microdolares", rel.Uso.CustoMicro, "parou", rel.Parou)
+		}
+	}
+	return nil
+}
+
 // GravarSinal registra que um serviço está vivo.
 func GravarSinal(ctx context.Context, pool *pgxpool.Pool, servico string, dados map[string]any) error {
 	if dados == nil {
@@ -123,12 +174,13 @@ func GravarSinal(ctx context.Context, pool *pgxpool.Pool, servico string, dados 
 }
 
 // Rodar inicia o worker e bloqueia até o contexto acabar.
-func Rodar(ctx context.Context, pool *pgxpool.Pool, versao string, of *openfinance.Servico, fontes *cotacoes.Fontes) error {
+func Rodar(ctx context.Context, pool *pgxpool.Pool, versao string, of *openfinance.Servico, fontes *cotacoes.Fontes, claude *ia.Cliente) error {
 	trabalhadores := river.NewWorkers()
 	river.AddWorker(trabalhadores, &sinalVida{pool: pool, versao: versao})
 	river.AddWorker(trabalhadores, &limpeza{pool: pool})
 	river.AddWorker(trabalhadores, &sincronizarOpenFinance{pool: pool, of: of})
 	river.AddWorker(trabalhadores, &atualizarCotacoes{pool: pool, fontes: fontes})
+	river.AddWorker(trabalhadores, &categorizarIA{pool: pool, cliente: claude})
 
 	cliente, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
 		Logger:  slog.Default(),
@@ -147,6 +199,10 @@ func Rodar(ctx context.Context, pool *pgxpool.Pool, versao string, of *openfinan
 			river.NewPeriodicJob(river.PeriodicInterval(6*time.Hour),
 				func() (river.JobArgs, *river.InsertOpts) { return CotacoesArgs{}, nil },
 				&river.PeriodicJobOpts{RunOnStart: true}),
+			// depois da sincronização de hora em hora, o que ficou sem categoria
+			river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
+				func() (river.JobArgs, *river.InsertOpts) { return CategorizarIAArgs{}, nil },
+				&river.PeriodicJobOpts{RunOnStart: false}),
 		},
 	})
 	if err != nil {

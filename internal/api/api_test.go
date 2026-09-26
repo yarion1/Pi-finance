@@ -19,6 +19,7 @@ import (
 	"github.com/yarion1/pi-finance/internal/config"
 	"github.com/yarion1/pi-finance/internal/cripto"
 	"github.com/yarion1/pi-finance/internal/db/dbteste"
+	"github.com/yarion1/pi-finance/internal/ia"
 	"github.com/yarion1/pi-finance/internal/openfinance"
 	"github.com/yarion1/pi-finance/internal/pluggy"
 	"github.com/yarion1/pi-finance/internal/pluggy/pluggyfalsa"
@@ -33,6 +34,8 @@ type ambiente struct {
 	banco   *dbteste.Banco
 	pluggy  *pluggyfalsa.Falsa   // a API da Pluggy de mentira que o servidor usa
 	of      *openfinance.Servico // o mesmo serviço do servidor (o worker usa igual)
+	claude  *claudeFalso         // a API do Claude de mentira (fase 6)
+	srv     *api.Servidor
 }
 
 func novoAmbiente(t *testing.T, ajustar ...func(*config.Config)) *ambiente {
@@ -51,13 +54,17 @@ func novoAmbiente(t *testing.T, ajustar ...func(*config.Config)) *ambiente {
 	srvPluggy := httptest.NewServer(falsa)
 	t.Cleanup(srvPluggy.Close)
 	of := &openfinance.Servico{Banco: banco.App, Cifrador: cif, Pluggy: pluggy.Novo(srvPluggy.URL)}
+	claude := &claudeFalso{}
+	srvClaude := httptest.NewServer(claude)
+	t.Cleanup(srvClaude.Close)
 	srv := &api.Servidor{
 		Auth: &auth.Servico{Pool: banco.App, Cifrador: cif, WebAuthn: wa},
 		Pool: banco.App, Cifrador: cif, Config: cfg, Versao: "v0.0.0-teste",
 		Front:       fstest.MapFS{"index.html": {Data: []byte("<!doctype html><title>Finanças</title>")}},
 		OpenFinance: of,
+		IA:          ia.Novo("chave-teste", srvClaude.URL),
 	}
-	return &ambiente{t: t, handler: srv.Handler(), banco: banco, pluggy: falsa, of: of}
+	return &ambiente{t: t, handler: srv.Handler(), banco: banco, pluggy: falsa, of: of, claude: claude, srv: srv}
 }
 
 // cliente guarda os cookies como um navegador faria.

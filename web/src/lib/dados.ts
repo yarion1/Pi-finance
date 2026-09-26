@@ -5,6 +5,7 @@ import type {
   Carteira,
   Casa,
   Categoria,
+  ConfigIA,
   Conta,
   Entidade,
   Indicadores,
@@ -135,3 +136,10 @@ export const useResumo = (mes: string) =>
 /** Carteira de investimentos de hoje. */
 export const useCarteira = () =>
   useQuery({ queryKey: ["investimentos"], queryFn: () => obter<Carteira>("/api/investimentos") });
+
+export const useConfigIA = () => useQuery({ queryKey: ["ia"], queryFn: () => obter<ConfigIA>("/api/ia") });
+
+/** US$ a partir de micro-dólares, em pt-BR ("US$ 0,42"). */
+export function dolares(micro: number): string {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "USD" }).format(micro / 1_000_000);
+}

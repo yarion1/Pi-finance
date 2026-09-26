@@ -790,3 +790,35 @@ export const nomesSituacaoMEI: Record<string, string> = {
   vira_me: "Passou do teto: vira ME em janeiro",
   desenquadramento: "Mais de 20 % acima: desenquadramento",
 };
+
+export type UsoIA = {
+  chamadas: number;
+  tokens_entrada: number;
+  tokens_saida: number;
+  custo_microdolares: number;
+};
+
+export type ConfigIA = {
+  ativa: boolean;
+  teto_mensal_microdolares: number;
+  uso_mes: UsoIA;
+  servidor: boolean;
+};
+
+export type RespostaChat = {
+  texto: string;
+  ferramentas: string[];
+  uso: UsoIA;
+  interrompida: boolean;
+};
+
+export const nomesFerramentaIA: Record<string, string> = {
+  gastos_por_categoria: "gastos por categoria",
+  resumo_periodo: "receitas e gastos",
+  buscar_transacoes: "busca de transações",
+  saldos: "saldos",
+  proximas_contas: "próximas contas",
+  carteira: "carteira",
+  patrimonio: "patrimônio",
+  cnpj_resumo: "CNPJ",
+};
