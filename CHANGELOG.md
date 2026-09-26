@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.2 — alertas inteligentes
+
+- A cada extrato importado ou sincronização do banco, o início avisa de **gasto fora do
+  padrão** da categoria (com o valor normal para comparar), **possível cobrança
+  duplicada**, **tarifa bancária** e **juros ou IOF**. Cada alerta leva às transações.
+- Alertas agora podem ser **dispensados** um a um ou todos de uma vez.
+
 ## v0.7.1 — mais do Meu Pluggy
 
 - **Faturas segundo o banco** em Cartões: total, pagamento mínimo e encargos (juros, IOF,

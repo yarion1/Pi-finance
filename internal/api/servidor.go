@@ -167,6 +167,8 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("PATCH /api/compromissos/{id}", s.sessaoCompleta(s.editarCompromisso))
 	mux.Handle("DELETE /api/compromissos/{id}", s.sessaoCompleta(s.apagarCompromisso))
 	mux.Handle("GET /api/alertas", s.sessaoCompleta(s.listarAlertas))
+	mux.Handle("POST /api/alertas/lidos", s.sessaoCompleta(s.dispensarAlertas))
+	mux.Handle("POST /api/alertas/{id}/lido", s.sessaoCompleta(s.dispensarAlerta))
 
 	// Open Finance (Meu Pluggy): cada pessoa só vê e mexe na própria conexão
 	mux.Handle("GET /api/open-finance", s.sessaoCompleta(s.openFinance))

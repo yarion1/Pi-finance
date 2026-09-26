@@ -211,6 +211,10 @@ func Importar(ctx context.Context, tx pgx.Tx, usuarioID, contaID, arquivo string
 	if _, err := DetectarRecorrencias(ctx, tx, entidadeID, time.Now().In(fusoSP)); err != nil {
 		return res, err
 	}
+	// gasto fora do padrão, cobrança duplicada, tarifa, juros e IOF
+	if err := AlertarTransacoes(ctx, tx, novas, Hoje()); err != nil {
+		return res, err
+	}
 	res.ImportacaoID = importacaoID
 	_, err = tx.Exec(ctx, "update importacoes set novas = $2, duplicadas = $3, transferencias = $4 where id = $1",
 		importacaoID, res.Novas, res.Duplicadas, res.Transferencias)

@@ -416,3 +416,21 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   fora; sem quantidade (renda fixa, fundos) vira 1 × valor. Com o histórico cobrindo o
   que foi aplicado, a rentabilidade anual (XIRR) do investimento do banco passa a vir dos
   fluxos de verdade em vez da estimativa por saldo e valor aplicado.
+
+## D33 — Alertas inteligentes (fase 6, parte 2)
+
+- **Regras fixas e explicáveis, sem IA** (`core.DetectarAlertas`, 100 % testado): rodam a
+  cada importação e sincronização, só nos gastos novos dos últimos 45 dias (importar um
+  ano de histórico não vira enxurrada), no máximo 10 por rodada, os maiores primeiro.
+  - **Gasto fora do padrão**: a compra é pelo menos 3× a mediana dos gastos da mesma
+    categoria nos últimos 180 dias (com 5 ou mais) e passa dela em R$ 100 ou mais.
+  - **Cobrança duplicada**: mesma conta, mesmo valor, descrição parecida
+    (`ChaveHistorico`) até 3 dias depois; a partir de R$ 50 (dois cafés iguais não) e fora
+    de compras parceladas. O alerta diz "possível": pode ser proposital.
+  - **Tarifa bancária** e **juros/IOF**: palavras inteiras na descrição (tarifa, anuidade,
+    cesta/pacote de serviços, manutenção de conta; juros, IOF, encargo, multa, mora,
+    rotativo).
+  - "Assinatura que subiu" já vinha da detecção de recorrências.
+- Os limites são constantes no `core` (não são regra fiscal); se incomodarem, ajustar lá.
+- **Dispensar** marca o alerta como lido: some do início e não é criado de novo (a
+  repetição é checada pela transação). A lista completa continua em `?todos=1`.

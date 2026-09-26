@@ -178,12 +178,16 @@ test.describe
     const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" })
       .format(new Date())
       .replaceAll("-", "");
-    const ofx = (...linhas: [string, string, string][]) =>
+    // um mês atrás (fora do mês corrente, para não mexer nos totais das outras fases)
+    const mesPassado = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" })
+      .format(new Date(Date.now() - 35 * 86_400_000))
+      .replaceAll("-", "");
+    const ofx = (...linhas: [string, string, string, string?][]) =>
       Buffer.from(
         `OFXHEADER:100\nDATA:OFXSGML\n\n<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>BRL<BANKTRANLIST>\n${linhas
           .map(
-            ([valor, id, desc]) =>
-              `<STMTTRN>\n<DTPOSTED>${hoje}\n<TRNAMT>${valor}\n<FITID>${id}\n<MEMO>${desc}\n</STMTTRN>\n`,
+            ([valor, id, desc, quando]) =>
+              `<STMTTRN>\n<DTPOSTED>${quando ?? hoje}\n<TRNAMT>${valor}\n<FITID>${id}\n<MEMO>${desc}\n</STMTTRN>\n`,
           )
           .join("")}</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>\n`,
       );
@@ -271,6 +275,23 @@ test.describe
 
       await page.goto("/categorias");
       await expect(page.getByText(/contém “Padaria Pao”/)).toBeVisible();
+
+      // tarifa do banco vira alerta no início, que dá para dispensar
+      await page.goto("/importar");
+      await page.getByLabel("Conta").selectOption({ label: "Inter — Ana PF" });
+      await page.locator('input[type="file"]').setInputFiles({
+        name: "tarifa.ofx",
+        mimeType: "application/x-ofx",
+        buffer: ofx(["-19.90", "t1", "TARIFA PACOTE SERVICOS", mesPassado]),
+      });
+      await page.getByRole("button", { name: "Ver prévia" }).click();
+      await page.getByRole("button", { name: "Importar 1 transação" }).click();
+      await expect(page.getByText("Importação concluída")).toBeVisible();
+      await page.goto("/");
+      const alerta = page.getByRole("link", { name: "Tarifa bancária: TARIFA PACOTE SERVICOS" });
+      await expect(alerta).toBeVisible();
+      await page.getByRole("button", { name: "Dispensar: Tarifa bancária: TARIFA PACOTE SERVICOS" }).click();
+      await expect(alerta).toHaveCount(0);
 
       // telas novas sem rolagem lateral no celular
       await page.setViewportSize({ width: 360, height: 740 });

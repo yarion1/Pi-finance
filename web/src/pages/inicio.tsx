@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDownLeft,
   Building2,
@@ -15,14 +15,15 @@ import {
   Upload,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { Barra, SeletorMes, Valor } from "../components/extras";
-import { Aviso, Cartao, Esqueleto, Etiqueta, Pagina, TituloCartao, Vazio } from "../components/ui";
+import { Aviso, Botao, Cartao, Esqueleto, Etiqueta, Pagina, TituloCartao, Vazio } from "../components/ui";
 import { Cartoes, ContasBancarias, EvolucaoSaldo, Investimentos } from "../components/visao";
-import { mensagemDe, obter } from "../lib/api";
+import { api, mensagemDe, obter } from "../lib/api";
 import {
   gastoOrcado,
   mesAtual,
@@ -37,11 +38,14 @@ import { formatarData, formatarDataHora, formatarMoeda, formatarPercentual } fro
 import { useSessao } from "../lib/sessao";
 import type { Alerta, Indicadores, Orcamento, Resumo } from "../lib/tipos";
 
-/** Texto de cada tipo de alerta. */
-function textoAlerta(a: Alerta): { titulo: string; detalhe?: string } {
+/** Texto de cada tipo de alerta (e, quando há, a transação de origem). */
+function textoAlerta(a: Alerta): { titulo: string; detalhe?: string; link?: string } {
   const d = a.dados as Record<string, unknown>;
   const desc = typeof d.descricao === "string" ? d.descricao : "";
   const moeda = (v: unknown) => (typeof v === "number" ? formatarMoeda(Math.abs(v)) : "");
+  const data = typeof d.data === "string" ? formatarData(d.data) : "";
+  const conta = typeof d.conta === "string" ? ` · ${d.conta}` : "";
+  const link = desc ? `/transacoes?busca=${encodeURIComponent(desc)}` : undefined;
   switch (a.tipo) {
     case "login_aparelho_novo":
       return { titulo: "Login em aparelho novo", detalhe: typeof d.ip === "string" ? d.ip : undefined };
@@ -57,6 +61,30 @@ function textoAlerta(a: Alerta): { titulo: string; detalhe?: string } {
       };
     case "assinatura_detectada":
       return { titulo: `Nova cobrança recorrente: ${desc}`, detalhe: moeda(d.valor_centavos) };
+    case "gasto_fora_do_padrao":
+      return {
+        titulo: `Gasto fora do padrão${typeof d.categoria === "string" ? ` em ${d.categoria}` : ""}: ${desc}`,
+        detalhe: `${moeda(d.valor_centavos)} em ${data}; o normal é perto de ${moeda(d.referencia_centavos)}`,
+        link,
+      };
+    case "cobranca_duplicada":
+      return {
+        titulo: `Possível cobrança duplicada: ${desc}`,
+        detalhe: `${moeda(d.valor_centavos)} duas vezes até ${data}${conta}`,
+        link,
+      };
+    case "tarifa_bancaria":
+      return {
+        titulo: `Tarifa bancária: ${desc}`,
+        detalhe: `${moeda(d.valor_centavos)} em ${data}${conta}`,
+        link,
+      };
+    case "juros_iof":
+      return {
+        titulo: `Juros ou IOF: ${desc}`,
+        detalhe: `${moeda(d.valor_centavos)} em ${data}${conta}`,
+        link,
+      };
     default:
       return { titulo: a.tipo };
   }
@@ -82,6 +110,11 @@ export function Inicio() {
   const entidades = useEntidades();
   const casas = useCasas();
   const alertas = useQuery({ queryKey: ["alertas"], queryFn: () => obter<Alerta[]>("/api/alertas") });
+  const cliente = useQueryClient();
+  const dispensar = useMutation({
+    mutationFn: (id?: string) => api("POST", id ? `/api/alertas/${id}/lido` : "/api/alertas/lidos"),
+    onSuccess: () => cliente.invalidateQueries({ queryKey: ["alertas"] }),
+  });
   const indicadores = useIndicadores();
   const carteira = useCarteira();
   const orcamento = useQuery({
@@ -244,7 +277,22 @@ export function Inicio() {
 
       <div className="grid grid-cols-1 gap-4">
         <Cartao>
-          <TituloCartao>Alertas</TituloCartao>
+          <TituloCartao
+            acao={
+              (alertas.data?.length ?? 0) > 1 ? (
+                <Botao
+                  variante="fantasma"
+                  onClick={() => dispensar.mutate(undefined)}
+                  carregando={dispensar.isPending}
+                >
+                  Dispensar todos
+                </Botao>
+              ) : undefined
+            }
+          >
+            Alertas
+          </TituloCartao>
+          {dispensar.error ? <Aviso tipo="erro">{mensagemDe(dispensar.error)}</Aviso> : null}
           {alertas.isPending ? (
             <Esqueleto className="h-12 w-full" />
           ) : alertas.data?.length ? (
@@ -254,13 +302,29 @@ export function Inicio() {
                 return (
                   <li key={a.id} className="flex items-start gap-3 py-2.5">
                     <ShieldAlert className="mt-0.5 size-5 shrink-0 text-alerta" aria-hidden />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{t.titulo}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">
+                        {t.link ? (
+                          <Link to={t.link} className="hover:underline">
+                            {t.titulo}
+                          </Link>
+                        ) : (
+                          t.titulo
+                        )}
+                      </p>
                       <p className="truncate text-xs text-texto-2">
                         {formatarDataHora(a.criado_em)}
                         {t.detalhe ? ` · ${t.detalhe}` : ""}
                       </p>
                     </div>
+                    <Botao
+                      variante="fantasma"
+                      aria-label={`Dispensar: ${t.titulo}`}
+                      onClick={() => dispensar.mutate(a.id)}
+                      disabled={dispensar.isPending}
+                    >
+                      <X className="size-4" />
+                    </Botao>
                   </li>
                 );
               })}

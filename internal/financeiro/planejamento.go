@@ -597,3 +597,58 @@ func FaturasDoBanco(ctx context.Context, tx pgx.Tx, contaID string) ([]FaturaBan
 	}
 	return lista, err
 }
+
+// AlertarTransacoes roda os alertas inteligentes (core.DetectarAlertas) nas transações
+// novas, comparando com os gastos dos últimos 180 dias das mesmas entidades.
+func AlertarTransacoes(ctx context.Context, tx pgx.Tx, ids []string, hoje time.Time) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	const colunas = `select t.id, t.conta_id, coalesce(t.categoria_id::text, ''), t.descricao, t.valor_centavos, t.data,
+		t.parcela_n is not null from transacoes t`
+	ler := func(consulta string, args ...any) ([]core.TransacaoAlerta, error) {
+		linhas, err := tx.Query(ctx, consulta, args...)
+		if err != nil {
+			return nil, err
+		}
+		return pgx.CollectRows(linhas, func(l pgx.CollectableRow) (core.TransacaoAlerta, error) {
+			var t core.TransacaoAlerta
+			var v int64
+			err := l.Scan(&t.ID, &t.Conta, &t.Categoria, &t.Descricao, &v, &t.Data, &t.Parcela)
+			t.Valor = core.Centavos(v)
+			return t, err
+		})
+	}
+	novas, err := ler(colunas+" where t.id = any($1) and t.tipo = 'gasto'", ids)
+	if err != nil || len(novas) == 0 {
+		return err
+	}
+	hist, err := ler(colunas+` where t.tipo = 'gasto' and t.data >= $2 and not (t.id = any($1))
+		and t.entidade_id in (select entidade_id from transacoes where id = any($1))`, ids, hoje.AddDate(0, 0, -180))
+	if err != nil {
+		return err
+	}
+	for _, a := range core.DetectarAlertas(novas, hist, hoje) {
+		t := a.Transacao
+		dados := map[string]any{"transacao_id": t.ID, "descricao": t.Descricao, "valor_centavos": int64(t.Valor),
+			"data": t.Data.Format(formatoData)}
+		var conta string
+		if err := tx.QueryRow(ctx, "select nome from contas where id = $1", t.Conta).Scan(&conta); err == nil {
+			dados["conta"] = conta
+		}
+		switch a.Tipo {
+		case "gasto_fora_do_padrao":
+			dados["referencia_centavos"] = int64(a.Referencia)
+			var cat string
+			if err := tx.QueryRow(ctx, "select nome from categorias where id = $1", t.Categoria).Scan(&cat); err == nil {
+				dados["categoria"] = cat
+			}
+		case "cobranca_duplicada":
+			dados["outra_id"] = a.Outra
+		}
+		if err := alertar(ctx, tx, a.Tipo, dados, "transacao_id"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
