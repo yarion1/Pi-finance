@@ -65,6 +65,21 @@ services:
     healthcheck: { disable: true }
     networks: [interna, saida]
 
+  # Cloudflare Tunnel (DECISOES D11, D29), como no fitness-hub: só sobe com
+  # CLOUDFLARE_TUNNEL_TOKEN no .env. No painel da Cloudflare o hostname público aponta
+  # para http://web:3100 (rede interna do compose); nenhuma porta nova abre no Pi.
+  cloudflared:
+    image: cloudflare/cloudflared:2026.8.3
+    restart: unless-stopped
+    profiles: [tunel]
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on: [web]
+    mem_limit: 128m
+    logging: *logs
+    networks: [saida]
+
   backup:
     image: postgres:17-alpine
     restart: unless-stopped

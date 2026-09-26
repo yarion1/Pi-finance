@@ -316,3 +316,14 @@ usuário); o painel não compartilha as credenciais de ninguém.
 - **Critério de aceite**: `TestRentabilidadeContraCDI` (CDB a 100 % do CDI rende o CDI do
   período até 0,01 p.p. ao ano) e a planilha de referência de `core/testdata`.
 - A alocação alvo (tabela `alocacao_alvo`) ganha tela na fase 7, com os gráficos.
+
+## D29 — Túnel da Cloudflare dentro do compose (igual ao fitness-hub)
+
+O `cloudflared` roda como serviço do compose (perfil `tunel`), com o token de um túnel
+próprio (`financas`) em `CLOUDFLARE_TUNNEL_TOKEN` no `/etc/financas/.env`, como o
+fitness-hub faz. O hostname público (`financas.pebasrunners.com`) aponta para
+`http://web:3100` pela rede do compose; nenhuma porta nova abre no Pi e a 3100 continua só
+em 127.0.0.1 para o deploy conferir o `/api/health`. Sem token, nada muda. Com token, o
+deploy exige `PUBLIC_URL` em https. O Cloudflare Access (D11) continua obrigatório na
+frente; o IP do visitante vem de `CF-Connecting-IP`, aceito porque o cloudflared está na
+rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).

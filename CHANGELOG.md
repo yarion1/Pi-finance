@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.1 — túnel da Cloudflare no deploy
+
+- O deploy sobe o `cloudflared` junto (como no fitness-hub) quando o
+  `/etc/financas/.env` tem `CLOUDFLARE_TUNNEL_TOKEN`; o painel fica em
+  `https://financas.pebasrunners.com`, atrás do Cloudflare Access. Sem token, nada muda.
+
 ## v0.5.0 — fase 4: investimentos
 
 - **Cotações automáticas** a cada 6 horas: ações, FIIs, ETFs e BDRs pela brapi, cripto pela

@@ -29,6 +29,17 @@ set -a
 set +a
 
 compose() { docker compose -p financas -f "$RAIZ/deploy/docker-compose.yml" --env-file "$ENV_FILE" "$@"; }
+
+# serviços da aplicação; o túnel da Cloudflare entra quando há token no .env
+SERVICOS=(web worker backup)
+if [ -n "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
+  SERVICOS+=(cloudflared)
+  export COMPOSE_PROFILES=tunel
+  case "${PUBLIC_URL:-}" in
+    https://*) ;;
+    *) echo "com CLOUDFLARE_TUNNEL_TOKEN, PUBLIC_URL precisa ser o https do túnel (está: ${PUBLIC_URL:-vazio})" >&2; exit 1 ;;
+  esac
+fi
 log() { echo "[$(date '+%F %T')] $*"; }
 
 # Avisos pelo PiControl (POST /api/notify com Bearer) e, sem ele, direto no Telegram.
@@ -82,7 +93,7 @@ voltar() {
       compose exec -T postgres createdb -U financas -O financas financas
       compose exec -T postgres pg_restore -U financas -d financas --single-transaction < "$DUMP"
     fi
-    VERSAO="$ANTERIOR" FORCAR_FALHA_HEALTH=0 compose up -d web worker backup
+    VERSAO="$ANTERIOR" FORCAR_FALHA_HEALTH=0 compose up -d "${SERVICOS[@]}"
     notificar "deploy $VERSAO falhou ($motivo); voltou para $ANTERIOR"
   else
     compose stop web worker || true
@@ -99,7 +110,7 @@ VERSAO="$VERSAO" compose run --rm --no-deps -e DATABASE_URL_MIGRACAO -e APP_DB_P
 # 5. versão nova
 FORCAR=0
 [ "${QUEBRAR:-0}" = 1 ] && FORCAR=1 && log "QUEBRAR=1: o health vai falhar de propósito"
-VERSAO="$VERSAO" FORCAR_FALHA_HEALTH="$FORCAR" compose up -d --remove-orphans web worker backup || voltar "compose up"
+VERSAO="$VERSAO" FORCAR_FALHA_HEALTH="$FORCAR" compose up -d --remove-orphans "${SERVICOS[@]}" || voltar "compose up"
 
 # 6. saúde em até 90 s
 for ((i = 0; i < LIMITE_SAUDE; i += 3)); do
