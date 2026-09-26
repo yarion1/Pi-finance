@@ -33,3 +33,46 @@ func TestIPDoCliente(t *testing.T) {
 		}
 	}
 }
+
+func TestRotaParaLogEscondeToken(t *testing.T) {
+	for caminho, quer := range map[string]string{
+		"/api/convites/abc123segredo":         "/api/convites/***",
+		"/api/convites/abc123segredo/aceitar": "/api/convites/***/aceitar",
+		"/api/convites-conta":                 "/api/convites-conta",
+		"/api/contas":                         "/api/contas",
+	} {
+		if r := rotaParaLog(caminho); r != quer {
+			t.Errorf("%s: %s", caminho, r)
+		}
+	}
+}
+
+func TestLimiteGeralDaAPI(t *testing.T) {
+	s := &Servidor{Config: config.Config{URLPublica: "http://localhost:3100"}}
+	h := s.Handler()
+	status := func(metodo, caminho string) int {
+		req := httptest.NewRequest(metodo, caminho, nil)
+		req.Header.Set("Origin", "http://localhost:3100")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	for range LimiteEscritaPorMinuto {
+		if c := status("POST", "/api/inexistente"); c == 429 {
+			t.Fatal("limitou cedo demais")
+		}
+	}
+	if c := status("POST", "/api/inexistente"); c != 429 {
+		t.Fatalf("escrita além do limite: %d", c)
+	}
+	// leitura ainda passa até o limite geral; o health nunca é limitado
+	if c := status("GET", "/api/inexistente"); c != 404 {
+		t.Fatalf("leitura: %d", c)
+	}
+	for range LimiteGeralPorMinuto {
+		status("GET", "/api/inexistente")
+	}
+	if c := status("GET", "/api/inexistente"); c != 429 {
+		t.Fatalf("leitura além do limite: %d", c)
+	}
+}

@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.2 — revisão de segurança antes de abrir pela internet
+
+- Checklist dos 19 pontos em `docs/SEGURANCA.md` (onde cada proteção está e como é testada).
+- Limite geral por IP na API (600 requisições e 120 escritas por minuto), além do login.
+- No máximo 3 hashes de senha ao mesmo tempo (rajada de logins não estoura a memória) e
+  parâmetros do hash conferidos.
+- O `.xlsx` da B3 abre com limite de descompactação (contra zip bomb).
+- Tokens de convite não aparecem mais no log.
+- Editar ativo recusa campo desconhecido, como o resto da API.
+- CI confere dependências vulneráveis (`govulncheck` e `npm audit`).
+
 ## v0.5.1 — túnel da Cloudflare no deploy
 
 - O deploy sobe o `cloudflared` junto (como no fitness-hub) quando o

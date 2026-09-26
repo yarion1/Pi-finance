@@ -38,7 +38,15 @@ type Servidor struct {
 
 	limiteAuth    *limitador
 	limiteConvite *limitador
+	limiteGeral   *limitador // toda a API, por IP (contra abuso e raspagem)
+	limiteEscrita *limitador // POST, PUT, PATCH e DELETE, por IP
 }
+
+// Limites gerais por IP e minuto; folgados para uso normal (uma tela faz poucas chamadas).
+const (
+	LimiteGeralPorMinuto   = 600
+	LimiteEscritaPorMinuto = 120
+)
 
 // Handler monta as rotas com os middlewares.
 func (s *Servidor) Handler() http.Handler {
@@ -48,6 +56,8 @@ func (s *Servidor) Handler() http.Handler {
 	}
 	s.limiteAuth = novoLimitador(porMinuto, time.Minute)
 	s.limiteConvite = novoLimitador(30, time.Minute)
+	s.limiteGeral = novoLimitador(LimiteGeralPorMinuto, time.Minute)
+	s.limiteEscrita = novoLimitador(LimiteEscritaPorMinuto, time.Minute)
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /api/health", s.saude)
@@ -181,7 +191,7 @@ func (s *Servidor) Handler() http.Handler {
 	})
 	mux.Handle("/", s.spa())
 
-	return s.recuperar(s.registrar(s.cabecalhos(s.origemConfere(limitarCorpo(mux)))))
+	return s.recuperar(s.registrar(s.cabecalhos(s.limitarAPI(s.origemConfere(limitarCorpo(mux))))))
 }
 
 // Rotas usadas no teste de isolamento: toda rota GET com dados precisa estar aqui.
@@ -236,7 +246,7 @@ func (s *Servidor) registrar(h http.Handler) http.Handler {
 		g := &gravadorStatus{ResponseWriter: w, status: 200}
 		h.ServeHTTP(g, r)
 		if strings.HasPrefix(r.URL.Path, "/api/") && r.URL.Path != "/api/health" {
-			slog.Info("req", "metodo", r.Method, "rota", r.URL.Path, "status", g.status, "ms", time.Since(inicio).Milliseconds())
+			slog.Info("req", "metodo", r.Method, "rota", rotaParaLog(r.URL.Path), "status", g.status, "ms", time.Since(inicio).Milliseconds())
 		}
 	})
 }
@@ -300,6 +310,34 @@ func limitarCorpo(h http.Handler) http.Handler {
 		r.Body = http.MaxBytesReader(w, r.Body, limite)
 		h.ServeHTTP(w, r)
 	})
+}
+
+// limitarAPI: teto geral de requisições por IP na API (o /api/health fica de fora, é o
+// deploy e o PiControl que chamam).
+func (s *Servidor) limitarAPI(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") && r.URL.Path != "/api/health" {
+			ip := s.ip(r)
+			escrita := r.Method != http.MethodGet && r.Method != http.MethodHead
+			if !s.limiteGeral.permitir(ip) || (escrita && !s.limiteEscrita.permitir(ip)) {
+				w.Header().Set("Retry-After", "60")
+				erroJSON(w, http.StatusTooManyRequests, "limite", "muitas requisições; aguarde um minuto")
+				return
+			}
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+// rotaParaLog esconde tokens que vão no caminho (links de convite).
+func rotaParaLog(caminho string) string {
+	if resto, ok := strings.CutPrefix(caminho, "/api/convites/"); ok {
+		if _, depois, tem := strings.Cut(resto, "/"); tem {
+			return "/api/convites/***/" + depois
+		}
+		return "/api/convites/***"
+	}
+	return caminho
 }
 
 func (s *Servidor) limitado(h http.Handler) http.Handler { return s.limitadoPor(s.limiteAuth, h) }

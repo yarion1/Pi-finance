@@ -1,6 +1,7 @@
 package financeiro
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -224,7 +225,9 @@ func EditarAtivo(ctx context.Context, tx pgx.Tx, id string, corpo []byte) error 
 	var mudou struct {
 		Classe *string `json:"classe"`
 	}
-	if json.Unmarshal(corpo, &d) != nil || json.Unmarshal(corpo, &mudou) != nil {
+	estrito := json.NewDecoder(bytes.NewReader(corpo))
+	estrito.DisallowUnknownFields()
+	if estrito.Decode(&d) != nil || json.Unmarshal(corpo, &mudou) != nil {
 		return ErrCampo{"dados inválidos"}
 	}
 	d.EntidadeID, d.Codigo = ent, codigo

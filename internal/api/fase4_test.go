@@ -245,3 +245,11 @@ func TestRentabilidadeContraCDI(t *testing.T) {
 		t.Fatalf("120 %% do CDI rende mais que o CDI: %v × %v", *c.Rent, *c.CDI)
 	}
 }
+
+func TestEditarAtivoRecusaCampoDesconhecido(t *testing.T) {
+	_, a, pf, _, _ := prepara(t)
+	var at struct{ ID string }
+	a.exigir("POST", "/api/investimentos/ativos", map[string]any{"entidade_id": pf, "codigo": "X1", "classe": "acao"}, http.StatusCreated).json(t, &at)
+	a.exigir("PATCH", "/api/investimentos/ativos/"+at.ID, map[string]any{"entidade_id": "outra"}, http.StatusNoContent)
+	a.exigir("PATCH", "/api/investimentos/ativos/"+at.ID, map[string]any{"origem": "pluggy"}, http.StatusBadRequest)
+}

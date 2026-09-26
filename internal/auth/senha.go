@@ -23,13 +23,23 @@ const (
 	SenhaTamMaximo = 128
 )
 
+// vagasArgon limita os hashes simultâneos: cada um usa 64 MiB, e uma rajada de logins
+// (mesmo vinda de vários IPs) não pode estourar a memória do serviço.
+var vagasArgon = make(chan struct{}, 3)
+
+func argonIDKey(senha, sal []byte, iteracoes, memoria uint32, paralelo uint8, tam uint32) []byte {
+	vagasArgon <- struct{}{}
+	defer func() { <-vagasArgon }()
+	return argon2.IDKey(senha, sal, iteracoes, memoria, paralelo, tam)
+}
+
 // HashSenha devolve o hash no formato PHC ($argon2id$v=19$m=...,t=...,p=...$sal$hash).
 func HashSenha(senha string) (string, error) {
 	sal := make([]byte, argonTamSal)
 	if _, err := rand.Read(sal); err != nil {
 		return "", err
 	}
-	chave := argon2.IDKey([]byte(senha), sal, argonIteracoes, argonMemoria, argonParalelo, argonTamChave)
+	chave := argonIDKey([]byte(senha), sal, argonIteracoes, argonMemoria, argonParalelo, argonTamChave)
 	b64 := base64.RawStdEncoding
 	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
 		argon2.Version, argonMemoria, argonIteracoes, argonParalelo, b64.EncodeToString(sal), b64.EncodeToString(chave)), nil
@@ -62,7 +72,10 @@ func ConferirSenha(senha, hash string) (bool, error) {
 	if err != nil {
 		return false, errHashInvalido
 	}
-	obtido := argon2.IDKey([]byte(senha), sal, t, m, p, uint32(len(esperado)))
+	if m == 0 || m > 256*1024 || t == 0 || t > 16 || p == 0 || len(esperado) == 0 || len(esperado) > 64 {
+		return false, errHashInvalido
+	}
+	obtido := argonIDKey([]byte(senha), sal, t, m, p, uint32(len(esperado)))
 	return subtle.ConstantTimeCompare(obtido, esperado) == 1, nil
 }
 

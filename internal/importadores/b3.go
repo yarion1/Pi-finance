@@ -68,7 +68,9 @@ func LerB3(conteudo []byte) (ResultadoB3, error) {
 
 func linhasPlanilha(conteudo []byte) ([][]string, error) {
 	if bytes.HasPrefix(conteudo, []byte("PK")) {
-		f, err := excelize.OpenReader(bytes.NewReader(conteudo))
+		// limites contra "zip bomb": o .xlsx da B3 descompactado tem poucos MB
+		f, err := excelize.OpenReader(bytes.NewReader(conteudo), excelize.Options{
+			UnzipSizeLimit: 64 << 20, UnzipXMLSizeLimit: 32 << 20})
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrFormatoB3, err)
 		}
