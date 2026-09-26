@@ -186,6 +186,20 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("POST /api/investimentos/ativos/{id}/operacoes", s.sessaoCompleta(s.criarOperacao))
 	mux.Handle("DELETE /api/investimentos/ativos/{id}/operacoes/{operacao}", s.sessaoCompleta(s.apagarOperacao))
 
+	// CNPJ (fase 5)
+	mux.Handle("GET /api/cnpj/simulacao", s.sessaoCompleta(s.simulacaoCNPJ))
+	mux.Handle("GET /api/cnpj/{entidade}/painel", s.sessaoCompleta(s.painelCNPJ))
+	mux.Handle("GET /api/cnpj/{entidade}/notas", s.sessaoCompleta(s.listarNotas))
+	mux.Handle("POST /api/cnpj/{entidade}/notas", s.sessaoCompleta(s.criarNota))
+	mux.Handle("POST /api/cnpj/{entidade}/notas/xml", s.sessaoCompleta(s.importarNFSe))
+	mux.Handle("PATCH /api/cnpj/notas/{id}", s.sessaoCompleta(s.editarNota))
+	mux.Handle("DELETE /api/cnpj/notas/{id}", s.sessaoCompleta(s.apagarNota))
+	mux.Handle("PUT /api/cnpj/{entidade}/das/{competencia}", s.sessaoCompleta(s.marcarDAS))
+	mux.Handle("GET /api/cnpj/{entidade}/folha", s.sessaoCompleta(s.listarFolha))
+	mux.Handle("PUT /api/cnpj/{entidade}/folha", s.sessaoCompleta(s.salvarFolha))
+	mux.Handle("GET /api/cnpj/{entidade}/distribuicoes", s.sessaoCompleta(s.listarDistribuicoes))
+	mux.Handle("POST /api/cnpj/{entidade}/distribuicoes", s.sessaoCompleta(s.distribuirLucro))
+
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		erroJSON(w, http.StatusNotFound, "nao_encontrado", "rota inexistente")
 	})
@@ -215,6 +229,8 @@ var RotasLeitura = []string{
 	"/api/open-finance", "/api/convites-conta",
 	"/api/investimentos", "/api/investimentos?entidade_id={entidade}",
 	"/api/investimentos/ir", "/api/investimentos/ir?entidade_id={entidade}", "/api/investimentos/ativos/{ativo}/operacoes",
+	"/api/cnpj/{pj}/painel", "/api/cnpj/{pj}/notas", "/api/cnpj/{pj}/notas?ano=2026", "/api/cnpj/{pj}/folha",
+	"/api/cnpj/{pj}/distribuicoes", "/api/cnpj/simulacao?receita_mensal_centavos=1000000&contador_centavos=0",
 }
 
 // ---------------------------------------------------------------------------

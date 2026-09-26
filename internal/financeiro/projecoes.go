@@ -482,6 +482,13 @@ func CalcularAgenda(ctx context.Context, tx pgx.Tx, ents []string, hoje time.Tim
 		return ag, err
 	}
 
+	// calendário fiscal dos CNPJs: DAS do mês, DASN-SIMEI e DEFIS
+	fiscais, err := itensFiscais(ctx, tx, ents, hoje, ate)
+	if err != nil {
+		return ag, err
+	}
+	ag.Itens = append(ag.Itens, fiscais...)
+
 	sort.SliceStable(ag.Itens, func(i, j int) bool { return ag.Itens[i].Data < ag.Itens[j].Data })
 
 	efeito := map[string]int64{}

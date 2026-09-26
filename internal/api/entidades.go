@@ -24,6 +24,7 @@ type entidade struct {
 	CNAE         *string `json:"cnae"`
 	Municipio    *string `json:"municipio"`
 	DataAbertura *string `json:"data_abertura"`
+	Atividade    *string `json:"atividade"`
 	Papel        string  `json:"papel"`
 	Documento    *string `json:"documento"` // sempre mascarado
 }
@@ -37,12 +38,12 @@ type acesso struct {
 }
 
 const colunasEntidade = `id, tipo::text, nome, regime::text, anexo, cnae, municipio,
-	to_char(data_abertura, 'YYYY-MM-DD'), app_papel_entidade(id), documento_cifrado`
+	to_char(data_abertura, 'YYYY-MM-DD'), atividade, app_papel_entidade(id), documento_cifrado`
 
 func (s *Servidor) lerEntidade(row pgx.CollectableRow) (entidade, error) {
 	var e entidade
 	var doc *string
-	if err := row.Scan(&e.ID, &e.Tipo, &e.Nome, &e.Regime, &e.Anexo, &e.CNAE, &e.Municipio, &e.DataAbertura, &e.Papel, &doc); err != nil {
+	if err := row.Scan(&e.ID, &e.Tipo, &e.Nome, &e.Regime, &e.Anexo, &e.CNAE, &e.Municipio, &e.DataAbertura, &e.Atividade, &e.Papel, &doc); err != nil {
 		return e, err
 	}
 	if doc != nil {
@@ -82,6 +83,7 @@ type dadosEntidade struct {
 	CNAE         *string `json:"cnae"`
 	Municipio    *string `json:"municipio"`
 	DataAbertura *string `json:"data_abertura"`
+	Atividade    *string `json:"atividade"`
 }
 
 // normalizar valida os campos e devolve o documento já cifrado (ou nil).
@@ -107,8 +109,12 @@ func (d *dadosEntidade) normalizar(c interface {
 	vazio(&d.CNAE)
 	vazio(&d.Municipio)
 	vazio(&d.DataAbertura)
-	if d.Tipo == "PF" && (d.Regime != nil || d.Anexo != nil || d.CNAE != nil) {
-		return nil, invalido("regime, anexo e CNAE são só de PJ")
+	vazio(&d.Atividade)
+	if d.Tipo == "PF" && (d.Regime != nil || d.Anexo != nil || d.CNAE != nil || d.Atividade != nil) {
+		return nil, invalido("regime, anexo, CNAE e atividade são só de PJ")
+	}
+	if d.Atividade != nil && *d.Atividade != "servicos" && *d.Atividade != "comercio" && *d.Atividade != "ambos" {
+		return nil, invalido("atividade: servicos, comercio ou ambos")
 	}
 	if d.Regime != nil && *d.Regime != "MEI" && *d.Regime != "SIMPLES_ME" && *d.Regime != "SIMPLES_EPP" {
 		return nil, invalido("regime: MEI, SIMPLES_ME ou SIMPLES_EPP")
@@ -144,9 +150,9 @@ func (s *Servidor) criarEntidade(w http.ResponseWriter, r *http.Request) {
 	}
 	var id string
 	err = s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
-		err := tx.QueryRow(ctx, `insert into entidades (dono_id, tipo, nome, documento_cifrado, regime, anexo, cnae, municipio, data_abertura)
-			values (app_usuario_id(), $1, $2, $3, $4, $5, $6, $7, $8) returning id`,
-			d.Tipo, d.Nome, doc, d.Regime, d.Anexo, d.CNAE, d.Municipio, d.DataAbertura).Scan(&id)
+		err := tx.QueryRow(ctx, `insert into entidades (dono_id, tipo, nome, documento_cifrado, regime, anexo, cnae, municipio, data_abertura, atividade)
+			values (app_usuario_id(), $1, $2, $3, $4, $5, $6, $7, $8, $9) returning id`,
+			d.Tipo, d.Nome, doc, d.Regime, d.Anexo, d.CNAE, d.Municipio, d.DataAbertura, d.Atividade).Scan(&id)
 		if err != nil {
 			return err
 		}
@@ -201,8 +207,8 @@ func (s *Servidor) editarEntidade(w http.ResponseWriter, r *http.Request) {
 	err = s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
 		// documento ausente mantém o atual
 		err := exigirUma(tx.Exec(ctx, `update entidades set tipo = $2, nome = $3, documento_cifrado = coalesce($4, documento_cifrado),
-			regime = $5, anexo = $6, cnae = $7, municipio = $8, data_abertura = $9 where id = $1`,
-			r.PathValue("id"), d.Tipo, d.Nome, doc, d.Regime, d.Anexo, d.CNAE, d.Municipio, d.DataAbertura))
+			regime = $5, anexo = $6, cnae = $7, municipio = $8, data_abertura = $9, atividade = $10 where id = $1`,
+			r.PathValue("id"), d.Tipo, d.Nome, doc, d.Regime, d.Anexo, d.CNAE, d.Municipio, d.DataAbertura, d.Atividade))
 		if err != nil {
 			return err
 		}

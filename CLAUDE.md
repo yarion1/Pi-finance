@@ -44,6 +44,9 @@ mudou em relação a ela está em `docs/DECISOES.md` (leia as duas antes de come
   2FA obrigatório. Ações sensíveis pedem reautenticação. Acesso de fora só pelo túnel
   com Cloudflare Access na frente (DECISOES D11).
 - Cálculos puros vão em `internal/core` e são 100 % testados.
+- Antes de mexer em `internal/pluggy`, consulte a documentação atual da Pluggy pelo MCP
+  `pluggy-docs` (`.mcp.json`) ou pelas páginas `.md` de docs.pluggy.ai (`/llms.txt`),
+  não pela memória.
 - Telas de impostos e investimentos mostram que o painel organiza e simula, e não
   substitui contador nem assessor.
 

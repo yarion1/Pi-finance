@@ -199,6 +199,17 @@ func TestIsolamentoPorRota(t *testing.T) {
 	if r := a.exigir("GET", "/api/investimentos/ir", nil, 200); !bytes.Contains(r.corpo, []byte("ATIVO-SECRETO")) {
 		t.Fatal("A deveria ver a própria venda no IR")
 	}
+	// fase 5: CNPJ com receita, folha e lucro
+	var pjSecreta struct{ ID string }
+	a.exigir("POST", "/api/entidades", map[string]any{"tipo": "PJ", "nome": "PJ-SECRETA", "regime": "MEI"}, http.StatusCreated).json(t, &pjSecreta)
+	a.exigir("POST", "/api/cnpj/"+pjSecreta.ID+"/notas", map[string]any{"data_emissao": time.Now().Format("2006-01-02"),
+		"valor_centavos": 3141592, "cliente": "CLIENTE-SECRETO", "descricao": "NOTA-SECRETA"}, http.StatusCreated)
+	a.exigir("PUT", "/api/cnpj/"+pjSecreta.ID+"/folha", map[string]any{"competencia": time.Now().Format("2006-01"), "prolabore_centavos": 271828}, http.StatusOK)
+	a.exigir("POST", "/api/cnpj/"+pjSecreta.ID+"/distribuicoes", map[string]any{"data": time.Now().Format("2006-01-02"),
+		"valor_centavos": 1618033, "descricao": "LUCRO-SECRETO"}, http.StatusCreated)
+	if r := a.exigir("GET", "/api/cnpj/"+pjSecreta.ID+"/notas", nil, 200); !bytes.Contains(r.corpo, []byte("NOTA-SECRETA")) {
+		t.Fatal("A deveria ver a própria nota")
+	}
 	// A enxerga o próprio segredo pelas rotas (controle positivo)
 	if r := a.exigir("GET", "/api/transacoes", nil, 200); !bytes.Contains(r.corpo, []byte("SEGREDO-DA-ANA")) {
 		t.Fatal("A deveria ver a própria transação")
@@ -212,10 +223,11 @@ func TestIsolamentoPorRota(t *testing.T) {
 		"CARTAO-SECRETO", cartao.ID, "COMPRA-SECRETA", "META-SECRETA", "BEM-SECRETO", "DIVIDA-SECRETA", divida.ID,
 		"COMPROMISSO-SECRETO", "RECORRENCIA-SECRETA", "7777777", "50000000",
 		"ITEM-SECRETO", "BANCO-SECRETO", "CONTA-PLUGGY-SECRETA", "9876543", "QRST", "SECRET-SECRETO",
-		"INVESTIMENTO-SECRETO", "765432", "ATIVO-SECRETO", ativo.ID, "31.4159", "4242420", "1100830"}
+		"INVESTIMENTO-SECRETO", "765432", "ATIVO-SECRETO", ativo.ID, "31.4159", "4242420", "1100830",
+		"PJ-SECRETA", pjSecreta.ID, "CLIENTE-SECRETO", "NOTA-SECRETA", "3141592", "271828", "1618033", "LUCRO-SECRETO"}
 	for _, rota := range api.RotasLeitura {
 		caminho := strings.NewReplacer("{casa}", casa.ID, "{entidade}", pf.ID, "{conta}", contaPrivada,
-			"{importacao}", imp.ImportacaoID, "{cartao}", cartao.ID, "{divida}", divida.ID, "{ativo}", ativo.ID).Replace(rota)
+			"{importacao}", imp.ImportacaoID, "{cartao}", cartao.ID, "{divida}", divida.ID, "{ativo}", ativo.ID, "{pj}", pjSecreta.ID).Replace(rota)
 		r := b.fazer("GET", caminho, nil)
 		if r.status >= 500 {
 			t.Errorf("%s: status %d", caminho, r.status)

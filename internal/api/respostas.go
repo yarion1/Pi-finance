@@ -57,7 +57,7 @@ func falhar(w http.ResponseWriter, r *http.Request, err error) {
 		erroJSON(w, http.StatusConflict, "email", err.Error())
 	case errors.As(err, new(financeiro.ErrCampo)):
 		erroJSON(w, http.StatusBadRequest, "validacao", err.Error())
-	case errors.Is(err, financeiro.ErrMoeda):
+	case errors.Is(err, financeiro.ErrMoeda), errors.Is(err, financeiro.ErrNaoEPJ):
 		erroJSON(w, http.StatusBadRequest, "validacao", err.Error())
 	case errors.Is(err, auth.ErrDadosInvalidos), errors.Is(err, auth.ErrUltimoFator), errors.Is(err, auth.ErrPasskeyIndisponivel),
 		errors.Is(err, errValidacao):
