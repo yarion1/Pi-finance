@@ -4,6 +4,7 @@ import {
   ChevronRight,
   CreditCard,
   Landmark,
+  LineChart,
   LogOut,
   MessageCircleQuestion,
   PiggyBank,
@@ -34,6 +35,9 @@ export function Mais() {
           <ul className="flex flex-col">
             <Item para="/perguntar" icone={<MessageCircleQuestion className="size-5" />}>
               Pergunte às suas finanças
+            </Item>
+            <Item para="/projecoes" icone={<LineChart className="size-5" />}>
+              Projeções e simulações
             </Item>
             <Item para="/orcamento" icone={<PiggyBank className="size-5" />}>
               Orçamento

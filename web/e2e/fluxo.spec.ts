@@ -632,8 +632,26 @@ test.describe
       await expect(page.getByText("gastos por categoria", { exact: true })).toBeVisible();
       await expect(page.getByText(/não substitui/)).toBeVisible();
 
+      // projeções: saldo previsto, patrimônio em cenários e as simulações
+      await page.goto("/projecoes");
+      await expect(page.getByRole("img", { name: /Saldo projetado: de R\$/ })).toBeVisible();
+      await expect(page.getByRole("columnheader", { name: "Provável" })).toBeVisible();
+      await expect(
+        page.getByRole("list", { name: "Cenários de independência" }).getByRole("listitem"),
+      ).toHaveCount(3);
+      await page.getByLabel("Valor total (R$)").fill("30,00");
+      await page.getByLabel("Parcelas").selectOption("3");
+      await page.getByRole("button", { name: "Simular compra" }).click();
+      await expect(page.getByText(/3× de R\$\s10,00/)).toBeVisible();
+      await page.getByRole("tab", { name: "Parcelar ou à vista" }).click();
+      await page.getByLabel("Preço à vista (R$)").fill("1.000,00");
+      await page.getByLabel("Valor da parcela (R$)").fill("100,00");
+      await page.getByLabel("Rendimento ao mês (%)").fill("1");
+      await page.getByRole("button", { name: "Comparar" }).click();
+      await expect(page.getByText("Parcelar compensa")).toBeVisible();
+
       await page.setViewportSize({ width: 360, height: 740 });
-      for (const rota of ["/perguntar", "/ia"]) {
+      for (const rota of ["/perguntar", "/ia", "/projecoes"]) {
         await page.goto(rota);
         await page.waitForLoadState("networkidle");
         await semRolagemHorizontal(page);

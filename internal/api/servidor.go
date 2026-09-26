@@ -167,6 +167,11 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("PATCH /api/compromissos/{id}", s.sessaoCompleta(s.editarCompromisso))
 	mux.Handle("DELETE /api/compromissos/{id}", s.sessaoCompleta(s.apagarCompromisso))
 	mux.Handle("GET /api/alertas", s.sessaoCompleta(s.listarAlertas))
+	mux.Handle("GET /api/projecoes/fluxo", s.sessaoCompleta(s.projecaoFluxo))
+	mux.Handle("GET /api/projecoes/futuro", s.sessaoCompleta(s.projecaoFuturo))
+	mux.Handle("POST /api/simulacoes/compra", s.sessaoCompleta(s.simularCompra))
+	mux.Handle("POST /api/simulacoes/financiamento", s.sessaoCompleta(s.simularFinanciamento))
+	mux.Handle("POST /api/simulacoes/quitar", s.sessaoCompleta(s.simularQuitacao))
 	mux.Handle("POST /api/alertas/lidos", s.sessaoCompleta(s.dispensarAlertas))
 	mux.Handle("POST /api/alertas/{id}/lido", s.sessaoCompleta(s.dispensarAlerta))
 
@@ -245,6 +250,8 @@ var RotasLeitura = []string{
 	"/api/cnpj/{pj}/painel", "/api/cnpj/{pj}/notas", "/api/cnpj/{pj}/notas?ano=2026", "/api/cnpj/{pj}/folha",
 	"/api/cnpj/{pj}/distribuicoes", "/api/cnpj/{pj}/pacote",
 	"/api/cnpj/simulacao?receita_mensal_centavos=1000000&contador_centavos=0",
+	"/api/projecoes/fluxo", "/api/projecoes/fluxo?entidade_id={entidade}&dias=366",
+	"/api/projecoes/futuro", "/api/projecoes/futuro?entidade_id={entidade}&aporte=100000&anos=5&perfil=arrojado",
 }
 
 // ---------------------------------------------------------------------------

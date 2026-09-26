@@ -434,3 +434,32 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
 - Os limites são constantes no `core` (não são regra fiscal); se incomodarem, ajustar lá.
 - **Dispensar** marca o alerta como lido: some do início e não é criado de novo (a
   repetição é checada pela transação). A lista completa continua em `?todos=1`.
+
+## D34 — Projeções e simulações (fase 6, parte 2)
+
+- **Estatística em float64, dinheiro em centavos**: médias, desvios, Monte Carlo e taxas
+  são calculados em float64 e arredondados para centavos na saída; nada disso é gravado.
+- **Saldo projetado** (`/api/projecoes/fluxo`, até 366 dias): saldo de hoje das contas do
+  dia a dia + tudo o que a agenda já conhece (recorrências, faturas, parcelas, dívidas,
+  compromissos, DAS) − o gasto variável esperado espalhado pelos dias. O variável é o gasto
+  dos meses fechados sem parcelas e sem o que já é recorrência; a média dos 3 últimos meses,
+  com o mesmo mês do ano anterior pesando metade quando existe. A faixa de 80 % usa o
+  desvio dos meses e abre com a raiz do tempo. Compras no cartão entram no dia da compra,
+  não no da fatura (um pouco mais conservador).
+- **Patrimônio no futuro**: Monte Carlo com 5.000 cenários (SPEC), mês a mês, retorno
+  lognormal por classe com retorno real e volatilidade anuais editáveis na tela (padrões
+  em `core.PremissasPadrao`), classes **sem correlação** (simplificação). Entra só o
+  investível: carteira e saldo das contas; imóveis e veículos ficam de fora. Semente fixa:
+  a mesma pergunta dá o mesmo resultado. Aportes vão como a carteira está ou por perfil
+  (conservador, moderado, arrojado).
+- **Independência financeira**: alvo = custo de vida mensal × 12 ÷ retirada anual (4 % por
+  padrão). Cenários pessimista/base/otimista com o retorno médio ponderado −2/0/+2 p.p. e a
+  chance de chegar ao alvo em cada ano vinda do Monte Carlo. A idade fica para quando o
+  cadastro tiver data de nascimento.
+- **Simulações**: compra parcelada (fluxo com e sem; "não cabe" se o saldo base fica
+  negativo, "apertada" se só o cenário ruim fica), parcelar ou à vista (valor presente das
+  parcelas pelo rendimento do dinheiro — o CDI do último dia, bruto, ou o que a pessoa
+  digitar — e os juros embutidos) e amortização extra de dívida (reduzir prazo ou parcela).
+  O pró-labore continua no simulador do CNPJ.
+- **Chat**: ferramentas novas `projetar_fluxo`, `simular_compra`, `monte_carlo` e `metas`,
+  todas de leitura e pelas mesmas funções das telas.

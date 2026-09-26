@@ -217,7 +217,9 @@ func TestChatIgualATela(t *testing.T) {
 	// as outras ferramentas respondem sem erro, e só com dados de quem pergunta
 	for _, f := range []string{`"buscar_transacoes","input":{"texto":"ifood"}`, `"saldos","input":{}`,
 		`"proximas_contas","input":{"dias":10}`, `"carteira","input":{}`, `"patrimonio","input":{}`,
-		`"cnpj_resumo","input":{}`, `"resumo_periodo","input":{"de":"2026-01-01","ate":"2026-12-31"}`} {
+		`"cnpj_resumo","input":{}`, `"resumo_periodo","input":{"de":"2026-01-01","ate":"2026-12-31"}`,
+		`"projetar_fluxo","input":{"dias":30}`, `"simular_compra","input":{"valor":"120.00","parcelas":2}`,
+		`"monte_carlo","input":{"aporte":"100.00","anos":2,"perfil":"moderado"}`, `"metas","input":{}`} {
 		chamada := f
 		amb.claude.responde = func(p map[string]any) string {
 			if r := ultimoResultado(p); r != "" {
@@ -234,11 +236,14 @@ func TestChatIgualATela(t *testing.T) {
 		if strings.Contains(chamada, "buscar") && !strings.Contains(resp.Texto, "IFOOD") {
 			t.Fatalf("busca: %s", resp.Texto)
 		}
+		if strings.Contains(chamada, "simular_compra") && !strings.Contains(resp.Texto, "situacao") {
+			t.Fatalf("compra: %s", resp.Texto)
+		}
 	}
 	// o consumo entrou no mês
 	var n int64
 	_ = amb.banco.Dono.QueryRow(context.Background(), "select chamadas from ia_uso").Scan(&n)
-	if n != 16 {
+	if n != 24 {
 		t.Fatalf("chamadas registradas: %d", n)
 	}
 }

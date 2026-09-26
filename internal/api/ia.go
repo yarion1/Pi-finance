@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -364,6 +366,125 @@ func (s *Servidor) ferramentasChat(r *http.Request) []ia.Ferramenta {
 						out = append(out, p)
 					}
 					return out, nil
+				})
+			},
+		},
+		{
+			Nome: "projetar_fluxo",
+			Descricao: "Saldo previsto das contas do dia a dia nos próximos dias: o que já se sabe (contas, faturas, parcelas) " +
+				"mais o gasto variável médio (sazonal), com faixa de 80 % de confiança.",
+			Parametros: map[string]any{"dias": map[string]any{"type": "integer", "description": "1 a 180 (padrão 90)"}},
+			Rodar: func(ctx context.Context, e json.RawMessage) (any, error) {
+				var p struct{ Dias int }
+				_ = json.Unmarshal(e, &p)
+				dias := min(max(p.Dias, 1), 180)
+				if p.Dias == 0 {
+					dias = 90
+				}
+				return ler(ctx, func(ctx context.Context, tx pgx.Tx, ents []string) (any, error) {
+					f, err := financeiro.ProjetarFluxo(ctx, tx, ents, hoje, dias, nil)
+					if err != nil {
+						return nil, err
+					}
+					return map[string]any{"saldo_hoje": reais(int64(f.SaldoInicial)), "gasto_variavel_mes": reais(int64(f.VariavelMensal)),
+						"saldo_final": reais(int64(f.Final.Base)), "faixa_final": reais(int64(f.Final.Baixo)) + " a " + reais(int64(f.Final.Alto)),
+						"menor_saldo": reais(int64(f.Menor.Base)), "dia_do_menor_saldo": f.Menor.Data.Format("2006-01-02")}, nil
+				})
+			},
+		},
+		{
+			Nome:      "simular_compra",
+			Descricao: "Simula uma compra parcelada no fluxo de caixa: cabe folgada, apertada ou não cabe, com o menor saldo com e sem ela.",
+			Parametros: map[string]any{
+				"valor":    map[string]any{"type": "string", "description": "valor total em reais, ex.: 1200.00"},
+				"parcelas": map[string]any{"type": "integer", "description": "1 a 24"},
+				"primeira": map[string]any{"type": "string", "description": "vencimento da primeira parcela, AAAA-MM-DD (padrão: daqui a 30 dias)"},
+			},
+			Requeridos: []string{"valor", "parcelas"},
+			Rodar: func(ctx context.Context, e json.RawMessage) (any, error) {
+				var p struct {
+					Valor, Primeira string
+					Parcelas        int
+				}
+				if err := json.Unmarshal(e, &p); err != nil {
+					return nil, err
+				}
+				valor, err := core.ParseDecimalPonto(p.Valor)
+				if err != nil {
+					return nil, errors.New("valor em reais, ex.: 1200.00")
+				}
+				primeira := hoje.AddDate(0, 0, 30)
+				if p.Primeira != "" {
+					if primeira, err = time.Parse("2006-01-02", p.Primeira); err != nil {
+						return nil, errors.New("primeira no formato AAAA-MM-DD")
+					}
+				}
+				return ler(ctx, func(ctx context.Context, tx pgx.Tx, ents []string) (any, error) {
+					s, err := financeiro.SimularCompra(ctx, tx, ents, hoje, valor, p.Parcelas, primeira)
+					if err != nil {
+						return nil, err
+					}
+					return map[string]any{"situacao": s.Situacao, "parcela": reais(int64(s.Parcela)), "primeira": s.PrimeiraData,
+						"ultima": s.UltimaData, "menor_saldo_sem": reais(int64(s.Sem.Menor.Base)), "menor_saldo_com": reais(int64(s.Com.Menor.Base)),
+						"menor_saldo_com_cenario_ruim": reais(int64(s.Com.MenorBaixo.Baixo))}, nil
+				})
+			},
+		},
+		{
+			Nome: "monte_carlo",
+			Descricao: "Simula o patrimônio investível (carteira + contas) em 5.000 cenários: percentis 10, 50 e 90 ano a ano, " +
+				"em dinheiro de hoje, e quando chega à independência financeira (custo de vida ÷ 4 % ao ano).",
+			Parametros: map[string]any{
+				"aporte": map[string]any{"type": "string", "description": "aporte mensal em reais, ex.: 1500.00"},
+				"anos":   map[string]any{"type": "integer", "description": "1 a 50 (padrão 10)"},
+				"perfil": map[string]any{"type": "string", "enum": []string{"atual", "conservador", "moderado", "arrojado"},
+					"description": "para onde vão os aportes"},
+			},
+			Rodar: func(ctx context.Context, e json.RawMessage) (any, error) {
+				var p struct {
+					Aporte, Perfil string
+					Anos           int
+				}
+				_ = json.Unmarshal(e, &p)
+				var aporte core.Centavos
+				if p.Aporte != "" {
+					v, err := core.ParseDecimalPonto(p.Aporte)
+					if err != nil {
+						return nil, errors.New("aporte em reais, ex.: 1500.00")
+					}
+					aporte = v
+				}
+				if p.Anos == 0 {
+					p.Anos = 10
+				}
+				return ler(ctx, func(ctx context.Context, tx pgx.Tx, ents []string) (any, error) {
+					f, err := financeiro.SimularFuturo(ctx, tx, ents, hoje, financeiro.EntradaFuturo{Aporte: aporte, Anos: p.Anos, Perfil: p.Perfil})
+					if err != nil {
+						return nil, err
+					}
+					type ano struct{ Ano, P10, P50, P90, ChanceIndependencia string }
+					anos := []ano{}
+					for _, pt := range f.Pontos {
+						anos = append(anos, ano{strconv.Itoa(pt.Ano), reais(int64(pt.P10)), reais(int64(pt.P50)), reais(int64(pt.P90)),
+							strconv.Itoa(int(math.Round(pt.ChanceAlvo*100))) + " %"})
+					}
+					return map[string]any{"investivel_hoje": reais(int64(f.Investivel)), "aporte_mensal": reais(int64(f.Aporte)),
+						"custo_de_vida_mensal": reais(int64(f.Custo)), "patrimonio_para_independencia": reais(int64(f.Alvo)),
+						"retorno_real_medio_aa": f.RetornoMedio, "anos": anos, "meses_ate_independencia": f.Cenarios}, nil
+				})
+			},
+		},
+		{
+			Nome:       "metas",
+			Descricao:  "Metas de dinheiro: quanto já tem, o alvo, o aporte necessário por mês e a data prevista.",
+			Parametros: map[string]any{},
+			Rodar: func(ctx context.Context, _ json.RawMessage) (any, error) {
+				return ler(ctx, func(ctx context.Context, tx pgx.Tx, ents []string) (any, error) {
+					custo, err := financeiro.CalcularCustoDeVida(ctx, tx, ents, hoje)
+					if err != nil {
+						return nil, err
+					}
+					return listarMetas(ctx, tx, ents, hoje, custo.Meses6)
 				})
 			},
 		},

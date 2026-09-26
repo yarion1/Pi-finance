@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.7.3 — projeções e simulações
+
+- **Mais › Projeções e simulações**:
+  - **Saldo projetado** em 30, 90 dias ou 6 meses, com o que já está na agenda e o gasto
+    variável médio (o mesmo mês do ano passado pesa mais), e a faixa de confiança.
+  - **Patrimônio no futuro**: 5.000 cenários do que está investido, com o cenário ruim, o
+    provável e o bom ano a ano; premissas de retorno e volatilidade editáveis.
+  - **Independência financeira**: quanto precisa ter e em quanto tempo chega, nos cenários
+    pessimista, base e otimista.
+  - **Simular uma decisão**: "posso comprar em 10×?", parcelar ou pagar à vista, e pagar
+    parte de uma dívida antes (diminuindo o prazo ou a parcela).
+- O chat responde perguntas de saldo futuro, compras parceladas, patrimônio futuro e metas.
+
 ## v0.7.2 — alertas inteligentes
 
 - A cada extrato importado ou sincronização do banco, o início avisa de **gasto fora do

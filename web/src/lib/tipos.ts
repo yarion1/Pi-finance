@@ -858,3 +858,71 @@ export const nomesFerramentaIA: Record<string, string> = {
   patrimonio: "patrimônio",
   cnpj_resumo: "CNPJ",
 };
+
+// Projeções e simulações (fase 6)
+export type FluxoDia = { data: string; base_centavos: number; baixo_centavos: number; alto_centavos: number };
+
+export type FluxoProjetado = {
+  saldo_inicial_centavos: number;
+  pontos: FluxoDia[] | null;
+  final: FluxoDia;
+  menor: FluxoDia;
+  menor_baixo: FluxoDia;
+  variavel_mensal_centavos: number;
+  itens_conhecidos: number;
+};
+
+export type ClasseFuturo = {
+  classe: string;
+  valor_centavos: number;
+  peso_aporte: number;
+  retorno_aa: number;
+  volatilidade_aa: number;
+};
+
+export type Futuro = {
+  classes: ClasseFuturo[] | null;
+  investivel_centavos: number;
+  aporte_mensal_centavos: number;
+  custo_mensal_centavos: number;
+  taxa_retirada: number;
+  alvo_centavos: number;
+  retorno_medio_aa: number;
+  pontos:
+    | { ano: number; p10_centavos: number; p50_centavos: number; p90_centavos: number; chance_alvo: number }[]
+    | null;
+  cenarios: { nome: string; retorno_aa: number; meses: number }[];
+  simulacoes: number;
+};
+
+export type SimulacaoCompra = {
+  parcela_centavos: number;
+  sem: FluxoProjetado;
+  com: FluxoProjetado;
+  situacao: "folgada" | "apertada" | "nao_cabe";
+  primeira_data: string;
+  ultima_data: string;
+};
+
+export type SimulacaoFinanciamento = {
+  total_parcelado_centavos: number;
+  valor_presente_parcelas_centavos: number;
+  juros_implicitos_mes: number;
+  compensa_parcelar: boolean;
+  diferenca_centavos: number;
+  rendimento_mes: number;
+  do_cdi: boolean;
+};
+
+export type SimulacaoQuitacao = {
+  saldo_antes_centavos: number;
+  saldo_depois_centavos: number;
+  parcelas_restantes: number;
+  novas_parcelas: number;
+  prestacao_atual_centavos: number;
+  nova_prestacao_centavos: number;
+  juros_restantes_centavos: number;
+  novos_juros_centavos: number;
+  economia_centavos: number;
+  quitada: boolean;
+};
