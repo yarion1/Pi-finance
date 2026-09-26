@@ -327,3 +327,39 @@ em 127.0.0.1 para o deploy conferir o `/api/health`. Sem token, nada muda. Com t
 deploy exige `PUBLIC_URL` em https. O Cloudflare Access (D11) continua obrigatório na
 frente; o IP do visitante vem de `CF-Connecting-IP`, aceito porque o cloudflared está na
 rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
+
+## D30 — Fase 5: CNPJ
+
+- **Receita = notas** (`notas_fiscais`), com ou sem número: cobre NFS-e emitida e venda
+  sem nota do MEI. Conta pela data de emissão (competência), que é o que vale para o teto
+  do MEI e para o DAS do Simples. Nota cancelada sai de tudo.
+- **XML da NFS-e nacional** (Emissor Nacional): lidos só número, chave, datas, tomador,
+  descrição e valor; o XML não é guardado (tem CPF/CNPJ do tomador, que vai cifrado para
+  `clientes.documento_cifrado`). Tomador com país diferente de BR ou `comExt` marca
+  exportação — a tela avisa para confirmar com o contador (SPEC §4).
+- **Moeda estrangeira**: valor em reais = valor na moeda × câmbio informado; sem câmbio,
+  em dólar, usa a PTAX guardada pelo worker (até 7 dias antes).
+- **DAS do Simples**: receita × (RBT12 × nominal − deduzir) ÷ RBT12 em frações exatas,
+  arredondado ao centavo no total; a partilha soma exatamente o total (maior resto). ISS
+  efetivo limitado a 5 % com a sobra repartida entre os federais. RBT12 proporcional no
+  início de atividade (LC 123, art. 18, §§ 2º e 3º). Anexo pelo Fator R (folha dos 12
+  meses anteriores ÷ RBT12, mínimo 28 %). Critério de aceite: `TestDASDozeCasos` e
+  `TestExemploDaSPEC` (core) e `TestSimplesExemploDaSPEC` (API).
+- **MEI**: teto proporcional no ano de abertura; faixas 70/90/100/120 %; data prevista
+  para bater o teto pelo ritmo diário desde 1º de janeiro (ou da abertura); DAS-MEI de
+  cada competência desde a abertura (sem data de abertura, desde janeiro); lucro isento
+  = 32 % de serviços + 8 % de comércio, limitado ao lucro (receita − gastos lançados nas
+  contas do CNPJ).
+- **IRRF 2026** do pró-labore: tabela da Lei 15.191/2025 com a redução da Lei 15.270/2025
+  (até R$ 5 mil zera; até R$ 7.350, redução decrescente); desconto simplificado quando é
+  maior que INSS + dependentes. INSS de 11 % até o teto do ano. Regras de 2025 também
+  semeadas para a folha dos meses passados.
+- **Lucros**: acima de R$ 50 mil no mês, da mesma empresa para a mesma pessoa, IRRF de
+  10 % sobre o total do mês (não só o excedente); a retirada registra o que falta reter.
+- **Simulador**: receita mensal constante nos próximos 12 meses; ME no Anexo V com 1
+  salário mínimo de pró-labore contra ME no Anexo III com o pró-labore mínimo do Fator R,
+  mais contador. Comércio (Anexo I) ainda não é calculado; a tela avisa.
+- **Pacote do contador**: CSV do mês (DRE simplificada, receitas, folha, DAS), com `;` e
+  BOM para abrir no Excel e proteção contra fórmula em texto. O PDF, a separação PF/PJ
+  automática das transferências e a provisão de impostos por recebimento ficam para a
+  fase 7 (telas e gráficos), que já vai mexer nessas telas.

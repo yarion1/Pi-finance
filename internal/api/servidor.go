@@ -198,6 +198,7 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("GET /api/cnpj/{entidade}/folha", s.sessaoCompleta(s.listarFolha))
 	mux.Handle("PUT /api/cnpj/{entidade}/folha", s.sessaoCompleta(s.salvarFolha))
 	mux.Handle("GET /api/cnpj/{entidade}/distribuicoes", s.sessaoCompleta(s.listarDistribuicoes))
+	mux.Handle("GET /api/cnpj/{entidade}/pacote", s.sessaoCompleta(s.pacoteContador))
 	mux.Handle("POST /api/cnpj/{entidade}/distribuicoes", s.sessaoCompleta(s.distribuirLucro))
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -230,7 +231,8 @@ var RotasLeitura = []string{
 	"/api/investimentos", "/api/investimentos?entidade_id={entidade}",
 	"/api/investimentos/ir", "/api/investimentos/ir?entidade_id={entidade}", "/api/investimentos/ativos/{ativo}/operacoes",
 	"/api/cnpj/{pj}/painel", "/api/cnpj/{pj}/notas", "/api/cnpj/{pj}/notas?ano=2026", "/api/cnpj/{pj}/folha",
-	"/api/cnpj/{pj}/distribuicoes", "/api/cnpj/simulacao?receita_mensal_centavos=1000000&contador_centavos=0",
+	"/api/cnpj/{pj}/distribuicoes", "/api/cnpj/{pj}/pacote",
+	"/api/cnpj/simulacao?receita_mensal_centavos=1000000&contador_centavos=0",
 }
 
 // ---------------------------------------------------------------------------

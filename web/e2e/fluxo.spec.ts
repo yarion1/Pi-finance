@@ -499,4 +499,60 @@ test.describe
       }
       expect(violacoes).toEqual([]);
     });
+    test("fase 5: MEI com teto, receita, DAS e simulador de migração", async ({ page }) => {
+      const violacoes: string[] = [];
+      vigiarCSP(page, violacoes);
+
+      await page.goto("/entrar");
+      await page.getByLabel("E-mail").fill("ana@teste.com");
+      await page.getByLabel("Senha").fill(senha);
+      await page.getByRole("button", { name: "Continuar" }).click();
+      await page.getByRole("button", { name: "Usar código de recuperação" }).click();
+      await page.getByLabel("Código de recuperação").fill(codigosAna[4] ?? "");
+      await page.getByRole("button", { name: "Confirmar" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Ana");
+
+      // sem CNPJ, a tela manda cadastrar
+      await page.goto("/cnpj");
+      await expect(page.getByText("Nenhum CNPJ cadastrado")).toBeVisible();
+
+      await page.goto("/entidades");
+      await page.getByRole("button", { name: "Nova entidade" }).click();
+      await page.getByLabel("Tipo").selectOption("PJ");
+      await page.getByLabel("Nome", { exact: true }).fill("Ana Dev MEI");
+      await page.getByLabel("Regime").selectOption("MEI");
+      await page.getByLabel("Atividade").selectOption("servicos");
+      await page.getByRole("button", { name: "Salvar" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Ana Dev MEI");
+
+      // R$ 60 mil no ano: 74 % do teto de R$ 81 mil → atenção
+      await page.goto("/cnpj");
+      await expect(page.getByText(/Teto do MEI em/)).toBeVisible();
+      await page.getByRole("button", { name: "Receita", exact: true }).click();
+      const d = page.getByRole("dialog", { name: "Nova receita" });
+      await d.getByLabel("Valor (R$)").fill("60.000,00");
+      await d.getByLabel("Cliente (opcional)").fill("Cliente Um");
+      await d.getByLabel("Nº da nota (opcional)").fill("7");
+      await d.getByRole("button", { name: "Salvar receita" }).click();
+      await expect(page.getByText("Faturamento passou de 70 % do teto do MEI.")).toBeVisible();
+      await expect(page.getByText(/74\s?% de R\$\s81\.000,00/)).toBeVisible();
+      await expect(page.getByText("Cliente Um · nota 7")).toBeVisible();
+
+      // DAS-MEI do mês marcado como pago
+      const das = page.getByRole("button", { name: /paguei/i }).first();
+      await das.click();
+      await expect(page.getByText("pago", { exact: true }).first()).toBeVisible();
+
+      // simulador: R$ 10 mil por mês não cabe no MEI; o Anexo III com Fator R sai mais barato
+      await page.getByLabel("Receita por mês (R$)").fill("10.000,00");
+      await expect(page.getByText("A receita projetada passa do teto do MEI.")).toBeVisible();
+      const melhor = page.getByRole("listitem").filter({ hasText: "mais barato" });
+      await expect(melhor).toContainText("ME no Anexo III");
+
+      await page.setViewportSize({ width: 360, height: 740 });
+      await page.goto("/cnpj");
+      await page.waitForLoadState("networkidle");
+      await semRolagemHorizontal(page);
+      expect(violacoes).toEqual([]);
+    });
   });

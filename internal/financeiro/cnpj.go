@@ -1082,3 +1082,88 @@ func itensFiscais(ctx context.Context, tx pgx.Tx, ents []string, hoje, ate time.
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Data < out[j].Data })
 	return out, nil
 }
+
+// ---------------------------------------------------------------------------
+// Pacote do contador: planilha do mês (DRE simplificada, receitas, folha e DAS)
+// ---------------------------------------------------------------------------
+
+// PacoteContador do mês em linhas de planilha (a primeira coluna diz a seção).
+func PacoteContador(ctx context.Context, tx pgx.Tx, entidadeID string, mes time.Time) ([][]string, error) {
+	mes = inicioMes(mes)
+	fim := mes.AddDate(0, 1, 0)
+	e, err := lerEntidadePJ(ctx, tx, entidadeID)
+	if err != nil {
+		return nil, err
+	}
+	brl := func(c core.Centavos) string { return core.FormatarNumero(c) }
+	out := [][]string{{"Pacote do contador", e.Nome, mes.Format("01/2006"), "gerado pelo Finanças; confira antes de usar"}}
+
+	receitas, err := receitasPorMes(ctx, tx, entidadeID, mes, fim)
+	if err != nil {
+		return nil, err
+	}
+	receita := receitas[0]
+	despesas, err := despesasPJ(ctx, tx, entidadeID, mes, fim)
+	if err != nil {
+		return nil, err
+	}
+	var das core.Centavos
+	_ = tx.QueryRow(ctx, `select das_centavos from apuracoes_simples where entidade_id = $1 and competencia = $2`,
+		entidadeID, mes).Scan(&das)
+	var prolabore, salarios, inss, irrf int64
+	_ = tx.QueryRow(ctx, `select prolabore_centavos, salarios_centavos, inss_centavos, irrf_centavos from folha
+		where entidade_id = $1 and competencia = $2`, entidadeID, mes).Scan(&prolabore, &salarios, &inss, &irrf)
+	lucro := receita.Receita - das - despesas - core.Centavos(prolabore+salarios)
+	out = append(out, []string{},
+		[]string{"DRE", "Receita bruta", brl(receita.Receita)},
+		[]string{"DRE", "  dela, exportação", brl(receita.Exportacao)},
+		[]string{"DRE", "(−) DAS", brl(das)},
+		[]string{"DRE", "(−) Despesas lançadas nas contas do CNPJ", brl(despesas)},
+		[]string{"DRE", "(−) Pró-labore e salários", brl(core.Centavos(prolabore + salarios))},
+		[]string{"DRE", "Resultado do mês", brl(lucro)},
+		[]string{})
+
+	out = append(out, []string{"Receitas", "Data", "Número", "Cliente", "País", "Atividade", "Valor (R$)", "Moeda",
+		"Valor na moeda", "Câmbio", "Exportação", "Cancelada"})
+	linhas, err := tx.Query(ctx, `select to_char(n.data_emissao, 'DD/MM/YYYY'), coalesce(n.numero, ''), coalesce(c.nome, ''),
+			coalesce(c.pais, ''), n.atividade, n.valor_centavos, n.moeda, n.valor_moeda_centavos, coalesce(n.taxa_cambio::text, ''),
+			n.exportacao, n.cancelada
+		from notas_fiscais n left join clientes c on c.id = n.cliente_id
+		where n.entidade_id = $1 and n.data_emissao >= $2 and n.data_emissao < $3 order by n.data_emissao`, entidadeID, mes, fim)
+	if err != nil {
+		return nil, err
+	}
+	for linhas.Next() {
+		var data, numero, cliente, pais, atividade, moeda, cambio string
+		var valor int64
+		var valorMoeda *int64
+		var exp, canc bool
+		if err := linhas.Scan(&data, &numero, &cliente, &pais, &atividade, &valor, &moeda, &valorMoeda, &cambio, &exp, &canc); err != nil {
+			linhas.Close()
+			return nil, err
+		}
+		vm := ""
+		if valorMoeda != nil {
+			vm = brl(core.Centavos(*valorMoeda))
+		}
+		simNao := func(b bool) string {
+			if b {
+				return "sim"
+			}
+			return "não"
+		}
+		out = append(out, []string{"Receitas", data, numero, cliente, pais, atividade, brl(core.Centavos(valor)), moeda, vm,
+			strings.ReplaceAll(limparDec(cambio), ".", ","), simNao(exp), simNao(canc)})
+	}
+	linhas.Close()
+	if err := linhas.Err(); err != nil {
+		return nil, err
+	}
+	out = append(out, []string{},
+		[]string{"Folha", "Pró-labore", "Salários", "INSS", "IRRF"},
+		[]string{"Folha", brl(core.Centavos(prolabore)), brl(core.Centavos(salarios)), brl(core.Centavos(inss)), brl(core.Centavos(irrf))},
+		[]string{},
+		[]string{"DAS", "Competência", "Valor", "Regime"},
+		[]string{"DAS", mes.Format("01/2006"), brl(das), e.Regime})
+	return out, nil
+}

@@ -160,6 +160,16 @@ func TestMEI(t *testing.T) {
 		t.Fatalf("cancelada fora: %d", p.ReceitaAno)
 	}
 
+	// pacote do contador: CSV do mês, sem fórmula vinda de texto do usuário
+	a.exigir("POST", "/api/cnpj/"+pj+"/notas", map[string]any{"data_emissao": d, "valor_centavos": 100,
+		"cliente": "=HYPERLINK(\"http://x\")"}, http.StatusCreated)
+	csvResp := a.exigir("GET", "/api/cnpj/"+pj+"/pacote?mes="+hoje.Format("2006-01"), nil, http.StatusOK)
+	corpo := string(csvResp.corpo)
+	if !strings.HasPrefix(csvResp.cab.Get("Content-Type"), "text/csv") || !strings.Contains(corpo, "Cliente Brasil") ||
+		!strings.Contains(corpo, "Receita bruta;") || !strings.Contains(corpo, "'=HYPERLINK") || strings.Contains(corpo, ";=HYPERLINK") {
+		t.Fatalf("pacote: %s", corpo)
+	}
+
 	// o calendário fiscal entra na agenda
 	var ag struct {
 		Itens []struct{ Descricao, Origem string }

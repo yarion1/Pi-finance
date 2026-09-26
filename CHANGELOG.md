@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.6.0 — fase 5: CNPJ (MEI e Simples)
+
+- **Tela CNPJ**: para MEI, faturamento contra o teto (R$ 81 mil, proporcional no ano de
+  abertura) com as faixas de alerta, quanto falta, média máxima por mês, projeção do ano e
+  a data em que bate o teto; DAS-MEI de cada mês com "paguei" e alerta de atraso; lucro
+  isento e a parte tributável para o IR; DASN-SIMEI com o faturamento do ano anterior.
+- **Simples (ME/EPP)**: RBT12, Fator R, anexo (III ou V), DAS do mês com alíquota efetiva
+  e para onde vai cada real (IRPJ, CSLL, COFINS, PIS, CPP, ISS), pró-labore mínimo para o
+  Anexo III, folha com INSS e IRRF 2026 (com a redução de até R$ 5 mil) calculados.
+- **Receitas e notas**: lançar à mão (em real ou moeda estrangeira, com câmbio ou PTAX) ou
+  importar o XML da NFS-e do Emissor Nacional (sem duplicar); exportação de serviço tira
+  PIS, COFINS e ISS do DAS; concentração por cliente com alerta acima de 70 %.
+- **Simulador**: continuar MEI ou virar ME (Anexo V ou III com Fator R), com contador,
+  INSS e IRRF do pró-labore; mostra o mais barato.
+- **Retirada de lucro**: avisa antes de passar de R$ 50 mil no mês (IRRF de 10 % sobre o
+  total, Lei 15.270/2025) e registra o imposto.
+- **Agenda**: DAS do dia 20, DASN-SIMEI (31/05) e DEFIS (31/03).
+- **Pacote do contador**: planilha do mês (DRE simplificada, receitas, folha e DAS).
+- Os 12 casos fixos de DAS (uma faixa de cada anexo) e o exemplo da SPEC batem ao
+  centavo. Decisões em `docs/DECISOES.md` D30.
+
 ## v0.5.2 — revisão de segurança antes de abrir pela internet
 
 - Checklist dos 19 pontos em `docs/SEGURANCA.md` (onde cada proteção está e como é testada).

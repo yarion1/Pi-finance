@@ -9,6 +9,7 @@ export type Entidade = {
   cnae: string | null;
   municipio: string | null;
   data_abertura: string | null;
+  atividade: "servicos" | "comercio" | "ambos" | null;
   papel: "dono" | "membro" | "leitor" | "contador";
   documento: string | null;
 };
@@ -641,4 +642,151 @@ export const nomesGrupoIR: Record<GrupoIR["grupo"], string> = {
   comum: "Ações, ETFs e BDRs",
   day_trade: "Day trade",
   fii: "Fundos imobiliários",
+};
+
+export type ReceitaMes = {
+  mes: string;
+  receita_centavos: number;
+  exportacao_centavos: number;
+  servicos_centavos: number;
+  comercio_centavos: number;
+};
+
+export type DASMes = {
+  competencia: string;
+  vencimento: string;
+  valor_centavos: number;
+  pago_em: string | null;
+  atrasado: boolean;
+};
+
+export type PainelCNPJ = {
+  entidade: {
+    id: string;
+    nome: string;
+    regime: "MEI" | "SIMPLES_ME" | "SIMPLES_EPP";
+    atividade: string;
+    data_abertura: string | null;
+    pode_editar: boolean;
+  };
+  hoje: string;
+  meses: ReceitaMes[];
+  receita_ano_centavos: number;
+  receita_mes_centavos: number;
+  despesas_ano_centavos: number;
+  clientes: { id: string | null; nome: string; pais: string; receita_centavos: number; percentual: number }[];
+  alertas: string[];
+  lucro_distribuivel_mes_centavos: number;
+  mei?: {
+    projecao: {
+      faturado_centavos: number;
+      teto_centavos: number;
+      falta_centavos: number;
+      media_maxima_centavos: number;
+      projecao_ano_centavos: number;
+      data_teto: string | null;
+      percentual: number;
+      meses_restantes: number;
+    };
+    situacao: "normal" | "atencao" | "planejar" | "vira_me" | "desenquadramento";
+    receita_12m_centavos: number;
+    teto_com_tolerancia_centavos: number;
+    das_centavos: number;
+    das_meses: DASMes[];
+    lucro: {
+      receita_centavos: number;
+      despesas_centavos: number;
+      lucro_centavos: number;
+      presumido_centavos: number;
+      isento_centavos: number;
+      tributavel_centavos: number;
+    };
+    dasn_ano: number;
+    dasn_receita_centavos: number;
+    dasn_prazo: string;
+    exportacao_ano_centavos: number;
+  };
+  simples?: {
+    rbt12_centavos: number;
+    folha_12m_centavos: number;
+    fator_r: string;
+    fator_r_minimo: string;
+    anexo: "III" | "V";
+    das: {
+      faixa: number;
+      aliquota_nominal: string;
+      aliquota_efetiva: string;
+      das_centavos: number;
+      das_sem_exportacao_centavos: number;
+      exportacao_centavos: number;
+      tributos: { tributo: string; aliquota: string; valor_centavos: number }[];
+    };
+    prolabore_para_fator_r_centavos: number;
+    acima_sublimite: boolean;
+    das_meses: DASMes[];
+  };
+};
+
+export type NotaCNPJ = {
+  id: string;
+  cliente: string | null;
+  pais: string | null;
+  numero: string | null;
+  data_emissao: string;
+  descricao: string | null;
+  atividade: string;
+  valor_centavos: number;
+  moeda: string;
+  valor_moeda_centavos: number | null;
+  taxa_cambio: string | null;
+  exportacao: boolean;
+  cancelada: boolean;
+  origem: string;
+};
+
+export type FolhaMes = {
+  competencia: string;
+  prolabore_centavos: number;
+  salarios_centavos: number;
+  inss_centavos: number;
+  irrf_centavos: number;
+};
+
+export type CenarioCNPJ = {
+  nome: string;
+  possivel: boolean;
+  anexo?: string;
+  aliquota_efetiva?: string;
+  impostos_centavos: number;
+  prolabore_mensal_centavos: number;
+  inss_anual_centavos: number;
+  irrf_anual_centavos: number;
+  contador_anual_centavos: number;
+  total_anual_centavos: number;
+  total_mensal_centavos: number;
+  observacao: string;
+};
+
+export type SimulacaoCNPJ = {
+  receita_mensal_centavos: number;
+  receita_anual_centavos: number;
+  teto_mei_centavos: number;
+  receita_mensal_maxima_mei_centavos: number;
+  cenarios: CenarioCNPJ[];
+  melhor: string;
+};
+
+export type AvisoDistribuicao = {
+  ja_no_mes_centavos: number;
+  folga_centavos: number;
+  irrf_centavos: number;
+  limite_centavos: number;
+};
+
+export const nomesSituacaoMEI: Record<string, string> = {
+  normal: "Dentro do teto",
+  atencao: "Atenção: passou de 70 %",
+  planejar: "Planeje a migração (90 %)",
+  vira_me: "Passou do teto: vira ME em janeiro",
+  desenquadramento: "Mais de 20 % acima: desenquadramento",
 };

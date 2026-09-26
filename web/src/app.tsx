@@ -9,6 +9,7 @@ import { Cadastro } from "./pages/cadastro";
 import { Cartoes } from "./pages/cartoes";
 import { Casas, DetalheCasa } from "./pages/casa";
 import { Categorias } from "./pages/categorias";
+import { CNPJ } from "./pages/cnpj";
 import { Configurar2FA } from "./pages/configurar-2fa";
 import { Contas } from "./pages/contas";
 import { Convidar } from "./pages/convidar";
@@ -116,10 +117,7 @@ export function App() {
           <Route path="/convidar" element={<Convidar />} />
           <Route path="/investimentos" element={<Investimentos />} />
           <Route path="/investimentos/ir" element={<InvestimentosIR />} />
-          <Route
-            path="/cnpj"
-            element={<EmBreve titulo="CNPJ" pergunta="Como está a empresa?" fase="fase 5" />}
-          />
+          <Route path="/cnpj" element={<CNPJ />} />
           <Route path="/mais" element={<Mais />} />
           <Route path="/casa" element={<Casas />} />
           <Route path="/casa/:id" element={<DetalheCasa />} />

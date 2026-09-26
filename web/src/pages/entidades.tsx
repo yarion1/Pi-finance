@@ -98,6 +98,7 @@ type Dados = {
   cnae: string;
   municipio: string;
   data_abertura: string;
+  atividade: string;
 };
 
 function FormEntidade({ inicial, aoFechar }: { inicial?: Entidade; aoFechar: () => void }) {
@@ -112,6 +113,7 @@ function FormEntidade({ inicial, aoFechar }: { inicial?: Entidade; aoFechar: () 
     cnae: inicial?.cnae ?? "",
     municipio: inicial?.municipio ?? "",
     data_abertura: inicial?.data_abertura ?? "",
+    atividade: inicial?.atividade ?? "servicos",
   });
   const mudar = (campo: keyof Dados) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setD((v) => ({
@@ -131,6 +133,7 @@ function FormEntidade({ inicial, aoFechar }: { inicial?: Entidade; aoFechar: () 
         cnae: pj ? d.cnae || null : null,
         municipio: d.municipio || null,
         data_abertura: d.data_abertura || null,
+        atividade: pj ? d.atividade || null : null,
       };
       return inicial
         ? api("PATCH", `/api/entidades/${inicial.id}`, corpo)
@@ -184,6 +187,11 @@ function FormEntidade({ inicial, aoFechar }: { inicial?: Entidade; aoFechar: () 
             <option value="MEI">MEI</option>
             <option value="SIMPLES_ME">Simples Nacional — ME</option>
             <option value="SIMPLES_EPP">Simples Nacional — EPP</option>
+          </Selecao>
+          <Selecao rotulo="Atividade" value={d.atividade} onChange={mudar("atividade")}>
+            <option value="servicos">Serviços</option>
+            <option value="comercio">Comércio ou indústria</option>
+            <option value="ambos">Comércio e serviços</option>
           </Selecao>
           {d.regime.startsWith("SIMPLES") ? (
             <Selecao rotulo="Anexo" value={d.anexo} onChange={mudar("anexo")}>

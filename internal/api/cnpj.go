@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"net/http"
 	"strconv"
@@ -328,4 +329,46 @@ func (s *Servidor) distribuirLucro(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusOK
 	}
 	escreverJSON(w, status, aviso)
+}
+
+// pacoteContador: planilha CSV do mês (separador ";" e BOM, para abrir direto no Excel).
+func (s *Servidor) pacoteContador(w http.ResponseWriter, r *http.Request) {
+	mes, err := time.Parse("2006-01", r.URL.Query().Get("mes"))
+	if err != nil {
+		mes = financeiro.Hoje()
+	}
+	var linhas [][]string
+	err = s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
+		var err error
+		linhas, err = financeiro.PacoteContador(ctx, tx, r.PathValue("entidade"), mes)
+		return err
+	})
+	if err != nil {
+		falhar(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="contador-`+mes.Format("2006-01")+`.csv"`)
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write([]byte("\ufeff"))
+	cw := csv.NewWriter(w)
+	cw.Comma = ';'
+	for _, l := range linhas {
+		for i, c := range l {
+			l[i] = celulaSegura(c)
+		}
+		_ = cw.Write(l)
+	}
+	cw.Flush()
+}
+
+// celulaSegura evita injeção de fórmula na planilha (texto começando com = + - @).
+func celulaSegura(c string) string {
+	if c != "" && strings.ContainsRune("=+-@\t\r", rune(c[0])) {
+		if _, err := strconv.ParseFloat(strings.ReplaceAll(strings.ReplaceAll(c, ".", ""), ",", "."), 64); err == nil {
+			return c // número negativo
+		}
+		return "'" + c
+	}
+	return c
 }
