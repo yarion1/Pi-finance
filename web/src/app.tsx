@@ -30,6 +30,7 @@ import { Patrimonio } from "./pages/patrimonio";
 import { Perguntar } from "./pages/perguntar";
 import { Projecoes } from "./pages/projecoes";
 import { Recorrencias } from "./pages/recorrencias";
+import { DetalheRelatorio, Relatorios } from "./pages/relatorios";
 import { Seguranca } from "./pages/seguranca";
 import { Transacoes } from "./pages/transacoes";
 import { Verificar } from "./pages/verificar";
@@ -124,6 +125,8 @@ export function App() {
           <Route path="/ia" element={<ConfiguracaoIA />} />
           <Route path="/perguntar" element={<Perguntar />} />
           <Route path="/projecoes" element={<Projecoes />} />
+          <Route path="/relatorios" element={<Relatorios />} />
+          <Route path="/relatorios/:id" element={<DetalheRelatorio />} />
           <Route path="/mais" element={<Mais />} />
           <Route path="/casa" element={<Casas />} />
           <Route path="/casa/:id" element={<DetalheCasa />} />

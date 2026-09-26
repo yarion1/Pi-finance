@@ -25,6 +25,9 @@ var fusoSP = func() *time.Location {
 // Hoje em São Paulo, só a data.
 func Hoje() time.Time { return dia(time.Now().In(fusoSP)) }
 
+// Agora em São Paulo (com a hora: o resumo da semana sai no domingo à noite).
+func Agora() time.Time { return time.Now().In(fusoSP) }
+
 func fmtValor(v any) string { return fmt.Sprint(v) }
 
 func fimDoMes(t time.Time) time.Time {

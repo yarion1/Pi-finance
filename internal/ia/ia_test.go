@@ -203,3 +203,25 @@ func TestConversarLimiteERecusa(t *testing.T) {
 		t.Fatal("somar uso")
 	}
 }
+
+func TestEscreverRelatorio(t *testing.T) {
+	f := &falsa{respostas: []string{msg("end_turn", `{"input_tokens":500,"output_tokens":100}`,
+		`{"type":"text","text":" Você gastou menos. "}`)}}
+	srv := httptest.NewServer(f)
+	defer srv.Close()
+	c := Novo("chave", srv.URL)
+	texto, uso, err := c.EscreverRelatorio(context.Background(), map[string]any{"gastos": "R$ 10,00"})
+	if err != nil || texto != "Você gastou menos." || uso.Chamadas != 1 || f.pedidos[0]["model"] != ModeloChat {
+		t.Fatalf("%q %+v %v", texto, uso, err)
+	}
+	if _, _, err := c.EscreverRelatorio(context.Background(), map[string]any{}); err == nil {
+		t.Fatal("erro da API")
+	}
+	if _, _, err := c.EscreverRelatorio(context.Background(), func() {}); err == nil {
+		t.Fatal("dados que não viram JSON")
+	}
+	var nulo *Cliente
+	if _, _, err := nulo.EscreverRelatorio(context.Background(), nil); !errors.Is(err, ErrDesligada) {
+		t.Fatal(err)
+	}
+}

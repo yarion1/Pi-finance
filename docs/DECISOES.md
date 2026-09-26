@@ -463,3 +463,25 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   O pró-labore continua no simulador do CNPJ.
 - **Chat**: ferramentas novas `projetar_fluxo`, `simular_compra`, `monte_carlo` e `metas`,
   todas de leitura e pelas mesmas funções das telas.
+
+## D35 — Relatório do mês e resumo da semana (fase 6, parte 2)
+
+- **Por pessoa**, na tabela `relatorios` (RLS pelo usuário), com as entidades de que a
+  pessoa é dona (as mesmas das telas). O worker olha de hora em hora: o relatório do mês
+  fechado sai a partir do dia 1; o resumo da semana (segunda a domingo) a partir de
+  domingo às 19 h. Cada um sai uma vez (chave única); período sem movimento não gera nada.
+  Aviso no início ("relatório pronto"); push e Telegram entram na fase 7.
+- **Relatório do mês**: receitas, gastos e sobra contra o mês anterior; as 8 categorias de
+  maior gasto com a média dos 3 meses anteriores; os 3 gráficos da SPEC (categorias ×
+  média, gasto acumulado dia a dia × mês anterior, patrimônio líquido dos últimos meses) e
+  até 3 ações sugeridas por regras fixas (`core.SugerirAcoes`: gasto maior que receita,
+  categoria que subiu ≥ 20 % e R$ 100, orçamento estourado, reserva < 3 meses, sobra para
+  investir, assinaturas, transações sem categoria).
+- **Texto da IA** só com a IA ligada e dentro do teto: o modelo maior (SPEC: "modelo maior
+  só para relatórios e chat") recebe apenas totais e nomes de categoria — nenhuma
+  descrição de transação — e escreve até 120 palavras. Sem IA, o relatório sai igual,
+  sem o texto.
+- **Resumo da semana**: gasto da semana e da anterior, as 3 categorias de maior gasto, o
+  que resta do orçamento do mês e as contas dos próximos 7 dias.
+- O cálculo do orçamento saiu do handler HTTP para `financeiro.CalcularOrcamento` (mesmo
+  resultado), para o relatório usar.

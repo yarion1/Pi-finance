@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.7.4 — relatório do mês e resumo da semana
+
+- **Relatório do mês** (Mais › Relatórios), pronto no dia 1: receitas, gastos e sobra
+  contra o mês anterior, gastos por categoria contra a média, gasto acumulado dia a dia,
+  evolução do patrimônio e até 3 ações sugeridas. Com a IA ligada, um resumo curto escrito
+  só a partir dos totais (nenhuma descrição de transação sai do Pi).
+- **Resumo da semana**, domingo à noite: quanto gastou, onde mais gastou, quanto resta do
+  orçamento e as contas dos próximos 7 dias.
+- O início avisa quando um relatório fica pronto.
+
 ## v0.7.3 — projeções e simulações
 
 - **Mais › Projeções e simulações**:

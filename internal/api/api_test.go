@@ -230,6 +230,15 @@ func TestIsolamentoPorRota(t *testing.T) {
 	b := amb.novoCliente()
 	b.cadastrarCom2FA("Bruno", "bruno@teste.com", token)
 
+	// fase 6: relatórios de A (o resumo da semana leva as contas dos próximos dias)
+	var gerados struct{ Novos []string }
+	a.exigir("POST", "/api/relatorios/gerar", nil, http.StatusOK).json(t, &gerados)
+	if len(gerados.Novos) == 0 {
+		t.Fatal("A deveria ter ao menos o resumo da semana")
+	}
+	if r := a.exigir("GET", "/api/relatorios/"+gerados.Novos[0], nil, 200); !bytes.Contains(r.corpo, []byte("COMPROMISSO-SECRETO")) {
+		t.Fatalf("A deveria ver o próprio resumo: %s", r.corpo)
+	}
 	proibidos := []string{"SEGREDO-DA-ANA", "CONTA-SECRETA", contaPrivada, pf.ID, "982.247", "52998224725",
 		"ARQUIVO-SECRETO", imp.ImportacaoID, "CATEGORIA-SECRETA", "REGRA-SECRETA", "MAPA-SECRETO",
 		"CARTAO-SECRETO", cartao.ID, "COMPRA-SECRETA", "META-SECRETA", "BEM-SECRETO", "DIVIDA-SECRETA", divida.ID,
@@ -240,7 +249,8 @@ func TestIsolamentoPorRota(t *testing.T) {
 		"EMPRESTIMO-SECRETO", "5555555", "4321098"}
 	for _, rota := range api.RotasLeitura {
 		caminho := strings.NewReplacer("{casa}", casa.ID, "{entidade}", pf.ID, "{conta}", contaPrivada,
-			"{importacao}", imp.ImportacaoID, "{cartao}", cartao.ID, "{divida}", divida.ID, "{ativo}", ativo.ID, "{pj}", pjSecreta.ID).Replace(rota)
+			"{importacao}", imp.ImportacaoID, "{cartao}", cartao.ID, "{divida}", divida.ID, "{ativo}", ativo.ID, "{pj}", pjSecreta.ID,
+			"{relatorio}", gerados.Novos[0]).Replace(rota)
 		r := b.fazer("GET", caminho, nil)
 		if r.status >= 500 {
 			t.Errorf("%s: status %d", caminho, r.status)

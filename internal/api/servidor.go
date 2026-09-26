@@ -167,6 +167,9 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("PATCH /api/compromissos/{id}", s.sessaoCompleta(s.editarCompromisso))
 	mux.Handle("DELETE /api/compromissos/{id}", s.sessaoCompleta(s.apagarCompromisso))
 	mux.Handle("GET /api/alertas", s.sessaoCompleta(s.listarAlertas))
+	mux.Handle("GET /api/relatorios", s.sessaoCompleta(s.listarRelatorios))
+	mux.Handle("GET /api/relatorios/{id}", s.sessaoCompleta(s.lerRelatorio))
+	mux.Handle("POST /api/relatorios/gerar", s.sessaoCompleta(s.gerarRelatorios))
 	mux.Handle("GET /api/projecoes/fluxo", s.sessaoCompleta(s.projecaoFluxo))
 	mux.Handle("GET /api/projecoes/futuro", s.sessaoCompleta(s.projecaoFuturo))
 	mux.Handle("POST /api/simulacoes/compra", s.sessaoCompleta(s.simularCompra))
@@ -251,6 +254,7 @@ var RotasLeitura = []string{
 	"/api/cnpj/{pj}/distribuicoes", "/api/cnpj/{pj}/pacote",
 	"/api/cnpj/simulacao?receita_mensal_centavos=1000000&contador_centavos=0",
 	"/api/projecoes/fluxo", "/api/projecoes/fluxo?entidade_id={entidade}&dias=366",
+	"/api/relatorios", "/api/relatorios/{relatorio}",
 	"/api/projecoes/futuro", "/api/projecoes/futuro?entidade_id={entidade}&aporte=100000&anos=5&perfil=arrojado",
 }
 

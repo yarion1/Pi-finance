@@ -79,6 +79,16 @@ function textoAlerta(a: Alerta): { titulo: string; detalhe?: string; link?: stri
         detalhe: `${moeda(d.valor_centavos)} em ${data}${conta}`,
         link,
       };
+    case "relatorio_pronto": {
+      const periodo = typeof d.periodo === "string" ? d.periodo : "";
+      return {
+        titulo:
+          d.tipo === "mes"
+            ? `Relatório de ${nomeMes(periodo).toLowerCase()} pronto`
+            : `Resumo da semana de ${formatarData(periodo)} pronto`,
+        link: typeof d.relatorio_id === "string" ? `/relatorios/${d.relatorio_id}` : "/relatorios",
+      };
+    }
     case "juros_iof":
       return {
         titulo: `Juros ou IOF: ${desc}`,

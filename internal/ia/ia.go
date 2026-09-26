@@ -334,3 +334,39 @@ func rodarFerramenta(ctx context.Context, porNome map[string]Ferramenta, b anthr
 	}
 	return anthropic.NewToolResultBlock(b.ID, string(j), false)
 }
+
+const promptRelatorio = `Você escreve o resumo do relatório mensal do painel "Finanças", em português do Brasil,
+para a própria pessoa. Use SÓ os números do JSON (nunca invente nem recalcule): em até 120 palavras, diga o que
+mudou no mês em relação ao anterior e à média, em frases curtas, com valores no formato R$ 1.234,56. Não repita a
+lista de ações, que a tela já mostra. Termine com uma linha lembrando que é uma leitura do painel e não substitui
+contador nem assessor.`
+
+// EscreverRelatorio: o texto curto do relatório do mês a partir dos números já
+// calculados (sem descrições de transações; só categorias e totais).
+func (c *Cliente) EscreverRelatorio(ctx context.Context, dados any) (string, Uso, error) {
+	var uso Uso
+	if c == nil {
+		return "", uso, ErrDesligada
+	}
+	j, err := json.Marshal(dados)
+	if err != nil {
+		return "", uso, err
+	}
+	resp, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:     ModeloChat,
+		MaxTokens: 2000,
+		System:    []anthropic.TextBlockParam{{Text: promptRelatorio}},
+		Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(string(j)))},
+	})
+	if err != nil {
+		return "", uso, err
+	}
+	uso.somar(ModeloChat, resp.Usage)
+	var b strings.Builder
+	for _, bloco := range resp.Content {
+		if t, ok := bloco.AsAny().(anthropic.TextBlock); ok {
+			b.WriteString(t.Text)
+		}
+	}
+	return strings.TrimSpace(b.String()), uso, nil
+}

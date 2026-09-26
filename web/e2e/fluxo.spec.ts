@@ -650,8 +650,18 @@ test.describe
       await page.getByRole("button", { name: "Comparar" }).click();
       await expect(page.getByText("Parcelar compensa")).toBeVisible();
 
+      // relatórios: gera o que falta (depende do dia em que o teste roda) e abre o primeiro
+      await page.goto("/relatorios");
+      await page.getByRole("button", { name: "Gerar os que faltam" }).click();
+      await expect(page.getByText(/relatórios? novos?\.|Nada novo/)).toBeVisible();
+      const relatorios = page.getByRole("list", { name: "Relatórios" }).getByRole("link");
+      if (await relatorios.count()) {
+        await relatorios.first().click();
+        await expect(page.getByRole("heading", { level: 1 })).toContainText(/Relatório de|Resumo da semana/);
+      }
+
       await page.setViewportSize({ width: 360, height: 740 });
-      for (const rota of ["/perguntar", "/ia", "/projecoes"]) {
+      for (const rota of ["/perguntar", "/ia", "/projecoes", "/relatorios"]) {
         await page.goto(rota);
         await page.waitForLoadState("networkidle");
         await semRolagemHorizontal(page);

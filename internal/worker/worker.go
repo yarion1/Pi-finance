@@ -163,6 +163,49 @@ func CategorizarComIA(ctx context.Context, pool *pgxpool.Pool, cliente *ia.Clien
 	return nil
 }
 
+// RelatoriosArgs gera o relatório do mês (dia 1) e o resumo da semana (domingo à noite).
+type RelatoriosArgs struct{}
+
+func (RelatoriosArgs) Kind() string { return "relatorios" }
+
+type gerarRelatorios struct {
+	river.WorkerDefaults[RelatoriosArgs]
+	pool    *pgxpool.Pool
+	cliente *ia.Cliente
+}
+
+func (t *gerarRelatorios) Timeout(*river.Job[RelatoriosArgs]) time.Duration { return 15 * time.Minute }
+
+func (t *gerarRelatorios) Work(ctx context.Context, _ *river.Job[RelatoriosArgs]) error {
+	return GerarRelatorios(ctx, t.pool, t.cliente, financeiro.Agora())
+}
+
+// GerarRelatorios cria o que falta para cada pessoa com alguma entidade; o erro de uma
+// pessoa não para as outras. `agora` é a hora de São Paulo.
+func GerarRelatorios(ctx context.Context, pool *pgxpool.Pool, cliente *ia.Cliente, agora time.Time) error {
+	linhas, err := pool.Query(ctx, "select * from app_usuarios_com_entidade()")
+	if err != nil {
+		return err
+	}
+	usuarios, err := pgx.CollectRows(linhas, pgx.RowTo[string])
+	if err != nil {
+		return err
+	}
+	for _, u := range usuarios {
+		novos, err := financeiro.GerarRelatorios(ctx, cliente, agora, func(fn func(ctx context.Context, tx pgx.Tx) error) error {
+			return db.ComUsuario(ctx, pool, u, func(tx pgx.Tx) error { return fn(ctx, tx) })
+		})
+		if err != nil {
+			slog.Warn("relatórios: falhou", "usuario", u, "erro", err)
+			continue
+		}
+		if len(novos) > 0 {
+			slog.Info("relatórios: gerados", "usuario", u, "quantos", len(novos))
+		}
+	}
+	return nil
+}
+
 // GravarSinal registra que um serviço está vivo.
 func GravarSinal(ctx context.Context, pool *pgxpool.Pool, servico string, dados map[string]any) error {
 	if dados == nil {
@@ -181,6 +224,7 @@ func Rodar(ctx context.Context, pool *pgxpool.Pool, versao string, of *openfinan
 	river.AddWorker(trabalhadores, &sincronizarOpenFinance{pool: pool, of: of})
 	river.AddWorker(trabalhadores, &atualizarCotacoes{pool: pool, fontes: fontes})
 	river.AddWorker(trabalhadores, &categorizarIA{pool: pool, cliente: claude})
+	river.AddWorker(trabalhadores, &gerarRelatorios{pool: pool, cliente: claude})
 
 	cliente, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
 		Logger:  slog.Default(),
@@ -203,6 +247,10 @@ func Rodar(ctx context.Context, pool *pgxpool.Pool, versao string, of *openfinan
 			river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
 				func() (river.JobArgs, *river.InsertOpts) { return CategorizarIAArgs{}, nil },
 				&river.PeriodicJobOpts{RunOnStart: false}),
+			// de hora em hora vê se o mês fechou ou a semana acabou (cada relatório sai uma vez)
+			river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
+				func() (river.JobArgs, *river.InsertOpts) { return RelatoriosArgs{}, nil },
+				&river.PeriodicJobOpts{RunOnStart: true}),
 		},
 	})
 	if err != nil {

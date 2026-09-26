@@ -926,3 +926,39 @@ export type SimulacaoQuitacao = {
   economia_centavos: number;
   quitada: boolean;
 };
+
+// Relatórios (fase 6)
+export type RelatorioResumo = {
+  id: string;
+  tipo: "mes" | "semana";
+  periodo: string;
+  texto: string | null;
+  criado_em: string;
+};
+
+export type TotaisPeriodo = { receitas_centavos: number; gastos_centavos: number; saldo_centavos: number };
+
+export type RelatorioMes = {
+  mes: string;
+  totais: TotaisPeriodo;
+  anterior: TotaisPeriodo;
+  categorias: { nome: string; cor: string | null; total_centavos: number; media_3_meses_centavos: number }[];
+  acumulado: { dia: number; mes_centavos: number; anterior_centavos: number }[];
+  patrimonio: PontoPatrimonio[] | null;
+  acoes: string[];
+  sem_categoria: number;
+};
+
+export type ResumoSemana = {
+  inicio: string;
+  fim: string;
+  gasto_centavos: number;
+  semana_anterior_centavos: number;
+  categorias: { nome: string; total_centavos: number }[];
+  orcamento: { mes: string; disponivel_centavos: number; gasto_centavos: number } | null;
+  proximas: ItemAgenda[];
+};
+
+export type Relatorio =
+  | (Omit<RelatorioResumo, "tipo"> & { tipo: "mes"; dados: RelatorioMes })
+  | (Omit<RelatorioResumo, "tipo"> & { tipo: "semana"; dados: ResumoSemana });

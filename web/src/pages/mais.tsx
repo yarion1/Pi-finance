@@ -3,6 +3,7 @@ import {
   CalendarDays,
   ChevronRight,
   CreditCard,
+  FileText,
   Landmark,
   LineChart,
   LogOut,
@@ -35,6 +36,9 @@ export function Mais() {
           <ul className="flex flex-col">
             <Item para="/perguntar" icone={<MessageCircleQuestion className="size-5" />}>
               Pergunte às suas finanças
+            </Item>
+            <Item para="/relatorios" icone={<FileText className="size-5" />}>
+              Relatórios do mês e da semana
             </Item>
             <Item para="/projecoes" icone={<LineChart className="size-5" />}>
               Projeções e simulações
