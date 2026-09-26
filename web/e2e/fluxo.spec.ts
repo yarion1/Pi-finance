@@ -445,6 +445,19 @@ test.describe
       await expect(page.getByText("1 encerrados (resgatados)")).toBeVisible();
       await expect(page.getByText("isento de IR")).toBeVisible();
 
+      // o que mais o Meu Pluggy entrega: a fatura fechada pelo banco e o empréstimo
+      await page.goto("/cartoes");
+      await page.getByRole("tab", { name: "Nubank Ultravioleta" }).click();
+      const faturasBanco = page.getByRole("list", { name: "Faturas segundo o banco" });
+      await expect(faturasBanco.getByText("R$ 1.234,56")).toBeVisible();
+      await expect(faturasBanco.getByText(/mínimo R\$\s185,18/)).toBeVisible();
+      await page.goto("/patrimonio");
+      const emprestimos = page.getByRole("list", { name: "Empréstimos segundo o banco" });
+      await expect(emprestimos.getByText("Crédito pessoal")).toBeVisible();
+      await expect(emprestimos.getByText(/5 de 12 parcelas pagas/)).toBeVisible();
+      await expect(emprestimos.getByText("R$ 6.543,21")).toBeVisible();
+      await page.goto("/investimentos");
+
       // fase 4: extrato de negociação da B3 (prévia, importar, de novo não duplica)
       const negociacao = Buffer.from(
         "Data do Negócio;Tipo de Movimentação;Mercado;Prazo/Vencimento;Instituição;Código de Negociação;Quantidade;Preço;Valor\n" +
@@ -492,7 +505,15 @@ test.describe
       await expect(page.getByText("DARF 6015 até 29/05/2026")).toBeVisible();
 
       await page.setViewportSize({ width: 360, height: 740 });
-      for (const rota of ["/open-finance", "/contas", "/investimentos", "/investimentos/ir", "/gastos"]) {
+      for (const rota of [
+        "/open-finance",
+        "/contas",
+        "/cartoes",
+        "/patrimonio",
+        "/investimentos",
+        "/investimentos/ir",
+        "/gastos",
+      ]) {
         await page.goto(rota);
         await page.waitForLoadState("networkidle");
         await semRolagemHorizontal(page);

@@ -236,6 +236,48 @@ type Patrimonio struct {
 	Cartoes       int64             `json:"cartoes_centavos"`
 	Negativas     int64             `json:"contas_negativas_centavos"` // cheque especial: conta com saldo abaixo de zero
 	Dividas       int64             `json:"dividas_centavos"`
+	// empréstimos e financiamentos que o banco informa pelo Open Finance
+	EmprestimosBanco []EmprestimoBanco `json:"emprestimos_banco"`
+	DividasBanco     int64             `json:"dividas_banco_centavos"`
+}
+
+// EmprestimoBanco: contrato de crédito informado pelo banco.
+type EmprestimoBanco struct {
+	ID                string  `json:"id"`
+	Nome              string  `json:"nome"`
+	Modalidade        string  `json:"modalidade"`
+	Instituicao       *string `json:"instituicao"`
+	ValorContratado   *int64  `json:"valor_contratado_centavos"`
+	SaldoDevedor      *int64  `json:"saldo_devedor_centavos"`
+	ParcelasTotal     *int    `json:"parcelas_total"`
+	ParcelasPagas     *int    `json:"parcelas_pagas"`
+	ParcelasRestantes *int    `json:"parcelas_restantes"`
+	ParcelasAtrasadas *int    `json:"parcelas_atrasadas"`
+	Taxa              *string `json:"taxa"`
+	TaxaPeriodicidade *string `json:"taxa_periodicidade"`
+	CET               *string `json:"cet"`
+	Sistema           *string `json:"sistema"`
+	VencimentoFinal   *string `json:"vencimento_final"`
+	ContaNoPassivo    bool    `json:"conta_no_passivo"` // cheque especial e rotativo já estão no saldo da conta/cartão
+}
+
+// EmprestimosDoBanco das entidades, maiores saldos primeiro.
+func EmprestimosDoBanco(ctx context.Context, tx pgx.Tx, ents []string) ([]EmprestimoBanco, error) {
+	linhas, err := tx.Query(ctx, `select e.id, e.nome, e.modalidade, i.instituicao, e.valor_contratado_centavos,
+			e.saldo_devedor_centavos, e.parcelas_total, e.parcelas_pagas, e.parcelas_restantes, e.parcelas_atrasadas,
+			e.taxa::text, e.taxa_periodicidade, e.cet::text, e.sistema, to_char(e.vencimento_final, 'YYYY-MM-DD'),
+			e.modalidade in ('LOAN', 'FINANCING')
+		from emprestimos_banco e join itens_pluggy i on i.id = e.item_id
+		where e.entidade_id = any($1) and e.moeda = 'BRL'
+		order by coalesce(e.saldo_devedor_centavos, 0) desc`, ents)
+	if err != nil {
+		return nil, err
+	}
+	lista, err := pgx.CollectRows(linhas, pgx.RowToStructByPos[EmprestimoBanco])
+	if lista == nil {
+		lista = []EmprestimoBanco{}
+	}
+	return lista, err
 }
 
 func CalcularPatrimonio(ctx context.Context, tx pgx.Tx, ents []string, hoje time.Time, comSerie bool) (Patrimonio, error) {
@@ -279,6 +321,14 @@ func CalcularPatrimonio(ctx context.Context, tx pgx.Tx, ents []string, hoje time
 	for _, d := range dividas {
 		p.Dividas += d.SaldoDevedor
 	}
+	if p.EmprestimosBanco, err = EmprestimosDoBanco(ctx, tx, ents); err != nil {
+		return p, err
+	}
+	for _, e := range p.EmprestimosBanco {
+		if e.ContaNoPassivo && e.SaldoDevedor != nil {
+			p.DividasBanco += *e.SaldoDevedor
+		}
+	}
 	// cartão: dívida inclui as parcelas futuras já lançadas (limite usado)
 	for _, c := range contas {
 		if c.moeda != "BRL" {
@@ -313,7 +363,7 @@ func CalcularPatrimonio(ctx context.Context, tx pgx.Tx, ents []string, hoje time
 		return p, err
 	}
 	p.Investimentos += int64(carteira.Total)
-	p.Hoje = PontoPatrimonio{Data: hoje.Format(formatoData), Ativos: p.Contas + p.Investimentos + p.Bens, Passivos: p.Cartoes + p.Negativas + p.Dividas}
+	p.Hoje = PontoPatrimonio{Data: hoje.Format(formatoData), Ativos: p.Contas + p.Investimentos + p.Bens, Passivos: p.Cartoes + p.Negativas + p.Dividas + p.DividasBanco}
 	p.Hoje.Liquido = p.Hoje.Ativos - p.Hoje.Passivos
 
 	fimMesPassado := core.DiaNoMes(hoje.Year(), hoje.Month(), 1).AddDate(0, 0, -1)
@@ -326,6 +376,8 @@ func CalcularPatrimonio(ctx context.Context, tx pgx.Tx, ents []string, hoje time
 		if err != nil {
 			return p, err
 		}
+		// sem histórico dos empréstimos do banco: o saldo de hoje vale para trás também
+		pt.Passivos, pt.Liquido = pt.Passivos+p.DividasBanco, pt.Liquido-p.DividasBanco
 		*ref.var_ = p.Hoje.Liquido - pt.Liquido
 	}
 	if comSerie {
@@ -334,6 +386,7 @@ func CalcularPatrimonio(ctx context.Context, tx pgx.Tx, ents []string, hoje time
 			if err != nil {
 				return p, err
 			}
+			pt.Passivos, pt.Liquido = pt.Passivos+p.DividasBanco, pt.Liquido-p.DividasBanco
 			p.Serie = append(p.Serie, pt)
 		}
 		p.Serie = append(p.Serie, p.Hoje)

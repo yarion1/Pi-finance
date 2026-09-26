@@ -19,12 +19,17 @@ type Item struct {
 	Item          pluggy.Item
 	Contas        []*Conta
 	Investimentos []pluggy.Investimento
+	Emprestimos   []pluggy.Emprestimo
+	Identidade    *pluggy.Identidade
+	// Movimentos de cada investimento (id → movimentos).
+	Movimentos map[string][]pluggy.MovimentoInvestimento
 }
 
 // Conta falsa com as transações dela.
 type Conta struct {
 	Conta      pluggy.Conta
 	Transacoes []pluggy.Transacao
+	Faturas    []pluggy.Fatura
 }
 
 // Falsa guarda o estado; mexa nele com os métodos (são seguros entre goroutines).
@@ -66,6 +71,15 @@ func (f *Falsa) Investimentos(item string, invs ...pluggy.Investimento) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.itens[item].Investimentos = invs
+}
+
+// Extras define empréstimos, identidade e movimentos de investimento de um item
+// (nil = o banco não oferece: responde 404, como a Pluggy).
+func (f *Falsa) Extras(item string, emprestimos []pluggy.Emprestimo, identidade *pluggy.Identidade, movimentos map[string][]pluggy.MovimentoInvestimento) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	it := f.itens[item]
+	it.Emprestimos, it.Identidade, it.Movimentos = emprestimos, identidade, movimentos
 }
 
 // Status muda o estado do item (ex.: LOGIN_ERROR).
@@ -135,7 +149,8 @@ func (f *Falsa) dono(r *http.Request) string {
 	return id
 }
 
-// ServeHTTP implementa /auth, /items/{id}, /accounts e /v2/transactions.
+// ServeHTTP implementa /auth, /items/{id}, /accounts, /v2/transactions, /investments,
+// /bills, /loans, /identity e /investments/{id}/transactions.
 func (f *Falsa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -242,6 +257,46 @@ func (f *Falsa) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			resp["next"] = "?" + prox.Encode()
 		}
 		escrever(w, http.StatusOK, resp)
+	case r.URL.Path == "/bills":
+		var c *Conta
+		for _, it := range f.itens {
+			for _, x := range it.Contas {
+				if it.Dono == dono && x.Conta.ID == r.URL.Query().Get("accountId") {
+					c = x
+				}
+			}
+		}
+		if c == nil || c.Faturas == nil {
+			escrever(w, http.StatusNotFound, map[string]string{"message": "not found"})
+			return
+		}
+		escrever(w, http.StatusOK, map[string]any{"results": c.Faturas, "page": 1, "totalPages": 1, "total": len(c.Faturas)})
+	case r.URL.Path == "/loans":
+		it := item(r.URL.Query().Get("itemId"))
+		if it == nil || it.Emprestimos == nil {
+			escrever(w, http.StatusNotFound, map[string]string{"message": "not found"})
+			return
+		}
+		escrever(w, http.StatusOK, map[string]any{"results": it.Emprestimos, "page": 1, "totalPages": 1, "total": len(it.Emprestimos)})
+	case r.URL.Path == "/identity":
+		it := item(r.URL.Query().Get("itemId"))
+		if it == nil || it.Identidade == nil {
+			escrever(w, http.StatusNotFound, map[string]string{"message": "not found"})
+			return
+		}
+		escrever(w, http.StatusOK, it.Identidade)
+	case strings.HasPrefix(r.URL.Path, "/investments/") && strings.HasSuffix(r.URL.Path, "/transactions"):
+		id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/investments/"), "/transactions")
+		for _, it := range f.itens {
+			if it.Dono != dono {
+				continue
+			}
+			if movs, ok := it.Movimentos[id]; ok {
+				escrever(w, http.StatusOK, map[string]any{"results": movs, "page": 1, "totalPages": 1, "total": len(movs)})
+				return
+			}
+		}
+		escrever(w, http.StatusNotFound, map[string]string{"message": "not found"})
 	default:
 		escrever(w, http.StatusNotFound, map[string]string{"message": "not found"})
 	}

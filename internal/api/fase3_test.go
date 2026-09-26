@@ -633,3 +633,129 @@ func TestInvestimentosDoBanco(t *testing.T) {
 		t.Fatalf("patrimônio sem a carteira: %d", p.Investimentos)
 	}
 }
+
+// Extras do Meu Pluggy: faturas do cartão, empréstimos, identidade e movimentações dos
+// investimentos, cada um opcional.
+func TestExtrasDoBanco(t *testing.T) {
+	amb, a, pf, _, _ := prepara(t)
+	amb.pluggy.Cliente("cli", "sec")
+	cartao := &pluggyfalsa.Conta{Conta: pluggy.Conta{ID: "card", Type: "CREDIT", Subtype: "CREDIT_CARD", Name: "Ultravioleta", Balance: "900"},
+		Faturas: []pluggy.Fatura{
+			{ID: "b1", DueDate: dia(-20) + "T00:00:00.000Z", TotalAmount: "1234.56", MinimumPayment: "185.18", CurrencyCode: "BRL"},
+			{ID: "b2", DueDate: dia(10) + "T00:00:00.000Z", TotalAmount: "900", CurrencyCode: "BRL",
+				FinanceCharges: []pluggy.EncargoFatura{{Type: "IOF", Amount: "3.5"}, {Type: "LATE_PAYMENT_FEE", Amount: "10"}}},
+		}}
+	amb.pluggy.Item("cli", "item", "Nubank", contaBanco("conta", "Conta", "1000"), cartao)
+	amb.pluggy.Investimentos("item", pluggy.Investimento{ID: "inv-1", Name: "CDB X", Type: "FIXED_INCOME", Subtype: "CDB",
+		Balance: "12726.64", AmountOriginal: "12000", Status: "ACTIVE"})
+	cinco, doze, tres := 5, 12, 7
+	credito := "CREDIT"
+	amb.pluggy.Extras("item",
+		[]pluggy.Emprestimo{
+			{ID: "l1", ProductName: "Crédito pessoal", Kind: "LOAN", ContractAmount: "10000", CurrencyCode: "BRL", CET: "0.035",
+				Installments: &pluggy.ParcelasEmprestimo{TotalNumberOfInstallments: &doze, PaidInstallments: &cinco, DueInstallments: &tres},
+				Payments:     &pluggy.PagamentosEmprestimo{ContractOutstandingBalance: "6543.21"}},
+			{ID: "l2", ProductName: "Cheque especial", Kind: "UNARRANGED_ACCOUNT_OVERDRAFT", CurrencyCode: "BRL",
+				Payments: &pluggy.PagamentosEmprestimo{ContractOutstandingBalance: "300"}},
+		},
+		&pluggy.Identidade{FullName: strPtr("Ana Teste"), Document: strPtr("529.982.247-25"), DocumentType: strPtr("CPF")},
+		map[string][]pluggy.MovimentoInvestimento{"inv-1": {
+			{ID: "m1", MovementType: credito, Type: strPtr("BUY"), Amount: "12000", Date: dia(-400)},
+			{ID: "m2", MovementType: "DEBIT", Type: strPtr("TAX"), Amount: "10", Date: dia(-10)},
+		}})
+	conectar(t, a, "cli", "sec", "item", pf)
+	u := usuarioDe(t, a)
+	sincronizar(t, amb, u)
+	var e estadoOF
+	a.exigir("GET", "/api/open-finance", nil, http.StatusOK).json(t, &e)
+	for _, c := range e.Itens[0].Contas {
+		a.exigir("PATCH", "/api/open-finance/contas/"+c.ID, map[string]string{"acao": "criar"}, http.StatusNoContent)
+	}
+	if rel := sincronizar(t, amb, u); len(rel.Erros) != 0 {
+		t.Fatalf("erros: %+v", rel.Erros)
+	}
+	sincronizar(t, amb, u) // de novo: nada duplica
+
+	// identidade: o CPF da PF vazia é preenchido (cifrado, mostrado mascarado)
+	var ent struct{ Documento *string }
+	a.exigir("GET", "/api/entidades/"+pf, nil, http.StatusOK).json(t, &ent)
+	if ent.Documento == nil || *ent.Documento != "***.982.247-**" {
+		t.Fatalf("CPF da identidade: %v", ent.Documento)
+	}
+
+	// faturas do banco no cartão
+	var contas []struct {
+		ID, Nome, Tipo string
+	}
+	a.exigir("GET", "/api/contas", nil, http.StatusOK).json(t, &contas)
+	var cartaoID string
+	for _, c := range contas {
+		if c.Tipo == "cartao" {
+			cartaoID = c.ID
+		}
+	}
+	var fat struct {
+		FaturasBanco []struct {
+			Vencimento string `json:"vencimento"`
+			Total      int64  `json:"total_centavos"`
+			Minimo     *int64 `json:"minimo_centavos"`
+			Encargos   int64  `json:"encargos_centavos"`
+		} `json:"faturas_banco"`
+	}
+	a.exigir("GET", "/api/contas/"+cartaoID+"/faturas", nil, http.StatusOK).json(t, &fat)
+	if len(fat.FaturasBanco) != 2 || fat.FaturasBanco[0].Total != 90000 || fat.FaturasBanco[0].Encargos != 1350 ||
+		fat.FaturasBanco[1].Minimo == nil || *fat.FaturasBanco[1].Minimo != 18518 {
+		t.Fatalf("faturas do banco: %+v", fat.FaturasBanco)
+	}
+
+	// empréstimos: o crédito pessoal entra no passivo; o cheque especial já está no saldo da conta
+	var pat struct {
+		DividasBanco int64 `json:"dividas_banco_centavos"`
+		Emprestimos  []struct {
+			Nome           string `json:"nome"`
+			Saldo          *int64 `json:"saldo_devedor_centavos"`
+			Restantes      *int   `json:"parcelas_restantes"`
+			ContaNoPassivo bool   `json:"conta_no_passivo"`
+		} `json:"emprestimos_banco"`
+	}
+	a.exigir("GET", "/api/patrimonio", nil, http.StatusOK).json(t, &pat)
+	if pat.DividasBanco != 654321 || len(pat.Emprestimos) != 2 || !pat.Emprestimos[0].ContaNoPassivo ||
+		*pat.Emprestimos[0].Restantes != 7 || pat.Emprestimos[1].ContaNoPassivo {
+		t.Fatalf("empréstimos: %+v", pat)
+	}
+
+	// movimentos: o aporte de 400 dias atrás dá a rentabilidade ao ano do CDB (o imposto fica de fora)
+	var cart struct {
+		Ativos []struct {
+			Nome string   `json:"nome"`
+			Rent *float64 `json:"rentabilidade_aa"`
+		} `json:"ativos"`
+	}
+	a.exigir("GET", "/api/investimentos", nil, http.StatusOK).json(t, &cart)
+	if len(cart.Ativos) != 1 || cart.Ativos[0].Rent == nil || *cart.Ativos[0].Rent < 0.05 || *cart.Ativos[0].Rent > 0.06 {
+		t.Fatalf("rentabilidade do CDB do banco: %+v", cart.Ativos)
+	}
+	var n int
+	_ = amb.banco.Dono.QueryRow(context.Background(), "select count(*) from operacoes where origem = 'pluggy'").Scan(&n)
+	if n != 1 {
+		t.Fatalf("operações do banco: %d", n)
+	}
+
+	// empréstimo quitado some da Pluggy e daqui; banco sem os extras não quebra a sincronização
+	amb.pluggy.Extras("item", nil, nil, nil)
+	if rel := sincronizar(t, amb, u); len(rel.Erros) != 0 {
+		t.Fatalf("sem extras: %+v", rel.Erros)
+	}
+	a.exigir("GET", "/api/patrimonio", nil, http.StatusOK).json(t, &pat)
+	if len(pat.Emprestimos) != 2 {
+		t.Fatalf("sem /loans (404) mantém o que havia: %+v", pat.Emprestimos)
+	}
+	amb.pluggy.Extras("item", []pluggy.Emprestimo{}, nil, nil)
+	sincronizar(t, amb, u)
+	a.exigir("GET", "/api/patrimonio", nil, http.StatusOK).json(t, &pat)
+	if len(pat.Emprestimos) != 0 || pat.DividasBanco != 0 {
+		t.Fatalf("quitados: %+v", pat)
+	}
+}
+
+func strPtr(s string) *string { return &s }

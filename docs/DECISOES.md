@@ -389,3 +389,30 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   a chave de verdade: conferir no primeiro mês e ajustar o prompt se ficar abaixo.
 - Parte 2 (v0.7.x): relatório do mês, resumo da semana, alertas inteligentes, Monte Carlo
   do patrimônio, simulações e leitura de PDF.
+
+## D32 — O que mais o Meu Pluggy entrega (v0.7.1)
+
+- **Fonte dos formatos**: a rede do ambiente de desenvolvimento não alcança docs.pluggy.ai
+  nem o MCP `pluggy-docs`; os campos foram conferidos nos tipos do SDK oficial
+  (`pluggy-sdk` 0.90.0 no npm: `CreditCardBills`, `Loan`, `IdentityResponse`,
+  `InvestmentTransaction`). Quando a rede liberar, conferir de novo pela documentação.
+- **Tudo opcional**: nem todo banco compartilha todos os produtos. 404/403 de um produto
+  vira `ErrProdutoIndisponivel` e é pulado; outro erro entra no relatório da
+  sincronização sem parar as transações.
+- **Faturas do cartão** (`/bills`, último ano): guardadas em `faturas_banco` e mostradas
+  em Cartões ao lado das faturas que o painel calcula pelas compras — são a palavra do
+  banco (total, mínimo e encargos cobrados), não substituem o cálculo.
+- **Empréstimos e financiamentos** (`/loans`): guardados em `emprestimos_banco`, trocados
+  a cada sincronização (o quitado some). Só `LOAN` e `FINANCING` entram no passivo do
+  patrimônio: cheque especial e parcelamento de fatura já estão no saldo negativo da
+  conta e no saldo do cartão, e contar de novo dobraria a dívida. Se a pessoa também
+  cadastrou o contrato em Dívidas, os dois contam; a tela avisa para apagar um.
+- **Identidade** (`/identity`): só preenche o CPF da pessoa física do item quando está
+  vazio (cifrado, contexto `entidades.documento`); nunca troca o que a pessoa digitou. Nome,
+  endereço e telefone não são guardados.
+- **Movimentações dos investimentos** (`/investments/{id}/transactions`): viram operações
+  do ativo com `origem = 'pluggy'` (sem duplicar, chave `pluggy:<id>`). `CREDIT` é aporte
+  (compra), `DEBIT` é resgate (venda, pelo valor líquido quando vem), imposto fica de
+  fora; sem quantidade (renda fixa, fundos) vira 1 × valor. Com o histórico cobrindo o
+  que foi aplicado, a rentabilidade anual (XIRR) do investimento do banco passa a vir dos
+  fluxos de verdade em vez da estimativa por saldo e valor aplicado.

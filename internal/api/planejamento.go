@@ -38,8 +38,9 @@ func vazioParaNil(s *string) *string {
 
 func (s *Servidor) faturas(w http.ResponseWriter, r *http.Request) {
 	var resp struct {
-		Faturas  []financeiro.Fatura        `json:"faturas"`
-		Parcelas []financeiro.ParcelaFutura `json:"parcelas_futuras"`
+		Faturas      []financeiro.Fatura        `json:"faturas"`
+		Parcelas     []financeiro.ParcelaFutura `json:"parcelas_futuras"`
+		FaturasBanco []financeiro.FaturaBanco   `json:"faturas_banco"`
 	}
 	err := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
 		hoje := financeiro.Hoje()
@@ -51,7 +52,10 @@ func (s *Servidor) faturas(w http.ResponseWriter, r *http.Request) {
 		if resp.Faturas, err = financeiro.Faturas(ctx, tx, r.PathValue("id"), hoje); err != nil {
 			return err
 		}
-		resp.Parcelas, err = financeiro.ParcelasFuturas(ctx, tx, []string{ent}, r.PathValue("id"), hoje)
+		if resp.Parcelas, err = financeiro.ParcelasFuturas(ctx, tx, []string{ent}, r.PathValue("id"), hoje); err != nil {
+			return err
+		}
+		resp.FaturasBanco, err = financeiro.FaturasDoBanco(ctx, tx, r.PathValue("id"))
 		return err
 	})
 	if err != nil {

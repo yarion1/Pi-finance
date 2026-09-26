@@ -237,7 +237,21 @@ export type ParcelaFutura = {
   projetada: boolean;
 };
 
-export type RespostaFaturas = { faturas: Fatura[]; parcelas_futuras: ParcelaFutura[] };
+// Fatura como o banco fechou (Open Finance).
+export type FaturaBanco = {
+  vencimento: string;
+  fechamento: string | null;
+  total_centavos: number;
+  minimo_centavos: number | null;
+  encargos_centavos: number;
+  moeda: string;
+};
+
+export type RespostaFaturas = {
+  faturas: Fatura[];
+  parcelas_futuras: ParcelaFutura[];
+  faturas_banco?: FaturaBanco[] | null;
+};
 
 export type PontoPatrimonio = {
   data: string;
@@ -257,6 +271,28 @@ export type Patrimonio = {
   cartoes_centavos: number;
   contas_negativas_centavos: number;
   dividas_centavos: number;
+  dividas_banco_centavos?: number;
+  emprestimos_banco?: EmprestimoBanco[] | null;
+};
+
+// Empréstimo ou financiamento que o banco informa pelo Open Finance.
+export type EmprestimoBanco = {
+  id: string;
+  nome: string;
+  modalidade: string;
+  instituicao: string | null;
+  valor_contratado_centavos: number | null;
+  saldo_devedor_centavos: number | null;
+  parcelas_total: number | null;
+  parcelas_pagas: number | null;
+  parcelas_restantes: number | null;
+  parcelas_atrasadas: number | null;
+  taxa: string | null;
+  taxa_periodicidade: string | null;
+  cet: string | null;
+  sistema: string | null;
+  vencimento_final: string | null;
+  conta_no_passivo: boolean;
 };
 
 export type CustoDeVida = {

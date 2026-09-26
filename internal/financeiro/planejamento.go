@@ -572,3 +572,28 @@ func alertar(ctx context.Context, tx pgx.Tx, tipo string, dados map[string]any, 
 func Alertar(ctx context.Context, tx pgx.Tx, tipo string, dados map[string]any, chaves ...string) error {
 	return alertar(ctx, tx, tipo, dados, chaves...)
 }
+
+// FaturaBanco: fatura do cartão como o banco fechou (Open Finance).
+type FaturaBanco struct {
+	Vencimento string  `json:"vencimento"`
+	Fechamento *string `json:"fechamento"`
+	Total      int64   `json:"total_centavos"`
+	Minimo     *int64  `json:"minimo_centavos"`
+	Encargos   int64   `json:"encargos_centavos"`
+	Moeda      string  `json:"moeda"`
+}
+
+// FaturasDoBanco do cartão, as mais recentes primeiro (até 12).
+func FaturasDoBanco(ctx context.Context, tx pgx.Tx, contaID string) ([]FaturaBanco, error) {
+	linhas, err := tx.Query(ctx, `select to_char(vencimento, 'YYYY-MM-DD'), to_char(fechamento, 'YYYY-MM-DD'), total_centavos,
+			minimo_centavos, encargos_centavos, moeda
+		from faturas_banco where conta_id = $1 order by vencimento desc limit 12`, contaID)
+	if err != nil {
+		return nil, err
+	}
+	lista, err := pgx.CollectRows(linhas, pgx.RowToStructByPos[FaturaBanco])
+	if lista == nil {
+		lista = []FaturaBanco{}
+	}
+	return lista, err
+}

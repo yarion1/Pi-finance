@@ -176,6 +176,19 @@ func CalcularCarteira(ctx context.Context, tx pgx.Tx, ents []string, data time.T
 			if a.aplicado != nil {
 				a.Custo = core.Centavos(*a.aplicado)
 			}
+			// com as movimentações do banco (aportes e resgates), a rentabilidade ao ano
+			ops, _, err := operacoesDoAtivo(ctx, tx, a.ID)
+			if err != nil {
+				return c, err
+			}
+			if fs := core.FluxosDasOperacoes(ops, a.Valor, data); historicoCompleto(fs, a.Custo, a.Valor) {
+				if len(fs) > 1 && int(data.Sub(fs[0].Data).Hours()/24) >= historiaMinima {
+					if r, err := core.XIRR(fs); err == nil {
+						a.Rentabilidade = &r
+					}
+				}
+				fluxos = append(fluxos, fs...)
+			}
 		} else {
 			ops, evs, err := operacoesDoAtivo(ctx, tx, a.ID)
 			if err != nil {
@@ -258,6 +271,25 @@ func CalcularCarteira(ctx context.Context, tx pgx.Tx, ents []string, data time.T
 	sort.Slice(c.Classes, func(i, j int) bool { return c.Classes[i].Valor > c.Classes[j].Valor })
 	sort.SliceStable(c.Ativos, func(i, j int) bool { return c.Ativos[i].Valor > c.Ativos[j].Valor })
 	return c, nil
+}
+
+// historicoCompleto: o banco pode mandar só os últimos meses de movimentos; sem o
+// aporte inicial, a taxa sairia absurda. Exige que os aportes cubram 90 % do aplicado
+// (ou, sem esse número, metade do saldo).
+func historicoCompleto(fs []core.Fluxo, aplicado, saldo core.Centavos) bool {
+	var aportes core.Centavos
+	for _, f := range fs {
+		if f.Valor < 0 {
+			aportes -= f.Valor
+		}
+	}
+	if aportes == 0 {
+		return false
+	}
+	if aplicado > 0 {
+		return aportes*10 >= aplicado*9
+	}
+	return aportes*2 >= saldo
 }
 
 // valorNaCurva da renda fixa sem cotação: cada compra rende pela taxa contratada desde a

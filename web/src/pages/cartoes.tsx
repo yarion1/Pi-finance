@@ -6,7 +6,7 @@ import { Aviso, CarregandoLista, Cartao, Etiqueta, Pagina, TituloCartao, Vazio }
 import { mensagemDe, obter } from "../lib/api";
 import { nomeMes, useContas } from "../lib/dados";
 import { formatarData, formatarMoeda } from "../lib/formato";
-import type { Conta, Fatura, ParcelaFutura, RespostaFaturas } from "../lib/tipos";
+import type { Conta, Fatura, FaturaBanco, ParcelaFutura, RespostaFaturas } from "../lib/tipos";
 
 const nomesStatus: Record<Fatura["status"], string> = {
   aberta: "Aberta",
@@ -169,7 +169,39 @@ function DetalheCartao({ cartao }: { cartao: Conta }) {
           </Cartao>
         </div>
       ) : null}
+
+      {dados.data?.faturas_banco?.length ? <FaturasDoBanco faturas={dados.data.faturas_banco} /> : null}
     </>
+  );
+}
+
+// Faturas fechadas pelo próprio banco (Open Finance), com mínimo e encargos cobrados.
+function FaturasDoBanco({ faturas }: { faturas: FaturaBanco[] }) {
+  return (
+    <Cartao>
+      <TituloCartao>Faturas segundo o banco</TituloCartao>
+      <ul className="flex flex-col divide-y divide-borda" aria-label="Faturas segundo o banco">
+        {faturas.map((f) => (
+          <li key={f.vencimento} className="flex min-h-14 items-center gap-3 py-2">
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm">Vence {formatarData(f.vencimento)}</span>
+              <span className="block text-xs text-texto-2">
+                {f.fechamento ? `Fechou ${formatarData(f.fechamento)}` : "Fechamento não informado"}
+                {f.minimo_centavos !== null ? ` · mínimo ${formatarMoeda(f.minimo_centavos, f.moeda)}` : ""}
+              </span>
+            </span>
+            <span className="flex flex-col items-end gap-1">
+              <span className="valor num whitespace-nowrap text-sm">
+                {formatarMoeda(f.total_centavos, f.moeda)}
+              </span>
+              {f.encargos_centavos > 0 ? (
+                <Etiqueta cor="alerta">Encargos {formatarMoeda(f.encargos_centavos, f.moeda)}</Etiqueta>
+              ) : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Cartao>
   );
 }
 

@@ -284,9 +284,12 @@ func (s *Servico) sincronizarItem(ctx context.Context, usuarioID, chave string, 
 	}
 
 	// investimentos do banco: viram ativos da entidade do item, com o saldo informado
-	if err := s.sincronizarInvestimentos(ctx, usuarioID, chave, it, item.Connector.Name); err != nil {
+	invs, err := s.sincronizarInvestimentos(ctx, usuarioID, chave, it, item.Connector.Name)
+	if err != nil {
 		return err
 	}
+	// faturas, empréstimos, identidade e movimentações dos investimentos (quando o banco oferece)
+	s.sincronizarExtras(ctx, usuarioID, chave, it, contas, invs, rel)
 
 	// 2) transações de cada conta vinculada, cada uma na sua transação do banco
 	for _, c := range contas {
@@ -357,12 +360,12 @@ func (s *Servico) sincronizarItem(ctx context.Context, usuarioID, chave string, 
 
 // sincronizarInvestimentos grava cada investimento como ativo (chave: id da Pluggy).
 // Os resgatados por inteiro ficam como encerrados, para o histórico.
-func (s *Servico) sincronizarInvestimentos(ctx context.Context, usuarioID, chave string, it itemLocal, banco string) error {
+func (s *Servico) sincronizarInvestimentos(ctx context.Context, usuarioID, chave string, it itemLocal, banco string) ([]pluggy.Investimento, error) {
 	invs, err := s.Pluggy.Investimentos(ctx, chave, it.itemID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return db.ComUsuario(ctx, s.Banco, usuarioID, func(tx pgx.Tx) error {
+	return invs, db.ComUsuario(ctx, s.Banco, usuarioID, func(tx pgx.Tx) error {
 		for _, inv := range invs {
 			saldo, _ := pluggy.Centavos(inv.Balance)
 			var aplicado *core.Centavos

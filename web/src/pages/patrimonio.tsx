@@ -26,7 +26,14 @@ import {
   percentualParaFracao,
   soData,
 } from "../lib/formato";
-import type { Bem, Divida, ParcelaDivida, PontoPatrimonio, RespostaPatrimonio } from "../lib/tipos";
+import type {
+  Bem,
+  Divida,
+  EmprestimoBanco,
+  ParcelaDivida,
+  PontoPatrimonio,
+  RespostaPatrimonio,
+} from "../lib/tipos";
 
 const nomesBem: Record<Bem["tipo"], string> = { imovel: "Imóvel", veiculo: "Veículo", outro: "Outro" };
 const iconesBem = { imovel: Casa, veiculo: Car, outro: Package };
@@ -66,7 +73,8 @@ export function Patrimonio() {
         { nome: "Cartões", valor: -p.cartoes_centavos },
         { nome: "Contas no negativo", valor: -p.contas_negativas_centavos },
         { nome: "Dívidas", valor: -p.dividas_centavos },
-      ].filter((c) => c.nome !== "Contas no negativo" || c.valor !== 0)
+        { nome: "Empréstimos do banco", valor: -(p.dividas_banco_centavos ?? 0) },
+      ].filter((c) => (c.nome !== "Contas no negativo" && c.nome !== "Empréstimos do banco") || c.valor !== 0)
     : [];
 
   return (
@@ -195,6 +203,8 @@ export function Patrimonio() {
         </Cartao>
       </div>
 
+      {p?.emprestimos_banco?.length ? <EmprestimosDoBanco lista={p.emprestimos_banco} /> : null}
+
       <Dialogo
         aberto={bem !== null}
         aoFechar={() => setBem(null)}
@@ -224,6 +234,67 @@ export function Patrimonio() {
       </Dialogo>
       <AvisoSimulacao />
     </Pagina>
+  );
+}
+
+const nomesModalidade: Record<string, string> = {
+  LOAN: "Empréstimo",
+  FINANCING: "Financiamento",
+  INVOICE_FINANCING: "Parcelamento de fatura",
+  UNARRANGED_ACCOUNT_OVERDRAFT: "Cheque especial",
+};
+
+/** Empréstimos e financiamentos que o banco informa pelo Open Finance (só leitura). */
+function EmprestimosDoBanco({ lista }: { lista: EmprestimoBanco[] }) {
+  return (
+    <Cartao>
+      <TituloCartao>Empréstimos segundo o banco</TituloCartao>
+      <ul className="flex flex-col divide-y divide-borda" aria-label="Empréstimos segundo o banco">
+        {lista.map((e) => {
+          const detalhes = [
+            nomesModalidade[e.modalidade] ?? e.modalidade,
+            e.instituicao,
+            e.parcelas_total !== null && e.parcelas_pagas !== null
+              ? `${e.parcelas_pagas} de ${e.parcelas_total} parcelas pagas`
+              : e.parcelas_restantes !== null
+                ? `${e.parcelas_restantes} parcelas a vencer`
+                : null,
+            e.taxa !== null
+              ? `${fracaoParaPercentual(e.taxa)} % ${e.taxa_periodicidade === "YEARLY" ? "a.a." : "a.m."}`
+              : null,
+            e.cet !== null ? `CET ${fracaoParaPercentual(e.cet)} %` : null,
+            e.vencimento_final ? `até ${formatarData(soData(e.vencimento_final))}` : null,
+          ].filter(Boolean);
+          return (
+            <li key={e.id} className="flex min-h-14 items-center gap-3 py-2">
+              <Landmark className="size-5 shrink-0 text-texto-2" aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{e.nome}</span>
+                <span className="block text-xs text-texto-2">{detalhes.join(" · ")}</span>
+                {e.parcelas_atrasadas ? (
+                  <span className="block text-xs font-semibold text-saida">
+                    {e.parcelas_atrasadas}{" "}
+                    {e.parcelas_atrasadas === 1 ? "parcela atrasada" : "parcelas atrasadas"}
+                  </span>
+                ) : null}
+                {!e.conta_no_passivo ? (
+                  <span className="block text-xs text-texto-2">Já está no saldo da conta ou do cartão.</span>
+                ) : null}
+              </span>
+              {e.saldo_devedor_centavos !== null ? (
+                <span className="valor num text-sm font-semibold text-saida">
+                  {formatarMoeda(e.saldo_devedor_centavos)}
+                </span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-2 text-xs text-texto-2">
+        Vem do banco pelo Open Finance. Se você também cadastrou o mesmo contrato em Dívidas, apague um dos
+        dois para não contar duas vezes.
+      </p>
+    </Cartao>
   );
 }
 

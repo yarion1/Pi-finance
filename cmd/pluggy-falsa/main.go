@@ -52,6 +52,8 @@ func main() {
 		&pluggyfalsa.Conta{
 			Conta:      pluggy.Conta{ID: "cartao-demo", Type: "CREDIT", Subtype: "CREDIT_CARD", Name: "Nubank Ultravioleta", Balance: "450.00", CurrencyCode: "BRL"},
 			Transacoes: []pluggy.Transacao{tx("c1", -3, "450", "DEBIT", "RESTAURANTE")},
+			Faturas: []pluggy.Fatura{{ID: "fat-1", DueDate: dia(-15), TotalAmount: "1234.56", MinimumPayment: "185.18",
+				CurrencyCode: "BRL", FinanceCharges: []pluggy.EncargoFatura{{Type: "IOF", Amount: "3.45"}}}},
 		},
 	)
 	f.Investimentos("item-demo",
@@ -62,6 +64,13 @@ func main() {
 		pluggy.Investimento{ID: "inv-3", Name: "CDB - PICPAY INSTITUICAO DE PAGAMENTO S/A", Type: "FIXED_INCOME", Subtype: "CDB",
 			Balance: "0", Status: "TOTAL_WITHDRAWAL"},
 	)
+	pagas, total := 5, 12
+	f.Extras("item-demo",
+		[]pluggy.Emprestimo{{ID: "emp-1", ProductName: "Crédito pessoal", Kind: "LOAN", ContractAmount: "10000",
+			CurrencyCode: "BRL", CET: "0.035", Installments: &pluggy.ParcelasEmprestimo{TotalNumberOfInstallments: &total, PaidInstallments: &pagas},
+			Payments: &pluggy.PagamentosEmprestimo{ContractOutstandingBalance: "6543.21"}}},
+		nil,
+		map[string][]pluggy.MovimentoInvestimento{"inv-1": {{ID: "mov-1", MovementType: "CREDIT", Amount: "12000", Date: dia(-400)}}})
 	log.Printf("pluggy falsa em http://%s", endereco)
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v1/messages", claudeFalso)

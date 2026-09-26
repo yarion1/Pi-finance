@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.7.1 — mais do Meu Pluggy
+
+- **Faturas segundo o banco** em Cartões: total, pagamento mínimo e encargos (juros, IOF,
+  multa) de cada fatura fechada, direto do banco.
+- **Empréstimos e financiamentos do banco** em Patrimônio: saldo devedor, parcelas pagas e
+  atrasadas, taxa e CET. O saldo devedor entra no patrimônio líquido (cheque especial e
+  parcelamento de fatura não, porque já estão no saldo da conta e do cartão).
+- **Rentabilidade dos investimentos do banco** calculada pelos aportes e resgates que o
+  banco informa, quando o histórico está completo.
+- **CPF da pessoa física** preenchido pela identidade do banco quando estava vazio
+  (cifrado, como o digitado).
+- Cada produto é opcional: banco que não compartilha algum deles só fica sem aquela parte.
+
 ## v0.7.0 — fase 6 (parte 1): IA
 
 - **Pergunte às suas finanças** (Mais › Pergunte às suas finanças): chat que responde com
