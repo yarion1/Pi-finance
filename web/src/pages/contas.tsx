@@ -351,6 +351,14 @@ function FormConta({ conta, aoFechar }: { conta?: Conta; aoFechar: () => void })
           ))}
         </Selecao>
       ) : null}
+      {d.visibilidade !== "privada" ? (
+        <p className="text-xs text-texto-2 sm:col-span-2" role="note">
+          {d.visibilidade === "saldo"
+            ? "Todos da casa passam a ver o saldo desta conta (as transações continuam só suas)."
+            : "Todos da casa passam a ver o saldo e todas as transações desta conta."}{" "}
+          Dá para voltar para privada quando quiser.
+        </p>
+      ) : null}
       {conta ? (
         <label className="flex min-h-11 items-center gap-3 text-sm sm:col-span-2">
           <input

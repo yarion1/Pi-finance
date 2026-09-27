@@ -51,7 +51,33 @@ type limpeza struct {
 }
 
 func (t *limpeza) Work(ctx context.Context, _ *river.Job[LimpezaArgs]) error {
+	if err := ApagarContasVencidas(ctx, t.pool); err != nil {
+		slog.Warn("limpeza: contas para apagar", "erro", err)
+	}
 	return auth.Limpar(ctx, t.pool)
+}
+
+// ApagarContasVencidas: quem pediu para apagar a conta há 30 dias some de verdade
+// (entidades, contas, transações e o resto em cascata; a casa passa para outro membro).
+func ApagarContasVencidas(ctx context.Context, pool *pgxpool.Pool) error {
+	linhas, err := pool.Query(ctx, "select * from app_usuarios_para_apagar()")
+	if err != nil {
+		return err
+	}
+	ids, err := pgx.CollectRows(linhas, pgx.RowTo[string])
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		var apagou bool
+		if err := pool.QueryRow(ctx, "select app_apagar_usuario($1)", id).Scan(&apagou); err != nil {
+			return err
+		}
+		if apagou {
+			slog.Info("conta apagada de vez", "usuario", id)
+		}
+	}
+	return nil
 }
 
 // OpenFinanceArgs sincroniza o Meu Pluggy de quem está atrasado.

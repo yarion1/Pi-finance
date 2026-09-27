@@ -43,6 +43,11 @@ aparelho (RFC 8291). Ligar o Telegram pede a senha e usa um código de uso únic
 (só o hash fica no banco); o bot só responde em conversa privada e o token nunca aparece
 em erro nem log. Os links das notificações são sempre caminhos do próprio painel.
 
+**LGPD (fase 8)**: exportação e exclusão pedem a senha de novo; a exportação nunca leva
+colunas cifradas, hashes nem tokens, só dados da própria pessoa, e fica na auditoria;
+a exclusão derruba todas as sessões e apaga de verdade em 30 dias
+(`TestExportarApagarEAtividade`). Histórico do que foi à IA por pessoa (RLS).
+
 **Backups (fase 8)**: restic cifrado (AES-256) com senha própria, fora do banco e do
 repositório; teste de restore semanal; nuvem opcional só com blocos cifrados. A tela e a
 API mostram só o estado, sem totais nem erros (docs/BACKUP.md, DECISOES D42).

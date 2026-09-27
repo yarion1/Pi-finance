@@ -6,6 +6,7 @@ import {
   CreditCard,
   FileScan,
   FileText,
+  FolderDown,
   Landmark,
   LineChart,
   LogOut,
@@ -101,6 +102,9 @@ export function Mais() {
             </Item>
             <Item para="/seguranca" icone={<Shield className="size-5" />}>
               Segurança
+            </Item>
+            <Item para="/meus-dados" icone={<FolderDown className="size-5" />}>
+              Meus dados
             </Item>
           </ul>
         </nav>

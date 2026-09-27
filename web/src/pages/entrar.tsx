@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Aviso, Botao, Campo, TelaAuth } from "../components/ui";
 import { api, mensagemDe, obter } from "../lib/api";
+import { formatarData } from "../lib/formato";
 import { entrarComPasskey, erroPasskey, suportaPasskey } from "../lib/passkey";
 import { chaveSessao } from "../lib/sessao";
 
@@ -54,6 +55,12 @@ export function Entrar() {
     <TelaAuth titulo="Entrar" subtitulo="Acesso só pela rede de casa e pela tailnet.">
       <form onSubmit={enviar} className="flex flex-col gap-4">
         {erro ? <Aviso tipo="erro">{erro}</Aviso> : null}
+        {params.get("apagada") ? (
+          <Aviso>
+            Sua conta será apagada em {formatarData(params.get("apagada") ?? "")}. Se mudar de ideia, entre de
+            novo até lá e cancele.
+          </Aviso>
+        ) : null}
         {estado?.cadastro_aberto ? (
           <Aviso>
             Ainda não há contas.{" "}

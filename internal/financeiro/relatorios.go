@@ -315,7 +315,10 @@ func GerarRelatorios(ctx context.Context, cliente *ia.Cliente, agora time.Time,
 				if errIA == nil && t != "" {
 					texto = &t
 				}
-				_ = comUsuario(func(ctx context.Context, tx pgx.Tx) error { return RegistrarUsoIA(ctx, tx, hoje, uso) })
+				_ = comUsuario(func(ctx context.Context, tx pgx.Tx) error {
+					return RegistrarUsoIA(ctx, tx, hoje, uso, EnvioRelatorio,
+						"Totais do mês "+rel.Mes+" e do anterior por categoria, para escrever o relatório (sem descrições de transações)")
+				})
 			}
 		}
 		if err := comUsuario(func(ctx context.Context, tx pgx.Tx) error {

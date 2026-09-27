@@ -912,6 +912,39 @@ test.describe
       await expect(backups).toContainText("Último backup");
       await expect(backups).toContainText("Teste de restore");
       await semRolagemHorizontal(page);
+
+      // meus dados: exportar tudo (arquivo de verdade), atividade e o que a IA viu
+      await page.goto("/mais");
+      await page.getByRole("link", { name: "Meus dados" }).click();
+      const [download] = await Promise.all([
+        page.waitForEvent("download"),
+        page.getByRole("button", { name: "Tudo (JSON)" }).click(),
+      ]);
+      expect(download.suggestedFilename()).toMatch(/^financas-\d{4}-\d{2}-\d{2}\.json$/);
+      const caminho = await download.path();
+      const exportado = JSON.parse(await (await import("node:fs/promises")).readFile(caminho, "utf8"));
+      expect(exportado.usuario.email).toBe("ana@teste.com");
+      expect(JSON.stringify(exportado)).toContain("JANTAR DA CASA");
+      expect(JSON.stringify(exportado)).not.toContain("senha_hash");
+      await page.reload();
+      await expect(page.getByRole("list", { name: "Atividade da conta" })).toContainText("Dados exportados");
+      await expect(page.getByRole("list", { name: "Envios à IA" })).toContainText("Pergunta");
+      await semRolagemHorizontal(page);
+
+      // apagar a conta: some em 30 dias; entrar de novo permite cancelar
+      await page.getByLabel("Digite APAGAR para confirmar").fill("APAGAR");
+      await page.getByRole("button", { name: "Apagar em 30 dias" }).click();
+      await expect(page).toHaveURL(/\/entrar\?apagada=/);
+      await expect(page.getByText(/Sua conta será apagada em/)).toBeVisible();
+      await page.getByLabel("E-mail").fill("ana@teste.com");
+      await page.getByLabel("Senha").fill(senha);
+      await page.getByRole("button", { name: "Continuar" }).click();
+      await page.getByRole("button", { name: "Usar código de recuperação" }).click();
+      await page.getByLabel("Código de recuperação").fill(codigosAna[7] ?? "");
+      await page.getByRole("button", { name: "Confirmar" }).click();
+      await expect(page.getByText(/Sua conta será apagada em/)).toBeVisible();
+      await page.getByRole("button", { name: "Cancelar exclusão" }).click();
+      await expect(page.getByText(/Sua conta será apagada em/)).toBeHidden();
       expect(violacoes).toEqual([]);
     });
   });

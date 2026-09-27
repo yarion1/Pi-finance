@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.9.1 — fase 8 (parte 2): meus dados, exclusão da conta e o que a IA viu
+
+- **Mais › Meus dados**: baixe tudo o que é seu em JSON (com o CPF/CNPJ) ou em planilha
+  (.xlsx com contas, transações, investimentos e metas). Pede a senha de novo.
+- **Atividade da conta**: logins, exportações, permissões e exclusões, com aparelho e IP.
+- **O que a IA viu**: cada envio ao Claude com o resumo do que foi (sem o conteúdo).
+- **Apagar minha conta**: some de verdade em 30 dias; até lá, é só entrar de novo e
+  cancelar. Casas em que você é o único dono passam para o membro mais antigo.
+- Ao compartilhar uma conta com a casa, o formulário diz o que a casa passa a ver.
+
 ## v0.9.0 — fase 8 (parte 1): backups cifrados com restore testado
 
 - Backup a cada 6 horas num repositório **restic cifrado** (4 últimos, 7 diários, 4

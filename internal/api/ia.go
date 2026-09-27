@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"strconv"
@@ -121,7 +122,15 @@ func (s *Servidor) chatIA(w http.ResponseWriter, r *http.Request) {
 	defer cancelar()
 	resp, err := s.IA.Conversar(ctx, hoje.Format("2006-01-02"), c.Mensagens, s.ferramentasChat(r))
 	if errGrava := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
-		return financeiro.RegistrarUsoIA(ctx, tx, hoje, resp.Uso)
+		pergunta := []rune(c.Mensagens[len(c.Mensagens)-1].Texto)
+		if len(pergunta) > 200 {
+			pergunta = append(pergunta[:200], '…')
+		}
+		resumo := fmt.Sprintf("Pergunta: “%s” (e %d mensagens anteriores da conversa)", string(pergunta), len(c.Mensagens)-1)
+		if len(resp.Ferramentas) > 0 {
+			resumo += "; resultados das ferramentas: " + strings.Join(resp.Ferramentas, ", ")
+		}
+		return financeiro.RegistrarUsoIA(ctx, tx, hoje, resp.Uso, financeiro.EnvioChat, resumo)
 	}); errGrava != nil && err == nil {
 		err = errGrava
 	}

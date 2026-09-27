@@ -36,6 +36,7 @@ const paginas: [string, string, string?][] = [
   ["/categorias", "Categorias e regras", ""],
   ["/seguranca", "Segurança", "senha 2fa passkey"],
   ["/notificacoes", "Notificações", "push telegram avisos alertas"],
+  ["/meus-dados", "Meus dados", "exportar baixar apagar conta atividade lgpd ia viu"],
   ["/ia", "Inteligência artificial", "configurar teto"],
 ];
 

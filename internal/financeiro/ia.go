@@ -3,6 +3,7 @@ package financeiro
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -67,10 +68,26 @@ func PodeUsarIA(ctx context.Context, tx pgx.Tx, hoje time.Time) error {
 	return nil
 }
 
-// RegistrarUsoIA soma o consumo ao mês do usuário da sessão.
-func RegistrarUsoIA(ctx context.Context, tx pgx.Tx, hoje time.Time, u ia.Uso) error {
+// Tipos de envio à IA ("o que a IA viu").
+const (
+	EnvioCategorizar = "categorizar"
+	EnvioChat        = "chat"
+	EnvioRelatorio   = "relatorio"
+	EnvioDocumento   = "documento"
+)
+
+// RegistrarUsoIA soma o consumo ao mês do usuário da sessão e guarda o resumo do que foi
+// enviado (a tela "o que a IA viu").
+func RegistrarUsoIA(ctx context.Context, tx pgx.Tx, hoje time.Time, u ia.Uso, tipo, resumo string) error {
 	if u.Chamadas == 0 {
 		return nil
+	}
+	if r := []rune(resumo); len(r) > 500 {
+		resumo = string(r[:500]) + "…"
+	}
+	if _, err := tx.Exec(ctx, `insert into ia_envios (usuario_id, tipo, resumo, tokens_entrada, tokens_saida, custo_microdolares)
+		values (app_usuario_id(), $1, $2, $3, $4, $5)`, tipo, resumo, u.Entrada, u.Saida, u.CustoMicro); err != nil {
+		return err
 	}
 	_, err := tx.Exec(ctx, `insert into ia_uso (usuario_id, mes, chamadas, tokens_entrada, tokens_saida, custo_microdolares)
 		values (app_usuario_id(), $1, $2, $3, $4, $5)
@@ -198,7 +215,9 @@ func CategorizarComIA(ctx context.Context, cliente *ia.Cliente, comUsuario func(
 		rel.Uso.Somar(uso)
 		rel.Analisadas += len(l.Itens)
 		if errGrava := comUsuario(func(ctx context.Context, tx pgx.Tx) error {
-			if err := RegistrarUsoIA(ctx, tx, Hoje(), uso); err != nil {
+			resumo := fmt.Sprintf("%d transações sem categoria (descrição já sem CPF, CNPJ, e-mail, contas e nomes de Pix; valor e data) e os nomes de %d categorias",
+				len(l.Itens), len(l.Categorias))
+			if err := RegistrarUsoIA(ctx, tx, Hoje(), uso, EnvioCategorizar, resumo); err != nil {
 				return err
 			}
 			n, err := AplicarCategoriasIA(ctx, tx, escolhas)

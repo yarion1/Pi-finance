@@ -63,6 +63,7 @@ type Sessao struct {
 	ReautenticadaEm *time.Time
 	TemTOTP         bool
 	Passkeys        int
+	ApagarEm        *time.Time // pediu para apagar a conta: some nessa data (dá para cancelar)
 }
 
 // PrecisaConfigurar2FA: o usuário ainda não tem nenhum segundo fator.
@@ -320,10 +321,11 @@ func (s *Servico) SessaoPorToken(ctx context.Context, token string) (*Sessao, er
 	err := s.Pool.QueryRow(ctx, `
 		select s.id, s.usuario_id, u.nome, u.email, s.mfa_ok, s.expira_em, s.reautenticada_em,
 		       exists (select 1 from dois_fatores f where f.usuario_id = u.id and f.segredo_cifrado is not null),
-		       (select count(*) from passkeys p where p.usuario_id = u.id)
+		       (select count(*) from passkeys p where p.usuario_id = u.id), u.apagar_em
 		from sessoes s join usuarios u on u.id = s.usuario_id
 		where s.token_hash = $1`, HashToken(token)).
-		Scan(&ss.ID, &ss.UsuarioID, &ss.Nome, &ss.Email, &ss.MFAOK, &ss.ExpiraEm, &ss.ReautenticadaEm, &ss.TemTOTP, &ss.Passkeys)
+		Scan(&ss.ID, &ss.UsuarioID, &ss.Nome, &ss.Email, &ss.MFAOK, &ss.ExpiraEm, &ss.ReautenticadaEm, &ss.TemTOTP, &ss.Passkeys,
+			&ss.ApagarEm)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrSessao
 	}

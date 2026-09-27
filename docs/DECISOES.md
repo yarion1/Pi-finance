@@ -645,3 +645,25 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   totais (que dizem quanto a casa toda movimenta).
 - Os dumps antigos sem cifra somem 7 dias depois do primeiro backup cifrado; o dump
   pré-deploy (sem cifra, para voltar um deploy) fica só nos 3 últimos.
+
+## D43 — Exportar, apagar a conta, atividade e "o que a IA viu" (fase 8)
+
+- **Exportação** (Mais › Meus dados), com a senha de novo e registrada na auditoria:
+  JSON com tudo o que é da pessoa (as entidades de que é dona, com o CPF/CNPJ decifrado,
+  e todas as tabelas ligadas a elas ou a ela) e uma planilha `.xlsx` com contas,
+  transações, investimentos e metas. As tabelas saem pelo catálogo do banco (tabela nova
+  entra sozinha); colunas cifradas, hashes, tokens e segredos nunca saem; dados de
+  autenticação e do servidor ficam fora. Texto na planilha é sempre texto (nada de fórmula).
+- **Apagar a conta**: senha de novo + digitar APAGAR. A conta fica marcada para 30 dias
+  depois e todas as sessões caem; entrar de novo mostra o aviso com "Cancelar exclusão".
+  Vencido o prazo, a limpeza de hora em hora do worker apaga de verdade (entidades,
+  contas, transações e o resto em cascata). Casa em que a pessoa era a única dona passa
+  para o membro mais antigo (membro antes de leitor); casa que fica vazia some. A
+  auditoria da pessoa some junto (o `usuario_id` fica nulo).
+- **Atividade da conta**: os 100 eventos mais recentes da auditoria da própria pessoa
+  (logins, exportações, permissões, exclusões...), com aparelho e IP.
+- **O que a IA viu**: cada envio ao Claude gera um registro com o tipo e um resumo
+  (quantas transações foram categorizar e o que ia nelas; a pergunta do chat e as
+  ferramentas usadas; os totais do relatório; o documento enviado), sem o conteúdo.
+- **Consentimento para compartilhar**: toda conta nasce privada; ao escolher "só saldo" ou
+  "compartilhada", o formulário diz o que a casa passa a ver.

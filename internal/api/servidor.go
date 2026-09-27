@@ -87,6 +87,13 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("GET /api/auth/passkeys", s.sessaoCompleta(s.listarPasskeys))
 	mux.Handle("DELETE /api/auth/passkeys/{id}", s.sessaoCompleta(s.removerPasskey))
 
+	// a própria conta (LGPD, fase 8)
+	mux.Handle("POST /api/conta/exportar", s.sessaoCompleta(s.exportarDados))
+	mux.Handle("POST /api/conta/apagar", s.sessaoCompleta(s.apagarMinhaConta))
+	mux.Handle("POST /api/conta/cancelar-exclusao", s.sessaoCompleta(s.cancelarExclusao))
+	mux.Handle("GET /api/conta/atividade", s.sessaoCompleta(s.atividade))
+	mux.Handle("GET /api/ia/envios", s.sessaoCompleta(s.enviosIA))
+
 	// convites
 	mux.Handle("GET /api/convites/{token}", s.limitadoPor(s.limiteConvite, http.HandlerFunc(s.verConvite)))
 	mux.Handle("POST /api/convites/{token}/aceitar", s.sessaoCompleta(s.aceitarConvite))
@@ -288,7 +295,7 @@ var RotasLeitura = []string{
 	"/api/relatorios", "/api/relatorios/{relatorio}",
 	"/api/analise/gastos", "/api/analise/gastos?entidade_id={entidade}&mes=2026-09&meses=24",
 	"/api/analise/fluxo", "/api/analise/fluxo?entidade_id={entidade}&mes=2026-09", "/api/holerites", "/api/holerites?entidade_id={entidade}&ano=2026",
-	"/api/notificacoes", "/api/sistema/backups", "/api/casas/{casa}/painel", "/api/casas/{casa}/painel?mes=2026-09",
+	"/api/notificacoes", "/api/sistema/backups", "/api/conta/atividade", "/api/ia/envios", "/api/casas/{casa}/painel", "/api/casas/{casa}/painel?mes=2026-09",
 	"/api/projecoes/futuro", "/api/projecoes/futuro?entidade_id={entidade}&aporte=100000&anos=5&perfil=arrojado",
 }
 

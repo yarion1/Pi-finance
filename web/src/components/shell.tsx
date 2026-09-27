@@ -17,6 +17,7 @@ import { NavLink, Outlet, useNavigate } from "react-router";
 import { api } from "../lib/api";
 import { usePrivacidade, useTema } from "../lib/preferencias";
 import { chaveSessao, useSessao } from "../lib/sessao";
+import { AvisoExclusao } from "../pages/meus-dados";
 import { abrirPaleta, PaletaComandos } from "./paleta";
 
 const itens = [
@@ -136,6 +137,7 @@ export function Shell() {
         </header>
 
         <main className="flex-1 px-4 pt-5 pb-28 sm:px-6 md:px-8 md:pt-8 md:pb-10">
+          {sessao?.apagar_em ? <AvisoExclusao apagarEm={sessao.apagar_em} /> : null}
           <Outlet />
         </main>
         <PaletaComandos />

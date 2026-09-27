@@ -11,6 +11,7 @@ export type Sessao = {
   passkeys: number;
   precisa_configurar_2fa: boolean;
   reautenticada: boolean;
+  apagar_em?: string;
 };
 
 export const chaveSessao = ["sessao"] as const;

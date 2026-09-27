@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -120,7 +121,8 @@ func (s *Servidor) lerDocumento(w http.ResponseWriter, r *http.Request) {
 	defer cancelar()
 	extraido, uso, errIA := s.IA.LerDocumento(ctx, c.Tipo, midia, arquivo)
 	if err := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
-		return financeiro.RegistrarUsoIA(ctx, tx, financeiro.Hoje(), uso)
+		resumo := fmt.Sprintf("Documento inteiro, com os dados pessoais (%s, %d KB), para ler como %s", midia, (len(arquivo)+1023)/1024, c.Tipo)
+		return financeiro.RegistrarUsoIA(ctx, tx, financeiro.Hoje(), uso, financeiro.EnvioDocumento, resumo)
 	}); err != nil {
 		falhar(w, r, err)
 		return

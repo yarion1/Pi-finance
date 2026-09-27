@@ -9,15 +9,16 @@ import (
 )
 
 type respostaSessao struct {
-	Autenticado       bool   `json:"autenticado"`
-	UsuarioID         string `json:"usuario_id,omitempty"`
-	Nome              string `json:"nome,omitempty"`
-	Email             string `json:"email,omitempty"`
-	MFAOK             bool   `json:"mfa_ok"`
-	TemTOTP           bool   `json:"tem_totp"`
-	Passkeys          int    `json:"passkeys"`
-	PrecisaConfigurar bool   `json:"precisa_configurar_2fa"`
-	Reautenticada     bool   `json:"reautenticada"`
+	Autenticado       bool       `json:"autenticado"`
+	UsuarioID         string     `json:"usuario_id,omitempty"`
+	Nome              string     `json:"nome,omitempty"`
+	Email             string     `json:"email,omitempty"`
+	MFAOK             bool       `json:"mfa_ok"`
+	TemTOTP           bool       `json:"tem_totp"`
+	Passkeys          int        `json:"passkeys"`
+	PrecisaConfigurar bool       `json:"precisa_configurar_2fa"`
+	Reautenticada     bool       `json:"reautenticada"`
+	ApagarEm          *time.Time `json:"apagar_em,omitempty"`
 }
 
 func (s *Servidor) estadoCadastro(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +39,7 @@ func (s *Servidor) verSessao(w http.ResponseWriter, r *http.Request) {
 	escreverJSON(w, http.StatusOK, respostaSessao{
 		Autenticado: true, UsuarioID: ss.UsuarioID, Nome: ss.Nome, Email: ss.Email, MFAOK: ss.MFAOK,
 		TemTOTP: ss.TemTOTP, Passkeys: ss.Passkeys, PrecisaConfigurar: ss.PrecisaConfigurar2FA(),
-		Reautenticada: ss.Reautenticada(time.Now()),
+		Reautenticada: ss.Reautenticada(time.Now()), ApagarEm: ss.ApagarEm,
 	})
 }
 
