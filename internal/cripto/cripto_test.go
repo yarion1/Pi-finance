@@ -56,3 +56,17 @@ func TestCarregarArquivo(t *testing.T) {
 		t.Fatal("chave curta deveria falhar")
 	}
 }
+
+func TestDerivar(t *testing.T) {
+	a, _ := Novo(make([]byte, 32))
+	b, _ := Novo(make([]byte, 32))
+	chave := make([]byte, 32)
+	chave[0] = 1
+	c, _ := Novo(chave)
+	if string(a.Derivar("vapid")) != string(b.Derivar("vapid")) || len(a.Derivar("vapid")) != 32 {
+		t.Fatal("mesma chave, mesmo resultado")
+	}
+	if string(a.Derivar("vapid")) == string(a.Derivar("outro")) || string(a.Derivar("vapid")) == string(c.Derivar("vapid")) {
+		t.Fatal("rótulo ou chave diferentes dão resultados diferentes")
+	}
+}

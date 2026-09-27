@@ -93,6 +93,7 @@ jobs:
           export LIMITE_AUTH_POR_MINUTO=100  # o e2e faz vários logins seguidos do mesmo IP
           export PLUGGY_URL=http://127.0.0.1:3200  # cmd/pluggy-falsa
           export ANTHROPIC_API_KEY=teste ANTHROPIC_BASE_URL=http://127.0.0.1:3200  # Claude falso, mesmo processo
+          export TELEGRAM_PAINEL_TOKEN=teste TELEGRAM_API_URL=http://127.0.0.1:3200  # bot do Telegram falso, idem
           nohup /tmp/financas serve > /tmp/serve.log 2>&1 &
           nohup /tmp/financas worker > /tmp/worker.log 2>&1 &
           for i in $(seq 30); do curl -sf -o /dev/null http://127.0.0.1:3100/api/health && break; sleep 1; done

@@ -26,6 +26,9 @@ type Config struct {
 	TokenBrapi          string
 	ChaveAnthropic      string
 	URLAnthropic        string // só nos testes (API falsa)
+	TokenTelegram       string // bot do BotFather; vazio = sem Telegram
+	URLTelegram         string // só nos testes (API falsa)
+	ContatoPush         string // mailto: ou https: que vai no VAPID
 }
 
 func env(chave, padrao string) string {
@@ -51,6 +54,9 @@ func Carregar() (Config, error) {
 		TokenBrapi:          env("BRAPI_TOKEN", ""),
 		ChaveAnthropic:      env("ANTHROPIC_API_KEY", ""),
 		URLAnthropic:        env("ANTHROPIC_BASE_URL", ""),
+		TokenTelegram:       env("TELEGRAM_PAINEL_TOKEN", ""),
+		URLTelegram:         env("TELEGRAM_API_URL", ""),
+		ContatoPush:         env("PUSH_CONTATO", ""),
 	}
 	if v := env("LIMITE_AUTH_POR_MINUTO", ""); v != "" {
 		n, err := strconv.Atoi(v)

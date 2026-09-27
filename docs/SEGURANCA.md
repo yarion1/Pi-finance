@@ -21,7 +21,7 @@ diz onde está a proteção no código e como é testada. Rever a cada fase nova
 | 14 | Tokens | Sessão, convite e recuperação com 256 bits aleatórios, hash no banco, expiração curta (sessão parcial minutos; convite 48 h, uso único) e troca do token ao completar o 2FA. | `internal/auth` |
 | 15 | Rate limit | Por IP: 600 req/min na API toda e 120 escritas/min; mais apertado no login e nos convites. | `TestLimiteGeralDaAPI` |
 | 16 | Dados sensíveis expostos | A API nunca devolve segredo (do Client ID só os 4 últimos); CPF/CNPJ mascarados; nada de dado financeiro no log. | teste de isolamento procura os segredos nas respostas |
-| 17 | SSRF | O servidor só chama endereços fixos (Pluggy, brapi, CoinGecko, Banco Central, API do Claude); nenhuma URL vem do usuário. | `internal/pluggy`, `internal/cotacoes`, `internal/ia` |
+| 17 | SSRF | O servidor só chama endereços fixos (Pluggy, brapi, CoinGecko, Banco Central, API do Claude, API do Telegram). A única URL que vem do navegador, o endereço de push, só é aceita em HTTPS, sem porta nem usuário, e num dos serviços de push conhecidos (FCM, Mozilla, Apple, Windows); é conferida de novo a cada envio. | `internal/pluggy`, `internal/cotacoes`, `internal/ia`, `ValidarEndpoint`, `TestNotificacoes` |
 | 18 | Cookies inseguros | `__Host-`, `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`; HSTS com HTTPS. | `gravarCookie` |
 | 19 | CORS | Nenhum cabeçalho `Access-Control-*`: só a própria origem usa a API; CSP estrita sem terceiros, `frame-ancestors 'none'`. | `cabecalhos` |
 
@@ -35,6 +35,13 @@ descrições de transações são só dados para o modelo, que não tem ferramen
 envio, de que o documento vai inteiro (com dados pessoais) para a API da Anthropic; o
 arquivo não é gravado. Nada entra no banco sem a pessoa conferir a prévia
 (`TestLerELancarDocumentos`). Relatórios mandam à IA só totais e nomes de categoria.
+
+**Notificações (fase 7)**: aparecem na tela bloqueada, então **sem valores** por padrão
+("•••"; a pessoa liga se quiser). A inscrição de push (endereço e chaves do aparelho) e o
+chat do Telegram ficam cifrados; o conteúdo do push vai cifrado de ponta a ponta até o
+aparelho (RFC 8291). Ligar o Telegram pede a senha e usa um código de uso único de 15 min
+(só o hash fica no banco); o bot só responde em conversa privada e o token nunca aparece
+em erro nem log. Os links das notificações são sempre caminhos do próprio painel.
 
 Na frente de tudo, o **Cloudflare Access** só deixa chegar ao painel quem está na lista de
 e-mails (DECISOES D11 e D29).

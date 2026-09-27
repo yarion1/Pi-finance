@@ -1,4 +1,5 @@
 import {
+  Bell,
   Building2,
   CalendarDays,
   ChevronRight,
@@ -94,6 +95,9 @@ export function Mais() {
             </Item>
             <Item para="/ia" icone={<Sparkles className="size-5" />}>
               Inteligência artificial
+            </Item>
+            <Item para="/notificacoes" icone={<Bell className="size-5" />}>
+              Notificações
             </Item>
             <Item para="/seguranca" icone={<Shield className="size-5" />}>
               Segurança

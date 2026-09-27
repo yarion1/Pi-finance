@@ -6,7 +6,9 @@ package cripto
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hkdf"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -18,7 +20,8 @@ const prefixo = "v1:"
 
 // Cifrador cifra e decifra textos com uma chave de 32 bytes.
 type Cifrador struct {
-	aead cipher.AEAD
+	aead     cipher.AEAD
+	derivada []byte // HKDF da chave mestra, para outras chaves estáveis (ex.: VAPID)
 }
 
 // Novo cria o cifrador a partir da chave crua (32 bytes).
@@ -34,7 +37,19 @@ func Novo(chave []byte) (*Cifrador, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Cifrador{aead: aead}, nil
+	derivada, err := hkdf.Key(sha256.New, chave, nil, "financas: derivar", 32)
+	if err != nil {
+		return nil, err
+	}
+	return &Cifrador{aead: aead, derivada: derivada}, nil
+}
+
+// Derivar devolve 32 bytes estáveis para o rótulo, vindos da chave mestra sem expô-la
+// (a mesma chave mestra sempre dá o mesmo resultado; rótulos diferentes, resultados
+// independentes).
+func (c *Cifrador) Derivar(rotulo string) []byte {
+	k, _ := hkdf.Key(sha256.New, c.derivada, nil, rotulo, 32)
+	return k
 }
 
 // CarregarArquivo lê a chave em base64 (saída de `openssl rand -base64 32`).

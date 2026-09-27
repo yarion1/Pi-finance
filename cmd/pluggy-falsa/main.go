@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/yarion1/pi-finance/internal/pluggy"
@@ -74,6 +75,10 @@ func main() {
 	log.Printf("pluggy falsa em http://%s", endereco)
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v1/messages", claudeFalso)
+	tg := &telegramFalso{}
+	mux.HandleFunc("POST /{bot}/{metodo}", tg.api)
+	mux.HandleFunc("POST /telegram/mensagem", tg.receber)
+	mux.HandleFunc("GET /telegram/enviadas", tg.listarEnviadas)
 	mux.Handle("/", f)
 	srv := &http.Server{Addr: endereco, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	log.Fatal(srv.ListenAndServe())
@@ -127,4 +132,69 @@ func resumir(s string) string {
 		return s[:300]
 	}
 	return s
+}
+
+// telegramFalso: a API do bot (getMe, getUpdates, sendMessage) com o token "teste"; o e2e
+// "manda" mensagens para o bot por POST /telegram/mensagem e lê as respostas.
+type telegramFalso struct {
+	mu       sync.Mutex
+	proximo  int64
+	fila     []map[string]any
+	enviadas []map[string]any
+}
+
+func (t *telegramFalso) api(w http.ResponseWriter, r *http.Request) {
+	if r.PathValue("bot") != "botteste" {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = io.WriteString(w, `{"ok":false,"description":"Unauthorized"}`)
+		return
+	}
+	var p map[string]any
+	_ = json.NewDecoder(r.Body).Decode(&p)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	var res any = map[string]any{}
+	switch r.PathValue("metodo") {
+	case "getMe":
+		res = map[string]any{"username": "financas_teste_bot"}
+	case "getUpdates":
+		desde, _ := p["offset"].(float64)
+		novos := []map[string]any{}
+		for _, u := range t.fila {
+			if u["update_id"].(int64) >= int64(desde) {
+				novos = append(novos, u)
+			}
+		}
+		t.fila = novos
+		res = novos
+	case "sendMessage":
+		t.enviadas = append(t.enviadas, p)
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": res})
+}
+
+func (t *telegramFalso) receber(w http.ResponseWriter, r *http.Request) {
+	var m struct {
+		ChatID int64  `json:"chat_id"`
+		Texto  string `json:"texto"`
+	}
+	if json.NewDecoder(r.Body).Decode(&m) != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.proximo++
+	t.fila = append(t.fila, map[string]any{"update_id": t.proximo,
+		"message": map[string]any{"chat": map[string]any{"id": m.ChatID, "type": "private"}, "text": m.Texto}})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (t *telegramFalso) listarEnviadas(w http.ResponseWriter, _ *http.Request) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	_ = json.NewEncoder(w).Encode(t.enviadas)
 }

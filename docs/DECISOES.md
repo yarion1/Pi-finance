@@ -575,3 +575,24 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   mostrar "R$ ••••" nos eixos e tooltips.
 - **Primeiros passos** no início com os 4 da SPEC: pessoa física, primeiro banco (Open
   Finance ou extrato), categorias revisadas e uma meta, com o "N de 4".
+
+## D40 — Notificações por push e Telegram (fase 7)
+
+- **Web Push sem biblioteca**: a cifra do conteúdo (RFC 8291, aes128gcm) e o VAPID
+  (RFC 8292, ES256) com a biblioteca padrão do Go; testado com o vetor da própria RFC. A
+  **chave VAPID sai da chave mestra** (HKDF com rótulo próprio): nada novo para configurar,
+  e serve e worker chegam na mesma chave. `PUSH_CONTATO` (opcional) vai no `sub`; sem ele,
+  a `PUBLIC_URL`.
+- **Telegram por `getUpdates`** (o worker lê a cada minuto), sem webhook: funciona atrás do
+  túnel e não abre rota nova. Precisa de um **bot só do painel** (`TELEGRAM_PAINEL_TOKEN`):
+  só um programa pode ler as mensagens de um bot, e o dos avisos de deploy continua como
+  está. A pessoa liga pelo link `t.me/<bot>?start=<código>` (uso único, 15 min, pede a
+  senha); o bot guarda o chat cifrado.
+- **Tipos**: alertas (os da fase 6), contas do dia (às 8 h, o que vence hoje e amanhã),
+  relatórios prontos e segurança (login em aparelho novo). Cada tipo liga e desliga por
+  canal; sem configuração, tudo ligado. Valores escondidos por padrão.
+- O worker marca cada alerta como notificado (uma vez só, e só os dos últimos 2 dias e não
+  lidos); os alertas que já existiam antes desta versão não viram notificação. A agenda
+  guarda uma chave por dia para não repetir.
+- Aparelho que o serviço de push diz não existir mais (404/410) sai da lista sozinho;
+  no máximo 10 aparelhos por pessoa.

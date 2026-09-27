@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.3 — fase 7 (parte 4): notificações no celular e no Telegram
+
+- **Notificações** (Mais › Notificações): ative no celular (com o app instalado) e/ou
+  conecte o **Telegram** com um link de uso único.
+- Escolha por tipo e por canal: **alertas** (gasto fora do padrão, cobrança duplicada,
+  tarifa, assinatura nova, saldo diferente), **contas do dia** (às 8 h, o que vence hoje e
+  amanhã), **relatórios** prontos e **segurança** (login em aparelho novo).
+- Valores escondidos por padrão (a notificação aparece na tela bloqueada); dá para ligar.
+- Botão para mandar um teste; tocar na notificação abre a tela certa do painel.
+- No Pi: o push não pede configuração. Para o Telegram, crie um bot novo no @BotFather e
+  coloque o token em `TELEGRAM_PAINEL_TOKEN` no `/etc/financas/.env`.
+
 ## v0.8.2 — fase 7 (parte 3): app instalável e paleta de comandos
 
 - **Instale no celular**: o painel virou um app (PWA) com ícone, tela cheia e atalhos

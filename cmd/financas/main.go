@@ -14,9 +14,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 	_ "time/tzdata" // a imagem distroless não tem fusos
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/yarion1/pi-finance/internal/api"
 	"github.com/yarion1/pi-finance/internal/auth"
@@ -25,6 +28,7 @@ import (
 	"github.com/yarion1/pi-finance/internal/cripto"
 	"github.com/yarion1/pi-finance/internal/db"
 	"github.com/yarion1/pi-finance/internal/ia"
+	"github.com/yarion1/pi-finance/internal/notificar"
 	"github.com/yarion1/pi-finance/internal/openfinance"
 	"github.com/yarion1/pi-finance/internal/pluggy"
 	"github.com/yarion1/pi-finance/internal/worker"
@@ -98,7 +102,8 @@ func servir(ctx context.Context) error {
 		OpenFinance: &openfinance.Servico{
 			Banco: pool, Cifrador: cifrador, Pluggy: pluggy.Novo(cfg.URLPluggy),
 		},
-		IA: ia.Novo(cfg.ChaveAnthropic, cfg.URLAnthropic),
+		IA:        ia.Novo(cfg.ChaveAnthropic, cfg.URLAnthropic),
+		Notificar: despachante(pool, cifrador, cfg),
 	}
 	http := &http.Server{
 		Addr:              cfg.Endereco,
@@ -141,7 +146,32 @@ func rodarWorker(ctx context.Context) error {
 	}
 	defer pool.Close()
 	of := &openfinance.Servico{Banco: pool, Cifrador: cifrador, Pluggy: pluggy.Novo(cfg.URLPluggy)}
-	return worker.Rodar(ctx, pool, versao, of, cotacoes.Padrao(cfg.TokenBrapi), ia.Novo(cfg.ChaveAnthropic, cfg.URLAnthropic))
+	return worker.Rodar(ctx, pool, versao, of, cotacoes.Padrao(cfg.TokenBrapi), ia.Novo(cfg.ChaveAnthropic, cfg.URLAnthropic),
+		despachante(pool, cifrador, cfg))
+}
+
+// despachante das notificações: a chave VAPID sai da chave mestra (serve e worker chegam
+// na mesma) e o Telegram só com TELEGRAM_PAINEL_TOKEN.
+func despachante(pool *pgxpool.Pool, cifrador *cripto.Cifrador, cfg config.Config) *notificar.Despachante {
+	d := &notificar.Despachante{Pool: pool, Cifrador: cifrador, URLPublica: cfg.URLPublica,
+		Telegram: notificar.NovoTelegram(cfg.TokenTelegram)}
+	if d.Telegram != nil && cfg.URLTelegram != "" {
+		d.Telegram.Base = cfg.URLTelegram
+	}
+	contato := cfg.ContatoPush
+	if contato == "" {
+		contato = cfg.URLPublica
+	}
+	if !strings.HasPrefix(contato, "https:") && !strings.HasPrefix(contato, "mailto:") {
+		contato = "mailto:financas@localhost"
+	}
+	vapid, err := notificar.VAPIDDaSemente(cifrador.Derivar("financas vapid"), contato)
+	if err != nil {
+		slog.Warn("push desligado", "erro", err)
+		return d
+	}
+	d.Push = &notificar.Push{VAPID: vapid, HTTP: &http.Client{Timeout: 15 * time.Second}}
+	return d
 }
 
 func migrar(ctx context.Context) error {

@@ -35,6 +35,7 @@ const paginas: [string, string, string?][] = [
   ["/documentos", "Ler documento", "pdf foto holerite nota"],
   ["/categorias", "Categorias e regras", ""],
   ["/seguranca", "Segurança", "senha 2fa passkey"],
+  ["/notificacoes", "Notificações", "push telegram avisos alertas"],
   ["/ia", "Inteligência artificial", "configurar teto"],
 ];
 

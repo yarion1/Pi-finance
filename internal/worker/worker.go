@@ -2,11 +2,12 @@
 // Sinal de vida a cada minuto, limpeza de sessões vencidas e, de hora em hora, a
 // sincronização do Open Finance de quem está há mais de 20 h sem sincronizar; a cada
 // 6 h, as cotações e os índices (CDI, IPCA, dólar); de hora em hora, a categorização
-// com IA de quem a ligou.
+// com IA de quem a ligou; a cada minuto, as notificações (push e Telegram).
 package worker
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/yarion1/pi-finance/internal/db"
 	"github.com/yarion1/pi-finance/internal/financeiro"
 	"github.com/yarion1/pi-finance/internal/ia"
+	"github.com/yarion1/pi-finance/internal/notificar"
 	"github.com/yarion1/pi-finance/internal/openfinance"
 )
 
@@ -217,7 +219,42 @@ func GravarSinal(ctx context.Context, pool *pgxpool.Pool, servico string, dados 
 }
 
 // Rodar inicia o worker e bloqueia até o contexto acabar.
-func Rodar(ctx context.Context, pool *pgxpool.Pool, versao string, of *openfinance.Servico, fontes *cotacoes.Fontes, claude *ia.Cliente) error {
+// NotificarArgs manda os alertas novos, o lembrete da agenda e lê o bot do Telegram.
+type NotificarArgs struct{}
+
+func (NotificarArgs) Kind() string { return "notificar" }
+
+type notificarJob struct {
+	river.WorkerDefaults[NotificarArgs]
+	d *notificar.Despachante
+}
+
+func (t *notificarJob) Timeout(*river.Job[NotificarArgs]) time.Duration { return 50 * time.Second }
+
+func (t *notificarJob) Work(ctx context.Context, _ *river.Job[NotificarArgs]) error {
+	return Notificar(ctx, t.d, financeiro.Agora())
+}
+
+// Notificar: uma rodada (os erros de um canal não impedem os outros).
+func Notificar(ctx context.Context, d *notificar.Despachante, agora time.Time) error {
+	if d == nil {
+		return nil
+	}
+	var erros []error
+	if err := d.VincularTelegram(ctx); err != nil {
+		erros = append(erros, err)
+	}
+	if _, err := d.Alertas(ctx); err != nil {
+		erros = append(erros, err)
+	}
+	if _, err := d.Agenda(ctx, agora); err != nil {
+		erros = append(erros, err)
+	}
+	return errors.Join(erros...)
+}
+
+func Rodar(ctx context.Context, pool *pgxpool.Pool, versao string, of *openfinance.Servico, fontes *cotacoes.Fontes, claude *ia.Cliente,
+	notif *notificar.Despachante) error {
 	trabalhadores := river.NewWorkers()
 	river.AddWorker(trabalhadores, &sinalVida{pool: pool, versao: versao})
 	river.AddWorker(trabalhadores, &limpeza{pool: pool})
@@ -225,6 +262,7 @@ func Rodar(ctx context.Context, pool *pgxpool.Pool, versao string, of *openfinan
 	river.AddWorker(trabalhadores, &atualizarCotacoes{pool: pool, fontes: fontes})
 	river.AddWorker(trabalhadores, &categorizarIA{pool: pool, cliente: claude})
 	river.AddWorker(trabalhadores, &gerarRelatorios{pool: pool, cliente: claude})
+	river.AddWorker(trabalhadores, &notificarJob{d: notif})
 
 	cliente, err := river.NewClient(riverpgxv5.New(pool), &river.Config{
 		Logger:  slog.Default(),
@@ -250,6 +288,12 @@ func Rodar(ctx context.Context, pool *pgxpool.Pool, versao string, of *openfinan
 			// de hora em hora vê se o mês fechou ou a semana acabou (cada relatório sai uma vez)
 			river.NewPeriodicJob(river.PeriodicInterval(time.Hour),
 				func() (river.JobArgs, *river.InsertOpts) { return RelatoriosArgs{}, nil },
+				&river.PeriodicJobOpts{RunOnStart: true}),
+			// alertas novos, lembrete das contas do dia e mensagens do bot
+			river.NewPeriodicJob(river.PeriodicInterval(time.Minute),
+				func() (river.JobArgs, *river.InsertOpts) {
+					return NotificarArgs{}, &river.InsertOpts{MaxAttempts: 1}
+				},
 				&river.PeriodicJobOpts{RunOnStart: true}),
 		},
 	})

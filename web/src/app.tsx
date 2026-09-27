@@ -26,6 +26,7 @@ import { Investimentos } from "./pages/investimentos";
 import { InvestimentosIR } from "./pages/investimentos-ir";
 import { Mais } from "./pages/mais";
 import { Metas } from "./pages/metas";
+import { Notificacoes } from "./pages/notificacoes";
 import { OpenFinance } from "./pages/open-finance";
 import { Orcamento } from "./pages/orcamento";
 import { Patrimonio } from "./pages/patrimonio";
@@ -138,6 +139,7 @@ export function App() {
           <Route path="/entidades" element={<Entidades />} />
           <Route path="/entidades/:id" element={<DetalheEntidade />} />
           <Route path="/seguranca" element={<Seguranca />} />
+          <Route path="/notificacoes" element={<Notificacoes />} />
           <Route
             path="*"
             element={

@@ -17,6 +17,7 @@ import (
 	"github.com/yarion1/pi-finance/internal/config"
 	"github.com/yarion1/pi-finance/internal/cripto"
 	"github.com/yarion1/pi-finance/internal/ia"
+	"github.com/yarion1/pi-finance/internal/notificar"
 	"github.com/yarion1/pi-finance/internal/openfinance"
 )
 
@@ -38,6 +39,8 @@ type Servidor struct {
 	OpenFinance *openfinance.Servico
 	// IA conversa com o Claude (fase 6); nil = sem ANTHROPIC_API_KEY.
 	IA *ia.Cliente
+	// Notificar manda push e Telegram (fase 7); nil = sem notificações.
+	Notificar *notificar.Despachante
 
 	limiteAuth    *limitador
 	limiteConvite *limitador
@@ -184,6 +187,15 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("POST /api/alertas/lidos", s.sessaoCompleta(s.dispensarAlertas))
 	mux.Handle("POST /api/alertas/{id}/lido", s.sessaoCompleta(s.dispensarAlerta))
 
+	// notificações (fase 7)
+	mux.Handle("GET /api/notificacoes", s.sessaoCompleta(s.notificacoes))
+	mux.Handle("PUT /api/notificacoes", s.sessaoCompleta(s.salvarNotificacoes))
+	mux.Handle("POST /api/notificacoes/push", s.sessaoCompleta(s.inscreverPush))
+	mux.Handle("DELETE /api/notificacoes/push/{id}", s.sessaoCompleta(s.removerPush))
+	mux.Handle("POST /api/notificacoes/telegram", s.sessaoCompleta(s.conectarTelegram))
+	mux.Handle("DELETE /api/notificacoes/telegram", s.sessaoCompleta(s.desconectarTelegram))
+	mux.Handle("POST /api/notificacoes/teste", s.sessaoCompleta(s.testarNotificacao))
+
 	// Open Finance (Meu Pluggy): cada pessoa só vê e mexe na própria conexão
 	mux.Handle("GET /api/open-finance", s.sessaoCompleta(s.openFinance))
 	mux.Handle("PUT /api/open-finance/credenciais", s.sessaoCompleta(s.salvarCredenciais))
@@ -268,6 +280,7 @@ var RotasLeitura = []string{
 	"/api/relatorios", "/api/relatorios/{relatorio}",
 	"/api/analise/gastos", "/api/analise/gastos?entidade_id={entidade}&mes=2026-09&meses=24",
 	"/api/analise/fluxo", "/api/analise/fluxo?entidade_id={entidade}&mes=2026-09", "/api/holerites", "/api/holerites?entidade_id={entidade}&ano=2026",
+	"/api/notificacoes",
 	"/api/projecoes/futuro", "/api/projecoes/futuro?entidade_id={entidade}&aporte=100000&anos=5&perfil=arrojado",
 }
 

@@ -781,4 +781,68 @@ test.describe
       }
       expect(violacoes).toEqual([]);
     });
+    test("fase 7: notificações por tipo e Telegram pelo link de uso único", async ({ page }) => {
+      // o worker lê o bot a cada minuto
+      test.setTimeout(150_000);
+      const violacoes: string[] = [];
+      vigiarCSP(page, violacoes);
+      const falsa = process.env.PLUGGY_FALSA_URL ?? "http://127.0.0.1:3200";
+
+      await page.goto("/entrar");
+      await page.getByLabel("E-mail").fill("ana@teste.com");
+      await page.getByLabel("Senha").fill(senha);
+      await page.getByRole("button", { name: "Continuar" }).click();
+      await page.getByRole("button", { name: "Usar código de recuperação" }).click();
+      await page.getByLabel("Código de recuperação").fill(codigosAna[6] ?? "");
+      await page.getByRole("button", { name: "Confirmar" }).click();
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Ana");
+
+      await page.goto("/mais");
+      await page.getByRole("link", { name: "Notificações" }).click();
+      await expect(page.getByRole("heading", { name: "Notificações", level: 1 })).toBeVisible();
+      // tudo vem ligado; valores escondidos por padrão
+      const alertasTelegram = page.getByRole("checkbox", { name: "Alertas no Telegram" });
+      await expect(alertasTelegram).toBeChecked();
+      await expect(page.getByRole("checkbox", { name: /Mostrar valores/ })).not.toBeChecked();
+      await alertasTelegram.uncheck();
+      await expect(page.getByRole("checkbox", { name: "Alertas no aparelho" })).toBeChecked();
+      await page.waitForLoadState("networkidle");
+      await page.reload();
+      await expect(page.getByRole("checkbox", { name: "Alertas no Telegram" })).not.toBeChecked();
+      await expect(page.getByRole("button", { name: "Mandar um teste" })).toBeDisabled();
+
+      // conectar o Telegram pede a senha e dá um link t.me com código de uso único
+      await page.getByRole("button", { name: "Conectar Telegram" }).click();
+      const reauth = page.getByRole("dialog", { name: "Confirme sua senha" });
+      await reauth.getByLabel("Senha").fill(senha);
+      await reauth.getByRole("button", { name: "Confirmar" }).click();
+      const abrir = page.getByRole("link", { name: "Abrir o Telegram" });
+      await expect(abrir).toBeVisible();
+      await capturar(page, "notificacoes");
+      const link = new URL((await abrir.getAttribute("href")) ?? "");
+      expect(link.host).toBe("t.me");
+      const codigo = link.searchParams.get("start") ?? "";
+      expect(codigo.length).toBeGreaterThan(20);
+      // a pessoa toca em Iniciar no Telegram: o bot recebe "/start <código>"
+      await page.request.post(`${falsa}/telegram/mensagem`, {
+        data: { chat_id: 4242, texto: `/start ${codigo}` },
+      });
+      await expect(page.getByText(/^Conectado/)).toBeVisible({ timeout: 90_000 });
+
+      await page.getByRole("button", { name: "Mandar um teste" }).click();
+      await expect(page.getByText("Enviado para 1 canal.")).toBeVisible();
+      const enviadas: { chat_id: number; text: string }[] = await (
+        await page.request.get(`${falsa}/telegram/enviadas`)
+      ).json();
+      expect(enviadas.some((m) => m.chat_id === 4242 && m.text.startsWith("Pronto"))).toBe(true);
+      expect(enviadas.some((m) => m.chat_id === 4242 && m.text.includes("Teste do painel"))).toBe(true);
+
+      await page.setViewportSize({ width: 360, height: 740 });
+      await page.reload();
+      await page.waitForLoadState("networkidle");
+      await semRolagemHorizontal(page);
+      await page.getByRole("button", { name: "Desconectar" }).click();
+      await expect(page.getByRole("button", { name: "Conectar Telegram" })).toBeVisible();
+      expect(violacoes).toEqual([]);
+    });
   });
