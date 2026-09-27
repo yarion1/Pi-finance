@@ -1000,3 +1000,28 @@ export type HoleritesDoAno = {
   irrf_centavos: number;
   liquido_centavos: number;
 };
+
+// Análises com gráficos (fase 7)
+export type ItemValor = { id: string; nome: string; valor_centavos: number };
+export type GastoHierarquia = ItemValor & { cor: string | null; filhas: ItemValor[] };
+
+export type AnaliseGastos = {
+  mes: string;
+  meses: string[];
+  series: { categoria_id: string | null; nome: string; cor: string | null; valores_centavos: number[] }[];
+  treemap: GastoHierarquia[] | null;
+  dias: { data: string; total_centavos: number }[];
+  estabelecimentos: { nome: string; chave: string; total_centavos: number; vezes: number }[];
+};
+
+export type AnaliseFluxo = {
+  mes: string;
+  nos: { nome: string; rotulo: string; tipo: string; categoria_id?: string; cor?: string | null }[];
+  ligacoes: { origem: string; destino: string; valor_centavos: number }[];
+  cascata: {
+    saldo_inicial_centavos: number;
+    entradas_centavos: number;
+    saidas_centavos: number;
+    saldo_final_centavos: number;
+  };
+};

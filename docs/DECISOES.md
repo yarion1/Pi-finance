@@ -508,3 +508,27 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   existentes.
 - **Arquivo**: tipo pelo conteúdo (assinatura de PDF, JPEG, PNG ou WebP), nunca pelo nome;
   até 8 MB (fotos até 5 MB, limite da API).
+
+## D37 — Gráficos com ECharts (fase 7)
+
+- **ECharts 6 carregado sob demanda** (`lib/graficos-motor.ts`, ~230 kB gzip num pedaço à
+  parte): só os tipos usados (barras, linhas, treemap, calendário, Sankey, medidor) e o
+  renderizador em **canvas**. O SVG do ECharts e os tooltips padrão escrevem atributos
+  `style` inline, que a CSP estrita bloqueia; no canvas nada disso existe, e os tooltips
+  são montados pelo painel com classes, texto escapado e amostras de cor em SVG com
+  `fill` (atributo, não estilo). O e2e falha se aparecer violação de CSP.
+- **Cores**: cada categoria usa a cor dela (a mesma das listas e barras do resto do
+  painel: a cor segue a categoria, nunca a posição). A paleta padrão passa nos testes de
+  daltonismo e de visão normal (ΔE ≥ 8 e ≥ 15 entre vizinhas); no tema claro algumas
+  cores têm contraste abaixo de 3:1, por isso todo gráfico tem legenda ou rótulo direto
+  e a tabela "Ver em tabela". Escurecer as cores no tema claro quebrava a separação para
+  daltônicos, então ficou assim. Sequenciais (calendário) usam um tom só: da superfície
+  ao vermelho de saída.
+- **Tema e privacidade**: o gráfico lê os tokens CSS e se redesenha quando muda o tema ou
+  o modo privacidade (valores viram "R$ ••••" nos eixos e tooltips).
+- **Clique abre as transações**: pedaço do treemap ou da barra → categoria no mês; dia do
+  calendário → `/gastos?dia=`; nó do Sankey → categoria; estabelecimento → busca.
+- **Gastos**: três vistas com o mesmo mês (lista, gráficos, "para onde vai"). O calendário
+  mostra 6 meses para caber no celular. O Sankey vai das entradas às categorias e
+  subcategorias; o que sobra vira "Sobrou" e o que faltou "Saiu do saldo". A cascata usa
+  as contas do dia a dia, com transferências e pagamento de fatura (é o saldo que mexe).

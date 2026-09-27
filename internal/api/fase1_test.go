@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/yarion1/pi-finance/internal/api"
+	"github.com/yarion1/pi-finance/internal/financeiro"
 )
 
 // ofx monta um extrato OFX 1.x com as transações dadas (data, valor, id, descrição).
@@ -129,11 +129,12 @@ func TestImportarMesmoOFXDuasVezes(t *testing.T) {
 // Critério de aceite da fase 1: transferência entre contas não aparece como gasto.
 func TestTransferenciaNaoEGasto(t *testing.T) {
 	_, a, pf, nu, inter := prepara(t)
-	mes := time.Now().Format("2006-01")
-	hoje := time.Now().Format("20060102")
-	ontem := time.Now().AddDate(0, 0, -1)
+	agora := financeiro.Hoje() // o dia de São Paulo, como o servidor
+	mes := agora.Format("2006-01")
+	hoje := agora.Format("20060102")
+	ontem := agora.AddDate(0, 0, -1)
 	if ontem.Format("2006-01") != mes {
-		ontem = time.Now()
+		ontem = agora
 	}
 
 	var r1, r2 resultadoImp

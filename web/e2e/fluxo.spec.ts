@@ -42,6 +42,14 @@ async function semRolagemHorizontal(pagina: Page) {
   expect(largura, `rolagem horizontal em ${pagina.url()}`).toBeLessThanOrEqual(360);
 }
 
+/** Com CAPTURAS=<pasta>, guarda capturas de tela para revisar o visual (fora do CI). */
+async function capturar(pagina: Page, nome: string) {
+  const pasta = process.env.CAPTURAS;
+  if (!pasta) return;
+  await pagina.waitForTimeout(1200); // animação dos gráficos
+  await pagina.screenshot({ path: `${pasta}/${nome}.png`, fullPage: true });
+}
+
 const senha = "uma frase longa de teste";
 let linkConvite = "";
 let codigosAna: string[] = [];
@@ -276,6 +284,20 @@ test.describe
       await page.goto("/categorias");
       await expect(page.getByText(/contém “Padaria Pao”/)).toBeVisible();
 
+      // gráficos dos gastos e para onde vai o dinheiro (ECharts, sem violar a CSP)
+      await page.goto("/gastos");
+      await page.getByRole("link", { name: "Gráficos" }).click();
+      await expect(page.getByRole("img", { name: /Gastos por categoria em/ })).toBeVisible();
+      await expect(page.getByRole("list", { name: "Estabelecimentos com mais gasto" })).toContainText(
+        "Padaria Pao Quente",
+      );
+      await expect(page.locator("canvas").first()).toBeVisible();
+      await capturar(page, "gastos-graficos");
+      await page.getByRole("link", { name: "Para onde vai" }).click();
+      await expect(page.getByRole("img", { name: /Fluxo do dinheiro em/ })).toBeVisible();
+      await expect(page.locator("canvas").first()).toBeVisible();
+      await capturar(page, "gastos-fluxo");
+
       // tarifa do banco vira alerta no início, que dá para dispensar
       await page.goto("/importar");
       await page.getByLabel("Conta").selectOption({ label: "Inter — Ana PF" });
@@ -295,7 +317,15 @@ test.describe
 
       // telas novas sem rolagem lateral no celular
       await page.setViewportSize({ width: 360, height: 740 });
-      for (const rota of ["/", "/gastos", "/contas", "/importar", "/categorias"]) {
+      for (const rota of [
+        "/",
+        "/gastos",
+        "/gastos/graficos",
+        "/gastos/fluxo",
+        "/contas",
+        "/importar",
+        "/categorias",
+      ]) {
         await page.goto(rota);
         await page.waitForLoadState("networkidle");
         await semRolagemHorizontal(page);

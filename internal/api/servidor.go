@@ -171,6 +171,8 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("POST /api/documentos/lancar", s.sessaoCompleta(s.lancarDocumento))
 	mux.Handle("GET /api/holerites", s.sessaoCompleta(s.listarHolerites))
 	mux.Handle("DELETE /api/holerites/{id}", s.sessaoCompleta(s.apagarHolerite))
+	mux.Handle("GET /api/analise/gastos", s.sessaoCompleta(s.analiseGastos))
+	mux.Handle("GET /api/analise/fluxo", s.sessaoCompleta(s.analiseFluxo))
 	mux.Handle("GET /api/relatorios", s.sessaoCompleta(s.listarRelatorios))
 	mux.Handle("GET /api/relatorios/{id}", s.sessaoCompleta(s.lerRelatorio))
 	mux.Handle("POST /api/relatorios/gerar", s.sessaoCompleta(s.gerarRelatorios))
@@ -258,7 +260,9 @@ var RotasLeitura = []string{
 	"/api/cnpj/{pj}/distribuicoes", "/api/cnpj/{pj}/pacote",
 	"/api/cnpj/simulacao?receita_mensal_centavos=1000000&contador_centavos=0",
 	"/api/projecoes/fluxo", "/api/projecoes/fluxo?entidade_id={entidade}&dias=366",
-	"/api/relatorios", "/api/relatorios/{relatorio}", "/api/holerites", "/api/holerites?entidade_id={entidade}&ano=2026",
+	"/api/relatorios", "/api/relatorios/{relatorio}",
+	"/api/analise/gastos", "/api/analise/gastos?entidade_id={entidade}&mes=2026-09&meses=24",
+	"/api/analise/fluxo", "/api/analise/fluxo?entidade_id={entidade}&mes=2026-09", "/api/holerites", "/api/holerites?entidade_id={entidade}&ano=2026",
 	"/api/projecoes/futuro", "/api/projecoes/futuro?entidade_id={entidade}&aporte=100000&anos=5&perfil=arrojado",
 }
 

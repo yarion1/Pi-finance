@@ -5,6 +5,7 @@ import { Aviso, Esqueleto } from "./components/ui";
 import { mensagemDe } from "./lib/api";
 import { useSessao } from "./lib/sessao";
 import { Agenda } from "./pages/agenda";
+import { FluxoDinheiro, GastosGraficos } from "./pages/analise";
 import { Cadastro } from "./pages/cadastro";
 import { Cartoes } from "./pages/cartoes";
 import { Casas, DetalheCasa } from "./pages/casa";
@@ -108,6 +109,8 @@ export function App() {
         <Route element={<Shell />}>
           <Route index element={<Inicio />} />
           <Route path="/gastos" element={<Transacoes />} />
+          <Route path="/gastos/graficos" element={<GastosGraficos />} />
+          <Route path="/gastos/fluxo" element={<FluxoDinheiro />} />
           <Route path="/transacoes" element={<Navigate to="/gastos" replace />} />
           <Route path="/contas" element={<Contas />} />
           <Route path="/importar" element={<Importar />} />

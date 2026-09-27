@@ -27,6 +27,7 @@ import {
 } from "../lib/dados";
 import { formatarData, formatarMoeda, lerCentavos } from "../lib/formato";
 import type { Transacao } from "../lib/tipos";
+import { AbasGastos } from "./analise";
 
 type Pagina_ = { itens: Transacao[]; total: number };
 const POR_PAGINA = 100;
@@ -49,6 +50,7 @@ export function Transacoes() {
   const semCategoria = params.get("sem_categoria") === "1";
   const importacao = params.get("importacao") ?? "";
   const sentido = params.get("sentido") ?? "";
+  const dia = params.get("dia") ?? "";
   const resumo = useResumo(mes);
   const [busca, setBusca] = useState(params.get("busca") ?? "");
   const [buscaAtiva, setBuscaAtiva] = useState(busca);
@@ -93,7 +95,10 @@ export function Transacoes() {
   const filtro = useMemo(() => {
     const q = new URLSearchParams();
     // buscando ou vendo uma importação, o mês não limita
-    if (!buscaAtiva && !importacao) {
+    if (dia) {
+      q.set("de", dia);
+      q.set("ate", dia);
+    } else if (!buscaAtiva && !importacao) {
       const [de, ate] = limitesMes(mes);
       q.set("de", de);
       q.set("ate", ate);
@@ -105,7 +110,7 @@ export function Transacoes() {
     if (buscaAtiva) q.set("busca", buscaAtiva);
     if (sentido) q.set("sentido", sentido);
     return q.toString();
-  }, [mes, conta, categoria, semCategoria, importacao, buscaAtiva, sentido]);
+  }, [mes, dia, conta, categoria, semCategoria, importacao, buscaAtiva, sentido]);
 
   const consulta = useInfiniteQuery({
     queryKey: ["transacoes", filtro],
@@ -151,10 +156,19 @@ export function Transacoes() {
         </div>
       }
     >
-      {!buscaAtiva && !importacao ? <FluxoTopo mes={mes} /> : null}
+      <AbasGastos />
+      {dia ? (
+        <Aviso tipo="info">
+          Compras de {formatarData(dia)}.{" "}
+          <button type="button" className="font-semibold underline" onClick={() => definir("dia", "")}>
+            Ver o mês todo
+          </button>
+        </Aviso>
+      ) : null}
+      {!buscaAtiva && !importacao && !dia ? <FluxoTopo mes={mes} /> : null}
 
       <Cartao className="flex flex-col gap-3">
-        {!buscaAtiva && !importacao ? (
+        {!buscaAtiva && !importacao && !dia ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <SeletorMes mes={mes} onChange={(m) => definir("mes", m)} />
             {resumo.data ? (

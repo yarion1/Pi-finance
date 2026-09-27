@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.0 — fase 7 (parte 1): gráficos dos gastos
+
+- **Gastos** ganhou três vistas: **Lista**, **Gráficos** e **Para onde vai**.
+  - Gráficos: gastos por categoria e subcategoria no mês (treemap), onde mais gastou
+    (estabelecimentos), mês a mês por categoria (6 meses a 5 anos) e o calendário com o
+    gasto de cada dia.
+  - Para onde vai: o caminho do dinheiro das entradas às categorias (Sankey) e o saldo do
+    começo ao fim do mês (cascata).
+  - Tocar num pedaço de qualquer gráfico abre as transações daquele pedaço; todo gráfico
+    tem a versão em tabela e respeita o tema e o modo privacidade.
+
 ## v0.7.5 — fase 6 (fim): leitura de documentos
 
 - **Mais › Ler documento**: a IA lê o PDF ou a foto e você confere antes de lançar.
