@@ -9,7 +9,7 @@ diz onde está a proteção no código e como é testada. Rever a cada fase nova
 | 2 | Sem validação no front | Formulários validam antes de enviar (datas, valores, campos obrigatórios), mas a regra que vale é a do servidor. | `web/src/lib/formato.ts` (testes) |
 | 3 | Sem validação no back | Todo handler valida tipo, faixa e tamanho; corpo JSON limitado; campos desconhecidos recusados. | `lerJSON`, `limitarCorpo`, testes `internal/api` |
 | 4 | SQL injection | Só consultas parametrizadas (pgx `$1`); o único nome de tabela montado vem de uma lista fixa no código. | `grep Sprintf` nas consultas |
-| 5 | Autenticação fraca | Senha de 12 a 128 caracteres em argon2id; **2FA obrigatório** (TOTP ou passkey); reautenticação nas ações sensíveis; cadastro só por convite. | `internal/auth`, e2e fase 0 |
+| 5 | Autenticação fraca | Senha de 12 a 128 caracteres em argon2id; **2FA obrigatório** (TOTP ou passkey); reautenticação nas ações sensíveis; cadastro só por convite; troca de senha derruba as outras sessões. | `internal/auth`, e2e fase 0, `TestTrocarSenha` |
 | 6 | IDOR | Todo dado passa pelo RLS do Postgres com o usuário da sessão (`db.ComUsuario`); o app conecta sem BYPASSRLS. Toda rota GET com dados entra no teste de isolamento. | `TestIsolamentoPorRota`, `TestToda_tabela_tem_RLS` |
 | 7 | Senha direto no banco | argon2id (64 MiB, sal aleatório); tokens de sessão, convite e recuperação guardados só como hash; credenciais do Pluggy, CPF/CNPJ e segredo TOTP cifrados (AES-256-GCM). | `auth/senha.go`, `cripto` |
 | 8 | Força bruta | Limite por IP nas rotas de login e bloqueio progressivo por conta; no máximo 3 hashes de senha ao mesmo tempo (a memória não estoura com rajada). | `TestBloqueioProgressivo`, `limitado`, `vagasArgon` |
@@ -59,3 +59,34 @@ função que confere a casa e a pessoa da sessão (`TestCasaConsolidadaEDespesas
 
 Na frente de tudo, o **Cloudflare Access** só deixa chegar ao painel quem está na lista de
 e-mails (DECISOES D11 e D29).
+
+## Revisão de segurança — v1.0.0 (fase 8)
+
+Feita em 27/09/2026 sobre todo o código (API, worker, front, deploy e backup), com os 19
+pontos acima, a seção 10 da SPEC e testes contra o servidor rodando.
+
+**Como:** leitura de todas as consultas montadas com texto (só pedaços fixos com `$n`;
+nomes de tabela só do catálogo ou de lista fixa, com `pgx.Identifier`); todas as rotas
+(só `/api/health`, estado do cadastro, entrar, cadastrar e ver convite ficam sem sessão,
+as quatro últimas com limite por IP); funções `SECURITY DEFINER` (todas com
+`search_path` fixo, sem receber o usuário da sessão por parâmetro para dar acesso);
+pontos de HTML no front (só os tooltips dos gráficos, com escape e cor validada nos dois
+lados); SSRF, uploads, logs e segredos; e, com o servidor de pé: cabeçalhos, CSRF (sem
+`Origin`, `Origin` estranha e formulário comum são recusados), CORS (sem cabeçalhos
+`Access-Control-*`), rota privada sem sessão (401) e travessia de caminho (cai na página
+do app; nada do disco é servido). `npm audit` sem vulnerabilidades; `govulncheck` roda no
+CI a cada push.
+
+| # | Achado | Severidade | Estado |
+| --- | --- | --- | --- |
+| 1 | Não havia como **trocar a senha** (e o alerta de login em aparelho novo manda trocar) | Média | Corrigido: Segurança › Trocar senha, com a senha atual (conta no bloqueio progressivo), derruba as outras sessões e entra na auditoria (`TestTrocarSenha`) |
+| 2 | A exportação levava o Client ID do Pluggy **cifrado** (coluna sem o sufixo `_cifrado`) | Baixa | Corrigido: sai da exportação |
+| 3 | Aviso de login em aparelho novo **por e-mail** (SPEC §10) | Baixa | Aceito: vai por push e Telegram (D40); o painel não tem servidor de e-mail |
+| 4 | Senha sem checagem contra listas de senhas vazadas | Baixa | Aceito: 12+ caracteres, argon2id, 2FA obrigatório e bloqueio progressivo |
+| 5 | `/api/health` é público e mostra a versão | Informativo | Aceito: o PiControl precisa dele; o túnel tem o Cloudflare Access na frente |
+| 6 | O bot do Telegram responde a qualquer conversa privada (texto fixo) | Informativo | Aceito: não revela dado nenhum; o vínculo exige o código de uso único |
+| 7 | Imagem `postgres:17-alpine` por etiqueta, não por digest | Informativo | Aceito: versão maior fixa; o deploy faz `--pull` e o CI testa backup e restore com ela |
+
+**Resultado: nenhum item alto aberto.** Critério da fase 8 atendido junto com o teste de
+restore semanal (docs/BACKUP.md), cujo estado aparece no `/api/health` e no log de cada
+deploy.

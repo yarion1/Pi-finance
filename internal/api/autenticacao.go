@@ -120,6 +120,22 @@ func (s *Servidor) reautenticar(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// POST /api/auth/senha {atual, nova}: troca a senha e derruba as outras sessões.
+func (s *Servidor) trocarSenha(w http.ResponseWriter, r *http.Request) {
+	var c struct {
+		Atual string `json:"atual"`
+		Nova  string `json:"nova"`
+	}
+	if !lerJSON(w, r, &c) {
+		return
+	}
+	if err := s.Auth.TrocarSenha(r.Context(), sessaoDe(r), c.Atual, c.Nova, s.origem(r)); err != nil {
+		falhar(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Servidor) iniciarTOTP(w http.ResponseWriter, r *http.Request) {
 	uri, segredo, err := s.Auth.IniciarTOTP(r.Context(), sessaoDe(r))
 	if err != nil {

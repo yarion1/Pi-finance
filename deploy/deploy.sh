@@ -129,6 +129,7 @@ VERSAO="$VERSAO" FORCAR_FALHA_HEALTH="$FORCAR" compose up -d --remove-orphans "$
 # 6. saúde em até 90 s
 for ((i = 0; i < LIMITE_SAUDE; i += 3)); do
   if [ "$(curl -s -o /dev/null -w '%{http_code}' -m 3 "$SAUDE_URL")" = 200 ]; then
+    log "saúde: $(curl -s -m 3 "$SAUDE_URL")" # backup e restore aparecem no log do release
     echo "$VERSAO" > "$ESTADO/versao-atual"
     date -Iseconds > "$ESTADO/ultimo-deploy"
     notificar "deploy $VERSAO ok"

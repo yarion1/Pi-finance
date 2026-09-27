@@ -77,6 +77,7 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("POST /api/auth/sair", s.sessaoParcial(s.sair))
 	mux.Handle("POST /api/auth/2fa/verificar", s.limitado(s.sessaoParcial(s.verificar2FA)))
 	mux.Handle("POST /api/auth/reautenticar", s.limitado(s.sessaoCompleta(s.reautenticar)))
+	mux.Handle("POST /api/auth/senha", s.limitado(s.sessaoCompleta(s.trocarSenha)))
 	mux.Handle("POST /api/auth/totp/iniciar", s.sessaoParcial(s.iniciarTOTP))
 	mux.Handle("POST /api/auth/totp/confirmar", s.limitado(s.sessaoParcial(s.confirmarTOTP)))
 	mux.Handle("POST /api/auth/recuperacao/gerar", s.sessaoCompleta(s.gerarRecuperacao))

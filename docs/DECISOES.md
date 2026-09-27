@@ -667,3 +667,11 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   ferramentas usadas; os totais do relatório; o documento enviado), sem o conteúdo.
 - **Consentimento para compartilhar**: toda conta nasce privada; ao escolher "só saldo" ou
   "compartilhada", o formulário diz o que a casa passa a ver.
+
+## D44 — Revisão de segurança e v1.0.0 (fase 8, fim)
+
+- Relatório em `docs/SEGURANCA.md` (seção "Revisão de segurança — v1.0.0"): nenhum item
+  alto; a troca de senha, que faltava, entrou nesta versão.
+- O `deploy.sh` passa a imprimir o JSON do `/api/health` no log do release, para conferir
+  backup e teste de restore sem abrir o painel.
+- Com as 9 fases da SPEC entregues, a versão vira **1.0.0**.

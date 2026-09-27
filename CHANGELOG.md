@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.0.0 — fase 8 (fim): revisão de segurança
+
+- **Trocar senha** em Mais › Segurança: pede a senha atual e tira da conta os outros
+  aparelhos na hora.
+- Revisão de segurança completa (código, deploy, backup e testes com o servidor de pé):
+  relatório em `docs/SEGURANCA.md`, sem nenhum item alto.
+- A exportação não leva mais o Client ID do Pluggy (mesmo cifrado).
+- Atividade da conta com nomes para as tentativas de senha e código errados.
+- Todas as fases da especificação entregues.
+
 ## v0.9.1 — fase 8 (parte 2): meus dados, exclusão da conta e o que a IA viu
 
 - **Mais › Meus dados**: baixe tudo o que é seu em JSON (com o CPF/CNPJ) ou em planilha

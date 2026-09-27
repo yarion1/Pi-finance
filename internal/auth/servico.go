@@ -413,6 +413,53 @@ func (s *Servico) Reautenticar(ctx context.Context, ss *Sessao, senha string, o 
 	return err
 }
 
+// TrocarSenha confere a senha atual (errar conta no bloqueio progressivo), grava a nova
+// e derruba todas as outras sessões da pessoa: quem estava usando a senha antiga sai.
+func (s *Servico) TrocarSenha(ctx context.Context, ss *Sessao, atual, nova string, o Origem) error {
+	if !ss.MFAOK {
+		return ErrSegundoFator
+	}
+	if err := validarSenha(nova); err != nil {
+		return err
+	}
+	if err := s.bloqueio(ctx, s.Pool, ss.UsuarioID); err != nil {
+		return err
+	}
+	var hash string
+	if err := s.Pool.QueryRow(ctx, "select senha_hash from usuarios where id = $1", ss.UsuarioID).Scan(&hash); err != nil {
+		return err
+	}
+	ok, err := ConferirSenha(atual, hash)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		if err := s.registrarFalha(ctx, ss.UsuarioID, "troca_senha_falhou", o); err != nil {
+			return err
+		}
+		return ErrCredenciais
+	}
+	if atual == nova {
+		return ErrDadosInvalidos
+	}
+	novoHash, err := HashSenha(nova)
+	if err != nil {
+		return err
+	}
+	return pgx.BeginTxFunc(ctx, s.Pool, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "update usuarios set senha_hash = $2, atualizado_em = now() where id = $1", ss.UsuarioID, novoHash); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, "delete from sessoes where usuario_id = $1 and id <> $2", ss.UsuarioID, ss.ID); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, "update sessoes set reautenticada_em = now() where id = $1", ss.ID); err != nil {
+			return err
+		}
+		return auditar(ctx, tx, ss.UsuarioID, "senha_trocada", "", o, nil)
+	})
+}
+
 // Limpar apaga sessões e desafios vencidos (roda no worker).
 func Limpar(ctx context.Context, pool *pgxpool.Pool) error {
 	for _, q := range []string{

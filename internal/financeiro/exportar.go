@@ -29,7 +29,7 @@ var foraDaExportacao = map[string]bool{
 }
 
 // colunas com segredo (cifradas, hashes, tokens): nunca vão para a exportação
-var colunaSecreta = regexp.MustCompile(`(_cifrad[oa]|_hash|senha|segredo|token|secret)`)
+var colunaSecreta = regexp.MustCompile(`(_cifrad[oa]|_hash|senha|segredo|token|secret|^client_id$)`)
 
 // Exportacao: o arquivo JSON.
 type Exportacao struct {

@@ -3,7 +3,16 @@ import { DatabaseBackup, KeyRound, Plus, RefreshCw, Smartphone, Trash2 } from "l
 import { useState } from "react";
 import { CodigosRecuperacao, ConfigurarPasskey, ConfigurarTOTP } from "../components/fatores";
 import { useComReautenticacao } from "../components/reautenticacao";
-import { Aviso, Botao, CarregandoLista, Cartao, Etiqueta, Pagina, TituloCartao } from "../components/ui";
+import {
+  Aviso,
+  Botao,
+  Campo,
+  CarregandoLista,
+  Cartao,
+  Etiqueta,
+  Pagina,
+  TituloCartao,
+} from "../components/ui";
 import { api, mensagemDe, obter } from "../lib/api";
 import { formatarDataHora } from "../lib/formato";
 import { suportaPasskey } from "../lib/passkey";
@@ -146,6 +155,8 @@ export function Seguranca() {
         ) : null}
       </Cartao>
 
+      <TrocarSenha />
+
       <Cartao>
         <TituloCartao>Códigos de recuperação</TituloCartao>
         <p className="mb-3 text-sm text-texto-2">
@@ -158,6 +169,76 @@ export function Seguranca() {
 
       <Backups />
     </Pagina>
+  );
+}
+
+function TrocarSenha() {
+  const [atual, setAtual] = useState("");
+  const [nova, setNova] = useState("");
+  const [repetida, setRepetida] = useState("");
+  const trocar = useMutation({
+    mutationFn: () => api("POST", "/api/auth/senha", { atual, nova }),
+    onSuccess: () => {
+      setAtual("");
+      setNova("");
+      setRepetida("");
+    },
+  });
+  const curta = nova.length > 0 && [...nova].length < 12;
+  const diferente = repetida.length > 0 && repetida !== nova;
+  return (
+    <Cartao>
+      <TituloCartao>Trocar senha</TituloCartao>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          trocar.mutate();
+        }}
+        className="flex flex-col gap-3"
+      >
+        <Campo
+          rotulo="Senha atual"
+          type="password"
+          autoComplete="current-password"
+          value={atual}
+          onChange={(e) => setAtual(e.target.value)}
+          required
+        />
+        <Campo
+          rotulo="Senha nova"
+          type="password"
+          autoComplete="new-password"
+          value={nova}
+          onChange={(e) => setNova(e.target.value)}
+          required
+          maxLength={128}
+          erro={curta ? "Pelo menos 12 caracteres (uma frase serve)" : undefined}
+        />
+        <Campo
+          rotulo="Repita a senha nova"
+          type="password"
+          autoComplete="new-password"
+          value={repetida}
+          onChange={(e) => setRepetida(e.target.value)}
+          required
+          erro={diferente ? "As duas não batem" : undefined}
+        />
+        <p className="text-xs text-texto-2">Os outros aparelhos saem da conta na hora.</p>
+        {trocar.error ? <Aviso tipo="erro">{mensagemDe(trocar.error)}</Aviso> : null}
+        {trocar.isSuccess ? (
+          <Aviso tipo="sucesso">Senha trocada. Os outros aparelhos saíram da conta.</Aviso>
+        ) : null}
+        <div>
+          <Botao
+            type="submit"
+            carregando={trocar.isPending}
+            disabled={!atual || curta || !nova || repetida !== nova}
+          >
+            Trocar senha
+          </Botao>
+        </div>
+      </form>
+    </Cartao>
   );
 }
 

@@ -179,3 +179,36 @@ func TestExportarApagarEAtividade(t *testing.T) {
 		t.Fatal("apagou dados de outra pessoa")
 	}
 }
+
+func TestTrocarSenha(t *testing.T) {
+	amb := novoAmbiente(t)
+	ctx := context.Background()
+	a := amb.novoCliente()
+	a.cadastrarCom2FA("Ana", "ana@teste.com", "")
+	id := usuarioDe(t, a)
+	// outra sessão da mesma pessoa (outro aparelho)
+	if _, err := amb.banco.Dono.Exec(ctx, `insert into sessoes (usuario_id, token_hash, mfa_ok, expira_em)
+		values ($1, '\xdeadbeef', true, now() + interval '1 day')`, id); err != nil {
+		t.Fatal(err)
+	}
+	a.exigir("POST", "/api/auth/senha", map[string]string{"atual": "errada errada errada", "nova": "outra frase comprida"}, http.StatusUnauthorized)
+	a.exigir("POST", "/api/auth/senha", map[string]string{"atual": "senha comprida de teste", "nova": "curta"}, http.StatusBadRequest)
+	a.exigir("POST", "/api/auth/senha", map[string]string{"atual": "senha comprida de teste", "nova": "senha comprida de teste"}, http.StatusBadRequest)
+	a.exigir("POST", "/api/auth/senha", map[string]string{"atual": "senha comprida de teste", "nova": "outra frase comprida"}, http.StatusNoContent)
+	var n int
+	_ = amb.banco.Dono.QueryRow(ctx, "select count(*) from sessoes where usuario_id = $1", id).Scan(&n)
+	if n != 1 {
+		t.Fatalf("as outras sessões continuam: %d", n)
+	}
+	a.exigir("POST", "/api/auth/reautenticar", map[string]string{"senha": "senha comprida de teste"}, http.StatusUnauthorized)
+	a.exigir("POST", "/api/auth/reautenticar", map[string]string{"senha": "outra frase comprida"}, http.StatusNoContent)
+	var ativ []struct{ Acao string }
+	a.exigir("GET", "/api/conta/atividade", nil, http.StatusOK).json(t, &ativ)
+	achou := false
+	for _, e := range ativ {
+		achou = achou || e.Acao == "senha_trocada"
+	}
+	if !achou {
+		t.Fatalf("troca fora da auditoria: %+v", ativ)
+	}
+}
