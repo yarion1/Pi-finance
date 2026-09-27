@@ -84,11 +84,10 @@ services:
     networks: [saida]
 
   backup:
-    image: postgres:17-alpine
+    image: financas-backup:local # construída pelo deploy.sh; não muda com a versão do app
     restart: unless-stopped
-    mem_limit: 128m
+    mem_limit: 256m
     logging: *logs
-    entrypoint: ["/bin/sh", "/backup.sh"]
     depends_on:
       postgres: { condition: service_healthy }
     environment:
@@ -98,11 +97,17 @@ services:
       PGDATABASE: financas
       PGPASSWORD: ${POSTGRES_PASSWORD:?}
       INTERVALO_SEGUNDOS: "21600"
-      RETER: "28"
+      RESTORE_DIAS: "7"
+      RESTIC_REPOSITORY: /backups/restic
+      RESTIC_PASSWORD_FILE: /run/segredos/restic.senha
+      RESTIC_CACHE_DIR: /backups/cache
+      NUVEM: ${BACKUP_NUVEM:-}
+      RCLONE_CONFIG: /run/segredos/rclone.conf
     volumes:
       - ./backup/backup.sh:/backup.sh:ro
-      - /srv/financas/backups:/backups
-    networks: [interna]
+      - ${BACKUP_DIR:-/srv/financas/backups}:/backups
+      - /srv/financas/segredos:/run/segredos:ro
+    networks: [interna, saida] # saida: só para a cópia na nuvem
 
 networks:
   interna:

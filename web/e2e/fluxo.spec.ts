@@ -905,6 +905,13 @@ test.describe
 
       await saldos.getByRole("button", { name: "Acertar" }).click();
       await expect(page.getByText(/Tudo acertado/)).toBeVisible();
+
+      // backups: o estado aparece em Segurança (no e2e ainda não rodou nenhum)
+      await page.goto("/seguranca");
+      const backups = page.getByRole("list", { name: "Estado dos backups" });
+      await expect(backups).toContainText("Último backup");
+      await expect(backups).toContainText("Teste de restore");
+      await semRolagemHorizontal(page);
       expect(violacoes).toEqual([]);
     });
   });

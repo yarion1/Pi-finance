@@ -70,6 +70,20 @@ else
   docker build --pull --network=host -t "financas:$VERSAO" --build-arg "VERSAO=$VERSAO" "$RAIZ"
 fi
 
+# 1b. imagem do backup (restic + rclone; não depende da versão do app) e a senha do
+# repositório restic, criada uma vez em $DADOS/segredos (guarde uma cópia fora do Pi)
+if [ "${PULAR_BUILD:-0}" != 1 ] || ! docker image inspect financas-backup:local >/dev/null 2>&1; then
+  docker build --pull --network=host -t financas-backup:local "$RAIZ/deploy/backup"
+fi
+SEGREDOS="$DADOS/segredos"
+mkdir -p "$SEGREDOS"
+chmod 700 "$SEGREDOS"
+if [ ! -s "$SEGREDOS/restic.senha" ]; then
+  (umask 077 && head -c 32 /dev/urandom | base64 > "$SEGREDOS/restic.senha")
+  notificar "senha nova do backup criada em $SEGREDOS/restic.senha: guarde uma cópia no gerenciador de senhas (sem ela o backup não abre)"
+fi
+[ -e "$SEGREDOS/rclone.conf" ] || (umask 077 && : > "$SEGREDOS/rclone.conf")
+
 # 2. banco de pé (com a imagem que já roda, se houver)
 VERSAO="${ANTERIOR:-$VERSAO}" compose up -d --wait postgres
 
@@ -121,7 +135,8 @@ for ((i = 0; i < LIMITE_SAUDE; i += 3)); do
     # mantém as 3 imagens mais recentes para voltar rápido
     docker images financas --format '{{.Tag}}' | grep -v '<none>' | sort -V -r | tail -n +4 \
       | xargs -r -I{} docker rmi "financas:{}" >/dev/null 2>&1 || true
-    ls -1t "$BACKUPS"/pre-deploy-*.dump 2>/dev/null | tail -n +11 | xargs -r rm -f
+    # o dump pré-deploy não é cifrado: só os 3 últimos, para voltar um deploy
+    ls -1t "$BACKUPS"/pre-deploy-*.dump 2>/dev/null | tail -n +4 | xargs -r rm -f
     exit 0
   fi
   sleep 3

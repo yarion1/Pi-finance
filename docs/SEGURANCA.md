@@ -43,6 +43,10 @@ aparelho (RFC 8291). Ligar o Telegram pede a senha e usa um código de uso únic
 (só o hash fica no banco); o bot só responde em conversa privada e o token nunca aparece
 em erro nem log. Os links das notificações são sempre caminhos do próprio painel.
 
+**Backups (fase 8)**: restic cifrado (AES-256) com senha própria, fora do banco e do
+repositório; teste de restore semanal; nuvem opcional só com blocos cifrados. A tela e a
+API mostram só o estado, sem totais nem erros (docs/BACKUP.md, DECISOES D42).
+
 **Casa (fase 7)**: despesas divididas só aparecem para quem pagou e para quem deve (RLS),
 com cópia da descrição e do valor, sem abrir a conta nem a transação de quem pagou; só
 dá para dividir o próprio gasto e só com donos e membros da casa; o acerto roda numa

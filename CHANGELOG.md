@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.9.0 — fase 8 (parte 1): backups cifrados com restore testado
+
+- Backup a cada 6 horas num repositório **restic cifrado** (4 últimos, 7 diários, 4
+  semanais e 12 mensais), com cópia diária opcional na **nuvem** (Google Drive, B2… pelo
+  rclone).
+- **Teste de restore toda semana**: o último backup é restaurado num banco temporário e os
+  totais são conferidos com os do banco.
+- O `/api/health` ganhou `restore`; a tela **Segurança** mostra o último backup, a cópia na
+  nuvem e o último teste.
+- No Pi: a senha do backup é criada no primeiro deploy em
+  `/srv/financas/segredos/restic.senha` — guarde uma cópia. Disco USB e nuvem em
+  `docs/BACKUP.md`.
+
 ## v0.8.5 — fase 7 (fim): casa consolidada e despesas divididas
 
 - **Casa**: o consolidado do que cada um compartilha (saldo e gastos do mês, de quem vem

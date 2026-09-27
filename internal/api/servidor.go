@@ -67,6 +67,7 @@ func (s *Servidor) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /api/health", s.saude)
+	mux.Handle("GET /api/sistema/backups", s.sessaoCompleta(s.backups))
 
 	// autenticação (as regras de sessão parcial ficam no serviço)
 	mux.HandleFunc("GET /api/auth/estado", s.estadoCadastro)
@@ -287,7 +288,7 @@ var RotasLeitura = []string{
 	"/api/relatorios", "/api/relatorios/{relatorio}",
 	"/api/analise/gastos", "/api/analise/gastos?entidade_id={entidade}&mes=2026-09&meses=24",
 	"/api/analise/fluxo", "/api/analise/fluxo?entidade_id={entidade}&mes=2026-09", "/api/holerites", "/api/holerites?entidade_id={entidade}&ano=2026",
-	"/api/notificacoes", "/api/casas/{casa}/painel", "/api/casas/{casa}/painel?mes=2026-09",
+	"/api/notificacoes", "/api/sistema/backups", "/api/casas/{casa}/painel", "/api/casas/{casa}/painel?mes=2026-09",
 	"/api/projecoes/futuro", "/api/projecoes/futuro?entidade_id={entidade}&aporte=100000&anos=5&perfil=arrojado",
 }
 

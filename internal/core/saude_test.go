@@ -36,6 +36,22 @@ func TestEstadoBackup(t *testing.T) {
 	}
 }
 
+func TestEstadoRestore(t *testing.T) {
+	agora := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
+	em := func(d time.Duration) *time.Time { v := agora.Add(-d); return &v }
+	casos := []struct {
+		ultimo *time.Time
+		ok     bool
+		quer   string
+	}{{nil, false, "pendente"}, {em(time.Hour), true, "ok"}, {em(time.Hour), false, "falhou"},
+		{em(9 * 24 * time.Hour), true, "atrasado"}, {em(9 * 24 * time.Hour), false, "falhou"}}
+	for _, c := range casos {
+		if got := EstadoRestore(c.ultimo, c.ok, agora); got != c.quer {
+			t.Errorf("EstadoRestore = %s, esperado %s", got, c.quer)
+		}
+	}
+}
+
 func TestEstadoPluggy(t *testing.T) {
 	agora := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
 	ontem, velha := agora.Add(-20*time.Hour), agora.Add(-40*time.Hour)

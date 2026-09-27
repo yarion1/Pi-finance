@@ -398,6 +398,50 @@ func TestSaude(t *testing.T) {
 	if h["status"] != "ok" || h["worker"] != "up" || h["pluggy"] != "ok" || h["backup"] != "pendente" {
 		t.Fatalf("health: %v", h)
 	}
+	if h["restore"] != "pendente" {
+		t.Fatalf("restore sem teste: %v", h)
+	}
+	// o que o serviço de backup grava (deploy/backup/backup.sh)
+	ctx := context.Background()
+	if _, err := amb.banco.Dono.Exec(ctx, `insert into sinais_vida (servico, dados) values
+		('backup', '{"snapshot":"abc","bytes":10,"cifrado":true,"nuvem":{"em":"2026-09-27T03:00:00Z","ok":true}}'),
+		('restore_teste', '{"ok":true,"detalhe":"totais conferem","totais":"2|4|22|299590|5|18","segundos":3}')`); err != nil {
+		t.Fatal(err)
+	}
+	c.exigir("GET", "/api/health", nil, http.StatusOK).json(t, &h)
+	if h["backup"] != "ok" || h["restore"] != "ok" {
+		t.Fatalf("health com backup: %v", h)
+	}
+	c.exigir("GET", "/api/sistema/backups", nil, http.StatusUnauthorized)
+	c.cadastrarCom2FA("Ana", "ana@teste.com", "")
+	var b struct {
+		Backup struct {
+			Estado  string
+			Cifrado bool
+			Nuvem   *struct{ OK bool }
+		}
+		Restore struct {
+			Estado   string
+			Segundos *int
+		}
+	}
+	r := c.exigir("GET", "/api/sistema/backups", nil, http.StatusOK)
+	r.json(t, &b)
+	if b.Backup.Estado != "ok" || !b.Backup.Cifrado || b.Backup.Nuvem == nil || !b.Backup.Nuvem.OK ||
+		b.Restore.Estado != "ok" || b.Restore.Segundos == nil || *b.Restore.Segundos != 3 {
+		t.Fatalf("backups: %s", r.corpo)
+	}
+	if strings.Contains(string(r.corpo), "299590") { // totais de todos os usuários não saem
+		t.Fatalf("totais expostos: %s", r.corpo)
+	}
+	if _, err := amb.banco.Dono.Exec(ctx, `update sinais_vida set dados = '{"ok":false,"detalhe":"pg_restore falhou"}'
+		where servico = 'restore_teste'`); err != nil {
+		t.Fatal(err)
+	}
+	c.exigir("GET", "/api/health", nil, http.StatusOK).json(t, &h)
+	if h["restore"] != "falhou" {
+		t.Fatalf("restore que falhou: %v", h)
+	}
 
 	quebrado := novoAmbiente(t, func(c *config.Config) { c.ForcarFalhaSaude = true })
 	_ = worker.GravarSinal(context.Background(), quebrado.banco.App, "worker", nil)

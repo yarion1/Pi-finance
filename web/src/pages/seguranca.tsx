@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, Plus, RefreshCw, Smartphone, Trash2 } from "lucide-react";
+import { DatabaseBackup, KeyRound, Plus, RefreshCw, Smartphone, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { CodigosRecuperacao, ConfigurarPasskey, ConfigurarTOTP } from "../components/fatores";
 import { useComReautenticacao } from "../components/reautenticacao";
@@ -155,6 +155,90 @@ export function Seguranca() {
           <RefreshCw className="size-4" aria-hidden /> Gerar novos códigos
         </Botao>
       </Cartao>
+
+      <Backups />
     </Pagina>
+  );
+}
+
+type EstadoBackups = {
+  backup: {
+    estado: "ok" | "atrasado" | "pendente";
+    em: string | null;
+    cifrado: boolean;
+    nuvem: { em: string | null; ok: boolean } | null;
+  };
+  restore: { estado: "ok" | "atrasado" | "pendente" | "falhou"; em: string | null; segundos: number | null };
+};
+
+const rotuloEstado: Record<string, [string, "sucesso" | "alerta" | "erro" | "neutro"]> = {
+  ok: ["em dia", "sucesso"],
+  atrasado: ["atrasado", "alerta"],
+  pendente: ["ainda não rodou", "neutro"],
+  falhou: ["falhou", "erro"],
+};
+
+/** Backups do servidor: vale para a casa toda (os dados de todos estão no mesmo banco). */
+function Backups() {
+  const { data } = useQuery({
+    queryKey: ["sistema", "backups"],
+    queryFn: () => obter<EstadoBackups>("/api/sistema/backups"),
+  });
+  if (!data) return null;
+  const linha = (nome: string, estado: string, detalhe: string) => {
+    const [texto, tom] = rotuloEstado[estado] ?? [estado, "neutro"];
+    const cor =
+      tom === "sucesso"
+        ? "text-entrada"
+        : tom === "alerta"
+          ? "text-alerta"
+          : tom === "erro"
+            ? "text-saida"
+            : "text-texto-2";
+    return (
+      <li className="flex min-h-12 flex-wrap items-center justify-between gap-x-3 py-2 text-sm">
+        <span>
+          <span className="block font-medium">{nome}</span>
+          <span className="text-xs text-texto-2">{detalhe}</span>
+        </span>
+        <span className={`font-semibold ${cor}`}>{texto}</span>
+      </li>
+    );
+  };
+  const { backup, restore } = data;
+  return (
+    <Cartao>
+      <TituloCartao>
+        <span className="flex items-center gap-2">
+          <DatabaseBackup className="size-4 text-destaque" aria-hidden /> Backups do servidor
+        </span>
+      </TituloCartao>
+      <ul className="flex flex-col divide-y divide-borda" aria-label="Estado dos backups">
+        {linha(
+          "Último backup",
+          backup.estado,
+          backup.em
+            ? `${formatarDataHora(backup.em)}${backup.cifrado ? " · cifrado" : " · sem cifra"}`
+            : "a cada 6 horas, cifrado",
+        )}
+        {backup.nuvem
+          ? linha(
+              "Cópia na nuvem",
+              backup.nuvem.ok ? "ok" : "falhou",
+              backup.nuvem.em ? formatarDataHora(backup.nuvem.em) : "uma vez por dia",
+            )
+          : null}
+        {linha(
+          "Teste de restore",
+          restore.estado,
+          restore.em
+            ? `${formatarDataHora(restore.em)}${restore.segundos != null ? ` · ${restore.segundos} s` : ""}`
+            : "toda semana, num banco temporário",
+        )}
+      </ul>
+      <p className="mt-2 text-xs text-texto-2">
+        O teste restaura o último backup e confere os totais com o banco. Vale para a casa toda.
+      </p>
+    </Cartao>
   );
 }

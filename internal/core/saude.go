@@ -5,8 +5,24 @@ import "time"
 // Limites do /api/health (docs/SPEC.md §11).
 const (
 	LimiteSinalWorker = 3 * time.Minute
-	LimiteBackup      = 8 * time.Hour // backup a cada 6 h + folga
+	LimiteBackup      = 8 * time.Hour      // backup a cada 6 h + folga
+	LimiteRestore     = 8 * 24 * time.Hour // teste de restore semanal + folga
 )
+
+// EstadoRestore do teste semanal: "pendente" (nunca rodou), "falhou" (o último deu
+// errado), "atrasado" (passou de 8 dias) ou "ok".
+func EstadoRestore(ultimo *time.Time, ok bool, agora time.Time) string {
+	switch {
+	case ultimo == nil:
+		return "pendente"
+	case !ok:
+		return "falhou"
+	case agora.Sub(*ultimo) > LimiteRestore:
+		return "atrasado"
+	default:
+		return "ok"
+	}
+}
 
 // EstadoWorker: "up" se o worker deu sinal de vida nos últimos 3 minutos.
 func EstadoWorker(vistoEm *time.Time, agora time.Time) string {

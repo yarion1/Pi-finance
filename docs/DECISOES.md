@@ -622,3 +622,26 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   na divisão.
 - **Temas revisados**: o e2e, com `CAPTURAS`, fotografa cada tela com gráfico no escuro e
   no claro; os dois foram conferidos (critério da fase 7).
+
+## D42 — Backups com restic e restore testado (fase 8)
+
+- **restic** (cifra, deduplicação e retenção prontas) numa imagem própria
+  (`deploy/backup/Dockerfile`: `postgres:17-alpine` + restic + rclone), construída pelo
+  deploy e sem depender da versão do app (volta de deploy não quebra o backup). O dump
+  vai do `pg_dump` direto para o restic, sem arquivo intermediário.
+- **Senha do restic separada da chave mestra**, gerada no primeiro deploy em
+  `/srv/financas/segredos/restic.senha` (0600): o container de backup não precisa ler a
+  chave mestra (que é do uid do app), e vazar uma não abre a outra.
+- Retenção: 4 últimos, 7 diários, 4 semanais e 12 mensais (a SPEC pede 7/4/12; os 4
+  últimos guardam o dia de hoje). Nuvem opcional por rclone, 1× por dia, 30 dias, com o
+  mesmo cifrado (`restic copy`).
+- **Teste de restore** semanal no mesmo Postgres, num banco temporário apagado no fim:
+  `restic check`, `pg_restore --exit-on-error` e totais (usuários, contas, transações,
+  soma dos valores, operações, versão das migrações) comparados com os da hora do dump.
+  O CI roda um ciclo de verdade na imagem alpine a cada push.
+- O **alerta de atraso** vai pelo `/api/health` (`backup` e o novo `restore`), que o
+  monitor do PiControl já consulta: o container de backup não enxerga o PiControl (que
+  escuta só no 127.0.0.1 do Pi). A tela Segurança mostra o estado para todos, sem os
+  totais (que dizem quanto a casa toda movimenta).
+- Os dumps antigos sem cifra somem 7 dias depois do primeiro backup cifrado; o dump
+  pré-deploy (sem cifra, para voltar um deploy) fica só nos 3 últimos.
