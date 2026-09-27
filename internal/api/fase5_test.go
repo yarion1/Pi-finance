@@ -46,6 +46,10 @@ type painelCNPJ struct {
 			DAS             int64  `json:"das_centavos"`
 		} `json:"das"`
 		ProlaboreMin int64 `json:"prolabore_para_fator_r_centavos"`
+		FatorRMeses  []struct {
+			Mes    string `json:"mes"`
+			FatorR string `json:"fator_r"`
+		} `json:"fator_r_meses"`
 	} `json:"simples"`
 }
 
@@ -232,6 +236,10 @@ func TestSimplesExemploDaSPEC(t *testing.T) {
 	if p.Simples.Anexo != "III" || p.Simples.FatorR != "0.28000000" || p.Simples.DAS.AliquotaEfetiva != "0.07300000" ||
 		p.Simples.DAS.DAS != 146000 {
 		t.Fatalf("Anexo III: %+v", p.Simples)
+	}
+	// a série do Fator R termina no valor de hoje
+	if n := len(p.Simples.FatorRMeses); n == 0 || p.Simples.FatorRMeses[n-1].FatorR != p.Simples.FatorR {
+		t.Fatalf("Fator R mês a mês: %+v", p.Simples.FatorRMeses)
 	}
 	var folha []struct{ Competencia string }
 	a.exigir("GET", "/api/cnpj/"+pj+"/folha", nil, http.StatusOK).json(t, &folha)

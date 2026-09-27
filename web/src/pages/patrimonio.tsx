@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Car, Home as Casa, Landmark, Package, Pencil, Plus, Table2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { AvisoSimulacao, Dialogo, SeletorEntidade } from "../components/extras";
+import { GraficoPatrimonio, SeletorPeriodo } from "../components/graficos-painel";
 import {
   Aviso,
   Botao,
@@ -26,14 +27,7 @@ import {
   percentualParaFracao,
   soData,
 } from "../lib/formato";
-import type {
-  Bem,
-  Divida,
-  EmprestimoBanco,
-  ParcelaDivida,
-  PontoPatrimonio,
-  RespostaPatrimonio,
-} from "../lib/tipos";
+import type { Bem, Divida, EmprestimoBanco, ParcelaDivida, RespostaPatrimonio } from "../lib/tipos";
 
 const nomesBem: Record<Bem["tipo"], string> = { imovel: "Imóvel", veiculo: "Veículo", outro: "Outro" };
 const iconesBem = { imovel: Casa, veiculo: Car, outro: Package };
@@ -56,9 +50,11 @@ function Variacao({ centavos, rotulo }: { centavos: number; rotulo: string }) {
 }
 
 export function Patrimonio() {
+  const [meses, setMeses] = useState(12);
   const dados = useQuery({
-    queryKey: ["patrimonio"],
-    queryFn: () => obter<RespostaPatrimonio>("/api/patrimonio"),
+    queryKey: ["patrimonio", meses],
+    queryFn: () => obter<RespostaPatrimonio>(`/api/patrimonio?meses=${meses}`),
+    placeholderData: (anterior) => anterior,
   });
   const [bem, setBem] = useState<Bem | "novo" | null>(null);
   const [divida, setDivida] = useState<Divida | "nova" | null>(null);
@@ -111,8 +107,10 @@ export function Patrimonio() {
 
       {p?.serie?.length ? (
         <Cartao>
-          <TituloCartao>Últimos 12 meses</TituloCartao>
-          <Serie pontos={p.serie} />
+          <TituloCartao acao={<SeletorPeriodo valor={meses} onChange={setMeses} nome="periodo-patrimonio" />}>
+            Ao longo do tempo
+          </TituloCartao>
+          <GraficoPatrimonio pontos={p.serie} />
         </Cartao>
       ) : null}
 
@@ -295,30 +293,6 @@ function EmprestimosDoBanco({ lista }: { lista: EmprestimoBanco[] }) {
         dois para não contar duas vezes.
       </p>
     </Cartao>
-  );
-}
-
-/** Barras simples do patrimônio líquido (gráficos completos na fase 7). */
-function Serie({ pontos }: { pontos: PontoPatrimonio[] }) {
-  const maior = Math.max(...pontos.map((p) => Math.abs(p.liquido_centavos)), 1);
-  return (
-    <ol className="flex h-32 items-end gap-1" aria-label="Patrimônio líquido por mês">
-      {pontos.map((p) => (
-        <li
-          key={p.data}
-          className="flex h-full min-w-0 flex-1 flex-col justify-end"
-          title={`${formatarData(p.data)}: ${formatarMoeda(p.liquido_centavos)}`}
-        >
-          <span
-            className={`block rounded-t ${p.liquido_centavos < 0 ? "bg-saida" : "bg-invest"}`}
-            style={{ height: `${Math.max(2, (Math.abs(p.liquido_centavos) / maior) * 100)}%` }}
-          />
-          <span className="sr-only">
-            {formatarData(p.data)}: {formatarMoeda(p.liquido_centavos)}
-          </span>
-        </li>
-      ))}
-    </ol>
   );
 }
 

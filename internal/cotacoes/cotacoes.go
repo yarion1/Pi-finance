@@ -110,6 +110,9 @@ func (f *Fontes) obter(ctx context.Context, endereco string, destino any) error 
 	return d.Decode(destino)
 }
 
+// CodigoIbovespa na brapi.
+const CodigoIbovespa = "^BVSP"
+
 // Acao busca a cotação de um ticker na brapi (uma requisição por ticker, como o plano
 // gratuito permite).
 func (f *Fontes) Acao(ctx context.Context, codigo string) (Cotacao, error) {
@@ -270,6 +273,14 @@ func Atualizar(ctx context.Context, pool *pgxpool.Pool, f *Fontes) (Relatorio, e
 			cotas = append(cotas, x)
 		case "cripto":
 			criptos = append(criptos, c.codigo)
+		}
+	}
+	// o Ibovespa, para comparar a carteira (a série começa a partir de quando o painel cota)
+	if len(cods) > 0 {
+		if x, err := f.Acao(ctx, CodigoIbovespa); err == nil {
+			cotas = append(cotas, x)
+		} else {
+			rel.Erros = append(rel.Erros, err.Error())
 		}
 	}
 	if len(criptos) > 0 {

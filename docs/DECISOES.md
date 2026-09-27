@@ -532,3 +532,28 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   mostra 6 meses para caber no celular. O Sankey vai das entradas às categorias e
   subcategorias; o que sobra vira "Sobrou" e o que faltou "Saiu do saldo". A cascata usa
   as contas do dia a dia, com transferências e pagamento de fatura (é o saldo que mexe).
+
+## D38 — Gráficos de patrimônio, investimentos, aposentadoria, CNPJ e cartões (fase 7)
+
+- **Patrimônio ao longo do tempo** (6 meses a 5 anos): área empilhada de contas,
+  investimentos e bens acima de zero, dívidas e cartões abaixo, e a linha do líquido. Os
+  pontos passados agora incluem a carteira na data (antes só contas, bens e dívidas).
+  Investimentos do Open Finance entram com o saldo de hoje e só a partir do dia em que o
+  painel passou a vê-los: o banco não informa o saldo de meses passados.
+- **Rentabilidade acumulada** (TWR mensal) contra CDI, IPCA e Ibovespa, só dos ativos com
+  histórico (lançados à mão e B3, renda fixa na curva). Proventos e juros pagos saem da
+  carteira como fluxo, então contam como retorno. O IPCA aparece até o último mês
+  publicado; o Ibovespa (`^BVSP` na brapi, junto das outras cotações) começa a partir de
+  quando o painel passou a cotá-lo. Série com menos de dois pontos não é desenhada.
+- **Alocação atual × alvo** por classe, na tabela `alocacao_alvo` que já existia desde a
+  fase 4 (dimensão "classe", percentual); o alvo precisa somar 100 %.
+- **Aposentadoria**: leque do Monte Carlo (faixa dos percentis 10 a 90, a mediana e a linha
+  do patrimônio que cobre o custo de vida).
+- **CNPJ**: faturamento e DAS mês a mês; medidor do teto do MEI em que o arco e o número
+  são o que já foi faturado e o ponteiro é a projeção do ano; Fator R dos últimos 12
+  meses com a linha dos 28 %.
+- **Cartões**: parcelas futuras somadas por mês.
+- **Cores**: paleta categórica validada (skill de dataviz, ordem fixa) para séries sem
+  cor própria: azul, laranja e verde-água; a carteira usa o destaque do tema; dívidas em
+  vermelho num grupo só (duas cores de dívida lado a lado não passavam no teste de
+  daltonismo no tema escuro). Cada série tem cor fixa, que não muda quando outra some.

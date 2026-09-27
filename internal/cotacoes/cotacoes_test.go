@@ -32,6 +32,8 @@ func (f *fontesFalsas) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		fmt.Fprint(w, `{"results":[{"symbol":"PETR4","currency":"BRL","regularMarketPrice":38.47,"regularMarketTime":"2026-09-25T20:07:00.000Z"}]}`)
+	case r.URL.Path == "/api/quote/^BVSP":
+		fmt.Fprint(w, `{"results":[{"symbol":"^BVSP","currency":"BRL","regularMarketPrice":145678.9,"regularMarketTime":"2026-09-25T21:00:00.000Z"}]}`)
 	case r.URL.Path == "/api/quote/HGLG11":
 		fmt.Fprint(w, `{"results":[{"symbol":"HGLG11","currency":"BRL","regularMarketPrice":160.1,"regularMarketTime":"2026-09-24T21:00:00.000Z"}]}`)
 	case strings.HasPrefix(r.URL.Path, "/api/quote/"):
@@ -85,12 +87,13 @@ func TestAtualizar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rel.Cotacoes != 4 || rel.Indices != 4 || len(rel.Erros) != 2 {
+	if rel.Cotacoes != 5 || rel.Indices != 4 || len(rel.Erros) != 2 {
 		t.Fatalf("relatório: %+v", rel)
 	}
 	var n int
 	for _, c := range []struct{ codigo, data, preco, fonte string }{
 		{"PETR4", "2026-09-25", "38.47000000", "brapi"},
+		{"^BVSP", "2026-09-25", "145678.90000000", "brapi"},
 		{"HGLG11", "2026-09-24", "160.10000000", "brapi"},
 		{"bitcoin", "2026-09-25", "612345.67000000", "coingecko"},
 		{"pepe", "2026-09-25", "0.00006200", "coingecko"},

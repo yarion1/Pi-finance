@@ -239,6 +239,13 @@ type PainelSimples struct {
 	ProlaboreMin  core.Centavos     `json:"prolabore_para_fator_r_centavos"`
 	AcimaSublimte bool              `json:"acima_sublimite"`
 	DASMeses      []DASMes          `json:"das_meses"`
+	FatorRMeses   []FatorRMes       `json:"fator_r_meses"` // os 12 meses até o atual
+}
+
+// FatorRMes: o Fator R que valeu em cada competência.
+type FatorRMes struct {
+	Mes    string `json:"mes"`
+	FatorR string `json:"fator_r"`
 }
 
 // PainelCNPJ: o que a tela do CNPJ mostra.
@@ -450,6 +457,9 @@ func CalcularPainelCNPJ(ctx context.Context, tx pgx.Tx, entidadeID string, hoje 
 		}
 		s.RBT12 = core.RBT12(valores, p.ReceitaMes)
 		if s.Folha12, err = folha12(ctx, tx, entidadeID, mes); err != nil {
+			return p, err
+		}
+		if s.FatorRMeses, err = fatorRMeses(ctx, tx, entidadeID, e.DataAbertura, mes); err != nil {
 			return p, err
 		}
 		s.FatorR = core.FatorR(s.Folha12, s.RBT12)
@@ -1165,5 +1175,39 @@ func PacoteContador(ctx context.Context, tx pgx.Tx, entidadeID string, mes time.
 		[]string{},
 		[]string{"DAS", "Competência", "Valor", "Regime"},
 		[]string{"DAS", mes.Format("01/2006"), brl(das), e.Regime})
+	return out, nil
+}
+
+// fatorRMeses: o Fator R de cada um dos 12 meses até `mes` (folha e receita dos 12
+// anteriores a cada um; antes da abertura não conta).
+func fatorRMeses(ctx context.Context, tx pgx.Tx, entidadeID string, abertura *time.Time, mes time.Time) ([]FatorRMes, error) {
+	receitas, err := receitasPorMes(ctx, tx, entidadeID, mes.AddDate(-2, 0, 0), mes.AddDate(0, 1, 0))
+	if err != nil {
+		return nil, err
+	}
+	porMes := map[string]core.Centavos{}
+	for _, r := range receitas {
+		porMes[r.Mes] = r.Receita
+	}
+	out := []FatorRMes{}
+	for i := 11; i >= 0; i-- {
+		m := mes.AddDate(0, -i, 0)
+		if abertura != nil && m.Before(inicioMes(*abertura)) {
+			continue
+		}
+		var anteriores []core.Centavos
+		for k := 12; k >= 1; k-- {
+			a := m.AddDate(0, -k, 0)
+			if abertura != nil && a.Before(inicioMes(*abertura)) {
+				continue
+			}
+			anteriores = append(anteriores, porMes[a.Format("2006-01")])
+		}
+		folha, err := folha12(ctx, tx, entidadeID, m)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, FatorRMes{Mes: m.Format("2006-01"), FatorR: core.FatorR(folha, core.RBT12(anteriores, porMes[m.Format("2006-01")]))})
+	}
 	return out, nil
 }

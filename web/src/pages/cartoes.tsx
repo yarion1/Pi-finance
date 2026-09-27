@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CreditCard } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import { Barra, Valor } from "../components/extras";
+import { GraficoMensal } from "../components/graficos-painel";
 import { Aviso, CarregandoLista, Cartao, Etiqueta, Pagina, TituloCartao, Vazio } from "../components/ui";
 import { mensagemDe, obter } from "../lib/api";
 import { nomeMes, useContas } from "../lib/dados";
@@ -162,7 +163,10 @@ function DetalheCartao({ cartao }: { cartao: Conta }) {
             {dados.isPending ? (
               <CarregandoLista />
             ) : dados.data?.parcelas_futuras.length ? (
-              <ParcelasPorMes parcelas={dados.data.parcelas_futuras} moeda={cartao.moeda} />
+              <>
+                <GraficoParcelas parcelas={dados.data.parcelas_futuras} />
+                <ParcelasPorMes parcelas={dados.data.parcelas_futuras} moeda={cartao.moeda} />
+              </>
             ) : (
               <Vazio titulo="Nenhuma parcela a vencer" texto="Compras parceladas aparecem aqui mês a mês." />
             )}
@@ -226,6 +230,25 @@ function LinhaFatura({ fatura: f, moeda, destaque }: { fatura: Fatura; moeda: st
         )}
       </span>
     </li>
+  );
+}
+
+/** Quanto das parcelas cai em cada mês. */
+function GraficoParcelas({ parcelas }: { parcelas: ParcelaFutura[] }) {
+  const porMes = new Map<string, number>();
+  for (const p of parcelas)
+    porMes.set(p.mes.slice(0, 7), (porMes.get(p.mes.slice(0, 7)) ?? 0) - p.valor_centavos);
+  const meses = [...porMes.keys()].sort();
+  return (
+    <div className="mb-3">
+      <GraficoMensal
+        meses={meses}
+        valores={meses.map((m) => porMes.get(m) ?? 0)}
+        cor={(c) => c.alerta}
+        nome="Parcelas"
+        rotulo={`Parcelas futuras por mês, de ${meses[0] ? nomeMes(meses[0]) : ""} a ${meses.length ? nomeMes(meses[meses.length - 1] ?? "") : ""}`}
+      />
+    </div>
   );
 }
 

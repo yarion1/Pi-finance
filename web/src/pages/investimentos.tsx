@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { AvisoSimulacao, Barra } from "../components/extras";
 import { DialogoAtivo, DialogoB3, DialogoNovoAtivo } from "../components/investimentos";
+import { GraficosInvestimentos } from "../components/investimentos-graficos";
 import { Aviso, Botao, CarregandoLista, Etiqueta, Pagina, Vazio } from "../components/ui";
 import { Bloco } from "../components/visao";
 import { mensagemDe } from "../lib/api";
@@ -129,6 +130,8 @@ export function Investimentos() {
           </div>
         </Bloco>
       </div>
+
+      {c && ativos.length ? <GraficosInvestimentos carteira={c} /> : null}
 
       <section className="overflow-hidden rounded-cartao border border-borda bg-superficie">
         <header className="flex items-center justify-between gap-3 p-5">

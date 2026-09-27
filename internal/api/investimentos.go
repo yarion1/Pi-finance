@@ -191,3 +191,65 @@ func (s *Servidor) irInvestimentos(w http.ResponseWriter, r *http.Request) {
 	}
 	escreverJSON(w, http.StatusOK, ap)
 }
+
+// GET /api/investimentos/historico?meses=12: retorno acumulado × CDI, IPCA e Ibovespa; proventos por mês.
+func (s *Servidor) historicoInvestimentos(w http.ResponseWriter, r *http.Request) {
+	var h financeiro.HistoricoInvestimentos
+	err := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
+		meses, err := inteiroQuery(r, "meses", 12)
+		if err != nil || !financeiro.MesesSerie[int(meses)] || meses == 0 {
+			return invalido("meses: 6, 12, 24 ou 60")
+		}
+		ents, err := financeiro.Entidades(ctx, tx, r.URL.Query().Get("entidade_id"))
+		if err != nil {
+			return err
+		}
+		h, err = financeiro.CalcularHistoricoInvestimentos(ctx, tx, ents, financeiro.Hoje(), int(meses))
+		return err
+	})
+	if err != nil {
+		falhar(w, r, err)
+		return
+	}
+	escreverJSON(w, http.StatusOK, h)
+}
+
+// GET /api/investimentos/alvo?entidade_id=: alocação alvo por classe (a PF quando não diz).
+func (s *Servidor) alocacaoAlvo(w http.ResponseWriter, r *http.Request) {
+	var resp struct {
+		EntidadeID string                  `json:"entidade_id"`
+		Alvo       financeiro.AlocacaoAlvo `json:"alvo"`
+	}
+	err := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
+		var err error
+		if resp.EntidadeID, err = financeiro.EntidadeDoOrcamento(ctx, tx, r.URL.Query().Get("entidade_id")); err != nil {
+			return err
+		}
+		resp.Alvo, err = financeiro.LerAlocacaoAlvo(ctx, tx, resp.EntidadeID)
+		return err
+	})
+	if err != nil {
+		falhar(w, r, err)
+		return
+	}
+	escreverJSON(w, http.StatusOK, resp)
+}
+
+// PUT /api/investimentos/alvo {entidade_id, alvo: {classe: "0.4"}}
+func (s *Servidor) salvarAlocacaoAlvo(w http.ResponseWriter, r *http.Request) {
+	var c struct {
+		EntidadeID string                  `json:"entidade_id"`
+		Alvo       financeiro.AlocacaoAlvo `json:"alvo"`
+	}
+	if !lerJSON(w, r, &c) {
+		return
+	}
+	err := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
+		return financeiro.SalvarAlocacaoAlvo(ctx, tx, c.EntidadeID, c.Alvo)
+	})
+	if err != nil {
+		falhar(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

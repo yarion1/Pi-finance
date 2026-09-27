@@ -15,8 +15,37 @@ export type CoresTema = {
   invest: string;
   imposto: string;
   alerta: string;
+  destaque: string;
+  escuro: boolean;
   privado: boolean;
 };
+
+/**
+ * Paleta categórica validada (skill de dataviz: ΔE para daltonismo ≥ 8 entre vizinhas e
+ * visão normal ≥ 15), na ordem fixa; nunca gerar uma 9ª cor.
+ */
+const PALETA = {
+  claro: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"],
+  escuro: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"],
+};
+
+export type Slots = {
+  azul: string;
+  laranja: string;
+  verdeAgua: string;
+  amarelo: string;
+  magenta: string;
+  verde: string;
+  violeta: string;
+  vermelho: string;
+};
+
+export function paleta(c: Pick<CoresTema, "escuro">): Slots {
+  const [azul, laranja, verdeAgua, amarelo, magenta, verde, violeta, vermelho] = c.escuro
+    ? PALETA.escuro
+    : PALETA.claro;
+  return { azul, laranja, verdeAgua, amarelo, magenta, verde, violeta, vermelho } as Slots;
+}
 
 export function coresTema(): CoresTema {
   const css = getComputedStyle(document.documentElement);
@@ -34,6 +63,8 @@ export function coresTema(): CoresTema {
     invest: v("invest"),
     imposto: v("imposto"),
     alerta: v("alerta"),
+    destaque: v("destaque"),
+    escuro: document.documentElement.dataset.theme !== "claro",
     privado: document.documentElement.dataset.privado === "sim",
   };
 }
@@ -76,4 +107,15 @@ export function tooltip(titulo: string, linhas: { cor?: string; nome: string; va
         `<div class="grafico-tooltip-linha">${l.cor ? amostra(l.cor) : ""}<span>${escapar(l.nome)}</span><b>${escapar(l.valor)}</b></div>`,
     )
     .join("")}`;
+}
+
+const pct = new Intl.NumberFormat("pt-BR", {
+  style: "percent",
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+/** Percentual em pt-BR ("12,3 %"); nulo vira "—". */
+export function percentual(v: number | null | undefined): string {
+  return v === null || v === undefined ? "—" : pct.format(v).replace(/\s?%/, " %");
 }

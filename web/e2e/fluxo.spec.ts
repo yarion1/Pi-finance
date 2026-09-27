@@ -405,6 +405,16 @@ test.describe
       await expect(page.getByRole("heading", { name: "Reserva" })).toBeVisible();
       await expect(page.getByRole("meter", { name: "Progresso de Reserva" })).toBeVisible();
 
+      // gráficos do planejamento: parcelas futuras e patrimônio ao longo do tempo
+      await page.goto("/cartoes");
+      await expect(page.getByRole("img", { name: /Parcelas futuras por mês/ })).toBeVisible();
+      await capturar(page, "cartoes");
+      await page.goto("/patrimonio");
+      await expect(page.getByRole("img", { name: /Patrimônio mês a mês/ })).toBeVisible();
+      await page.getByText("2A", { exact: true }).click();
+      await expect(page.getByRole("img", { name: /Patrimônio mês a mês/ })).toBeVisible();
+      await capturar(page, "patrimonio");
+
       // telas novas sem rolagem lateral no celular
       await page.setViewportSize({ width: 360, height: 740 });
       for (const rota of [
@@ -555,6 +565,18 @@ test.describe
       await expect(page.getByText("R$ 750,00").first()).toBeVisible();
       await expect(page.getByText("DARF 6015 até 29/05/2026")).toBeVisible();
 
+      // gráficos da carteira: rentabilidade, alocação × alvo
+      await page.goto("/investimentos");
+      await expect(page.getByRole("heading", { name: /Rentabilidade acumulada/ })).toBeVisible();
+      await page.getByRole("button", { name: "Definir alvo" }).click();
+      const alvo = page.getByRole("dialog", { name: "Alocação alvo" });
+      await alvo.getByLabel("Ações (%)").fill("60");
+      await alvo.getByLabel("Renda fixa (%)").fill("40");
+      await alvo.getByRole("button", { name: "Salvar" }).click();
+      await expect(page.getByRole("button", { name: "Mudar alvo" })).toBeVisible();
+      await expect(page.getByRole("img", { name: /Alocação por classe:.*alvo 60,0 %/ })).toBeVisible();
+      await capturar(page, "investimentos");
+
       await page.setViewportSize({ width: 360, height: 740 });
       for (const rota of [
         "/open-finance",
@@ -621,6 +643,11 @@ test.describe
       const melhor = page.getByRole("listitem").filter({ hasText: "mais barato" });
       await expect(melhor).toContainText("ME no Anexo III");
 
+      // medidor do teto e faturamento mês a mês
+      await expect(page.getByRole("img", { name: /^Teto: / })).toBeVisible();
+      await expect(page.getByRole("img", { name: /Faturamento de cada mês/ })).toBeVisible();
+      await capturar(page, "cnpj");
+
       await page.setViewportSize({ width: 360, height: 740 });
       await page.goto("/cnpj");
       await page.waitForLoadState("networkidle");
@@ -666,6 +693,8 @@ test.describe
       await page.goto("/projecoes");
       await expect(page.getByRole("img", { name: /Saldo projetado: de R\$/ })).toBeVisible();
       await expect(page.getByRole("columnheader", { name: "Provável" })).toBeVisible();
+      await expect(page.getByRole("img", { name: /Patrimônio investível em 10 anos/ })).toBeVisible();
+      await capturar(page, "projecoes");
       await expect(
         page.getByRole("list", { name: "Cenários de independência" }).getByRole("listitem"),
       ).toHaveCount(3);

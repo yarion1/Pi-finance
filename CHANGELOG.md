@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.1 — fase 7 (parte 2): gráficos de patrimônio, investimentos e CNPJ
+
+- **Patrimônio** ao longo do tempo (6 meses a 5 anos): contas, investimentos e bens
+  empilhados, dívidas abaixo de zero e a linha do líquido.
+- **Investimentos**: rentabilidade acumulada da carteira contra CDI, IPCA e Ibovespa;
+  alocação atual contra um **alvo** que você define por classe; proventos e juros por
+  mês; títulos que vencem nos próximos 12 meses.
+- **Projeções**: o leque dos cenários do patrimônio com a linha da independência.
+- **CNPJ**: medidor do teto do MEI com a projeção do ano, faturamento e DAS mês a mês,
+  Fator R dos últimos 12 meses com a linha dos 28 %.
+- **Cartões**: parcelas futuras por mês em barras.
+
 ## v0.8.0 — fase 7 (parte 1): gráficos dos gastos
 
 - **Gastos** ganhou três vistas: **Lista**, **Gráficos** e **Para onde vai**.

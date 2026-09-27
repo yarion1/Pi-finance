@@ -258,6 +258,11 @@ export type PontoPatrimonio = {
   ativos_centavos: number;
   passivos_centavos: number;
   liquido_centavos: number;
+  contas_centavos: number;
+  investimentos_centavos: number;
+  bens_centavos: number;
+  dividas_centavos: number;
+  cartoes_centavos: number;
 };
 
 export type Patrimonio = {
@@ -747,6 +752,7 @@ export type PainelCNPJ = {
     folha_12m_centavos: number;
     fator_r: string;
     fator_r_minimo: string;
+    fator_r_meses?: { mes: string; fator_r: string }[];
     anexo: "III" | "V";
     das: {
       faixa: number;
@@ -1025,3 +1031,16 @@ export type AnaliseFluxo = {
     saldo_final_centavos: number;
   };
 };
+
+export type HistoricoInvestimentos = {
+  datas: string[];
+  valores_centavos: number[];
+  carteira: number[];
+  cdi: (number | null)[];
+  ipca: (number | null)[];
+  ibovespa: (number | null)[];
+  proventos: { mes: string; valor_centavos: number }[] | null;
+  fora_do_historico: number;
+};
+
+export type RespostaAlvo = { entidade_id: string; alvo: Record<string, string> };

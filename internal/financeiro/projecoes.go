@@ -185,6 +185,12 @@ type PontoPatrimonio struct {
 	Ativos   int64  `json:"ativos_centavos"`
 	Passivos int64  `json:"passivos_centavos"`
 	Liquido  int64  `json:"liquido_centavos"`
+	// composição (para a área empilhada)
+	Contas        int64 `json:"contas_centavos"`
+	Investimentos int64 `json:"investimentos_centavos"`
+	Bens          int64 `json:"bens_centavos"`
+	Dividas       int64 `json:"dividas_centavos"` // financiamentos e empréstimos
+	Cartoes       int64 `json:"cartoes_centavos"` // cartões e contas no negativo
 }
 
 type contaSaldo struct {
@@ -196,7 +202,7 @@ type bemValor struct {
 	criado time.Time
 }
 
-func patrimonioEm(ctx context.Context, tx pgx.Tx, contas []contaSaldo, bens []bemValor, dividas []Divida, data time.Time) (PontoPatrimonio, error) {
+func patrimonioEm(ctx context.Context, tx pgx.Tx, ents []string, contas []contaSaldo, bens []bemValor, dividas []Divida, data time.Time) (PontoPatrimonio, error) {
 	p := PontoPatrimonio{Data: data.Format(formatoData)}
 	for _, c := range contas {
 		if c.moeda != "BRL" {
@@ -206,26 +212,41 @@ func patrimonioEm(ctx context.Context, tx pgx.Tx, contas []contaSaldo, bens []be
 		if err := tx.QueryRow(ctx, "select app_saldo_conta($1, $2)", c.id, data).Scan(&saldo); err != nil {
 			return p, err
 		}
-		if saldo == nil {
-			continue
-		}
-		if *saldo >= 0 {
-			p.Ativos += *saldo
-		} else {
-			p.Passivos -= *saldo
+		switch {
+		case saldo == nil:
+		case *saldo < 0:
+			p.Cartoes -= *saldo
+		case c.tipo == "investimento":
+			p.Investimentos += *saldo
+		default:
+			p.Contas += *saldo
 		}
 	}
+	carteira, err := CalcularCarteira(ctx, tx, ents, data)
+	if err != nil {
+		return p, err
+	}
+	p.Investimentos += int64(carteira.Total)
 	for _, b := range bens {
 		if !b.criado.After(data) {
-			p.Ativos += b.valor
+			p.Bens += b.valor
 		}
 	}
 	for _, d := range dividas {
-		p.Passivos += d.SaldoEm(data)
+		p.Dividas += d.SaldoEm(data)
 	}
-	p.Liquido = p.Ativos - p.Passivos
+	p.somar()
 	return p, nil
 }
+
+func (p *PontoPatrimonio) somar() {
+	p.Ativos = p.Contas + p.Investimentos + p.Bens
+	p.Passivos = p.Dividas + p.Cartoes
+	p.Liquido = p.Ativos - p.Passivos
+}
+
+// MesesSerie: tamanhos aceitos para a série do patrimônio.
+var MesesSerie = map[int]bool{0: true, 6: true, 12: true, 24: true, 60: true}
 
 // Patrimonio: posição de hoje e o fim de cada um dos últimos 12 meses.
 type Patrimonio struct {
@@ -283,7 +304,8 @@ func EmprestimosDoBanco(ctx context.Context, tx pgx.Tx, ents []string) ([]Empres
 	return lista, err
 }
 
-func CalcularPatrimonio(ctx context.Context, tx pgx.Tx, ents []string, hoje time.Time, comSerie bool) (Patrimonio, error) {
+// CalcularPatrimonio de hoje e, com meses > 0, a série do fim de cada mês anterior.
+func CalcularPatrimonio(ctx context.Context, tx pgx.Tx, ents []string, hoje time.Time, meses int) (Patrimonio, error) {
 	hoje = dia(hoje)
 	var p Patrimonio
 	linhas, err := tx.Query(ctx, "select id, tipo::text, moeda from contas where entidade_id = any($1) and not arquivada", ents)
@@ -366,8 +388,9 @@ func CalcularPatrimonio(ctx context.Context, tx pgx.Tx, ents []string, hoje time
 		return p, err
 	}
 	p.Investimentos += int64(carteira.Total)
-	p.Hoje = PontoPatrimonio{Data: hoje.Format(formatoData), Ativos: p.Contas + p.Investimentos + p.Bens, Passivos: p.Cartoes + p.Negativas + p.Dividas + p.DividasBanco}
-	p.Hoje.Liquido = p.Hoje.Ativos - p.Hoje.Passivos
+	p.Hoje = PontoPatrimonio{Data: hoje.Format(formatoData), Contas: p.Contas, Investimentos: p.Investimentos, Bens: p.Bens,
+		Dividas: p.Dividas + p.DividasBanco, Cartoes: p.Cartoes + p.Negativas}
+	p.Hoje.somar()
 
 	fimMesPassado := core.DiaNoMes(hoje.Year(), hoje.Month(), 1).AddDate(0, 0, -1)
 	fimAnoPassado := time.Date(hoje.Year()-1, 12, 31, 0, 0, 0, 0, time.UTC)
@@ -375,21 +398,23 @@ func CalcularPatrimonio(ctx context.Context, tx pgx.Tx, ents []string, hoje time
 		data time.Time
 		var_ *int64
 	}{{fimMesPassado, &p.VariacaoMes}, {fimAnoPassado, &p.VariacaoAno}} {
-		pt, err := patrimonioEm(ctx, tx, contas, bens, dividas, ref.data)
+		pt, err := patrimonioEm(ctx, tx, ents, contas, bens, dividas, ref.data)
 		if err != nil {
 			return p, err
 		}
 		// sem histórico dos empréstimos do banco: o saldo de hoje vale para trás também
-		pt.Passivos, pt.Liquido = pt.Passivos+p.DividasBanco, pt.Liquido-p.DividasBanco
+		pt.Dividas += p.DividasBanco
+		pt.somar()
 		*ref.var_ = p.Hoje.Liquido - pt.Liquido
 	}
-	if comSerie {
-		for i := 12; i >= 1; i-- {
-			pt, err := patrimonioEm(ctx, tx, contas, bens, dividas, fimDoMes(core.DiaNoMes(hoje.Year(), hoje.Month()-time.Month(i), 1)))
+	if meses > 0 {
+		for i := meses; i >= 1; i-- {
+			pt, err := patrimonioEm(ctx, tx, ents, contas, bens, dividas, fimDoMes(core.DiaNoMes(hoje.Year(), hoje.Month()-time.Month(i), 1)))
 			if err != nil {
 				return p, err
 			}
-			pt.Passivos, pt.Liquido = pt.Passivos+p.DividasBanco, pt.Liquido-p.DividasBanco
+			pt.Dividas += p.DividasBanco
+			pt.somar()
 			p.Serie = append(p.Serie, pt)
 		}
 		p.Serie = append(p.Serie, p.Hoje)

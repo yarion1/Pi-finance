@@ -197,6 +197,9 @@ func (s *Servidor) Handler() http.Handler {
 	// Investimentos (fase 4)
 	mux.Handle("GET /api/investimentos", s.sessaoCompleta(s.carteira))
 	mux.Handle("GET /api/investimentos/ir", s.sessaoCompleta(s.irInvestimentos))
+	mux.Handle("GET /api/investimentos/historico", s.sessaoCompleta(s.historicoInvestimentos))
+	mux.Handle("GET /api/investimentos/alvo", s.sessaoCompleta(s.alocacaoAlvo))
+	mux.Handle("PUT /api/investimentos/alvo", s.sessaoCompleta(s.salvarAlocacaoAlvo))
 	mux.Handle("POST /api/investimentos/b3", s.sessaoCompleta(s.importarB3))
 	mux.Handle("POST /api/investimentos/ativos", s.sessaoCompleta(s.criarAtivo))
 	mux.Handle("PATCH /api/investimentos/ativos/{id}", s.sessaoCompleta(s.editarAtivo))
@@ -250,10 +253,12 @@ var RotasLeitura = []string{
 	"/api/recorrencias", "/api/recorrencias?entidade_id={entidade}",
 	"/api/orcamento", "/api/orcamento?entidade_id={entidade}",
 	"/api/metas", "/api/metas?entidade_id={entidade}",
-	"/api/patrimonio", "/api/patrimonio?entidade_id={entidade}", "/api/dividas/{divida}/tabela",
+	"/api/patrimonio", "/api/patrimonio?entidade_id={entidade}&meses=60", "/api/dividas/{divida}/tabela",
 	"/api/compromissos", "/api/compromissos?entidade_id={entidade}",
 	"/api/open-finance", "/api/convites-conta",
 	"/api/investimentos", "/api/investimentos?entidade_id={entidade}",
+	"/api/investimentos/historico", "/api/investimentos/historico?entidade_id={entidade}&meses=24",
+	"/api/investimentos/alvo", "/api/investimentos/alvo?entidade_id={entidade}",
 	"/api/investimentos/ir", "/api/investimentos/ir?entidade_id={entidade}", "/api/investimentos/ativos/{ativo}/operacoes",
 	"/api/ia",
 	"/api/cnpj/{pj}/painel", "/api/cnpj/{pj}/notas", "/api/cnpj/{pj}/notas?ano=2026", "/api/cnpj/{pj}/folha",

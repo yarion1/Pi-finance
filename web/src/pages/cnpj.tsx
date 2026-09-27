@@ -22,6 +22,7 @@ import {
   useInvalidarCNPJ,
 } from "../components/cnpj";
 import { AvisoSimulacao, Barra } from "../components/extras";
+import { GraficoFatorR, GraficoMedidor, GraficoMensal } from "../components/graficos-painel";
 import {
   Aviso,
   Botao,
@@ -136,6 +137,15 @@ function Conteudo({ p }: { p: PainelCNPJ }) {
               {p.mei ? "DAS-MEI" : "DAS do Simples"}
             </span>
           </TituloCartao>
+          {(p.mei?.das_meses ?? p.simples?.das_meses ?? []).some((d) => d.valor_centavos > 0) ? (
+            <GraficoMensal
+              meses={(p.mei?.das_meses ?? p.simples?.das_meses ?? []).map((d) => d.competencia)}
+              valores={(p.mei?.das_meses ?? p.simples?.das_meses ?? []).map((d) => d.valor_centavos)}
+              cor={(c) => c.imposto}
+              nome="DAS"
+              rotulo="DAS de cada mês do ano"
+            />
+          ) : null}
           <ListaDAS entidade={ent} meses={p.mei?.das_meses ?? p.simples?.das_meses ?? []} editar={editar} />
         </Cartao>
         {p.mei ? <BlocoLucroMEI p={p} /> : <BlocoTributos p={p} />}
@@ -254,6 +264,11 @@ function BlocoTeto({ p }: { p: PainelCNPJ }) {
       sub={`${formatarPercentual(m.projecao.percentual, 0)} de ${formatarMoeda(m.projecao.teto_centavos)} · ${nomesSituacaoMEI[m.situacao]}`}
     >
       <div className="flex flex-col gap-3 p-5 text-sm">
+        <GraficoMedidor
+          valor={m.projecao.faturado_centavos}
+          projecao={m.projecao.projecao_ano_centavos}
+          teto={m.projecao.teto_centavos}
+        />
         <Barra
           fracao={m.projecao.percentual}
           marca={0.7}
@@ -315,6 +330,16 @@ function BlocoSimples({ p }: { p: PainelCNPJ }) {
           />
         ) : null}
       </dl>
+      {(s.fator_r_meses ?? []).length > 1 ? (
+        <div className="px-5 pb-5">
+          <p className="text-xs font-semibold text-texto-2">Fator R mês a mês</p>
+          <GraficoFatorR
+            meses={(s.fator_r_meses ?? []).map((f) => f.mes)}
+            valores={(s.fator_r_meses ?? []).map((f) => Number(f.fator_r))}
+            minimo={Number(s.fator_r_minimo)}
+          />
+        </div>
+      ) : null}
     </Bloco>
   );
 }
@@ -379,32 +404,22 @@ function BlocoLucroMEI({ p }: { p: PainelCNPJ }) {
 }
 
 function MesesDoAno({ p }: { p: PainelCNPJ }) {
-  const maior = Math.max(...p.meses.map((m) => m.receita_centavos), 1);
   const media = p.mei?.projecao.media_maxima_centavos;
   return (
-    <ul className="flex flex-col gap-2 p-5 text-sm">
-      {p.meses
-        .slice()
-        .reverse()
-        .map((m) => (
-          <li key={m.mes}>
-            <div className="flex justify-between gap-3">
-              <span className="capitalize">{nomeMes(m.mes)}</span>
-              <span className="valor num">{formatarMoeda(m.receita_centavos)}</span>
-            </div>
-            <Barra
-              fracao={m.receita_centavos / maior}
-              cor="var(--destaque)"
-              rotulo={`Receita de ${nomeMes(m.mes)}`}
-            />
-          </li>
-        ))}
+    <div className="p-5 text-sm">
+      <GraficoMensal
+        meses={p.meses.map((m) => m.mes)}
+        valores={p.meses.map((m) => m.receita_centavos)}
+        cor={(c) => c.entrada}
+        nome="Faturamento"
+        rotulo={`Faturamento de cada mês de ${p.hoje.slice(0, 4)}`}
+      />
       {media !== undefined ? (
-        <li className="text-xs text-texto-2">
+        <p className="mt-2 text-xs text-texto-2">
           Para não estourar o teto: até {formatarMoeda(media)} por mês.
-        </li>
+        </p>
       ) : null}
-    </ul>
+    </div>
   );
 }
 

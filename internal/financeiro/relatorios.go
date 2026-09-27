@@ -134,7 +134,7 @@ func MontarRelatorioMes(ctx context.Context, tx pgx.Tx, mes, hoje time.Time) (Re
 	}
 
 	// patrimônio dos últimos meses
-	p, err := CalcularPatrimonio(ctx, tx, ents, hoje, true)
+	p, err := CalcularPatrimonio(ctx, tx, ents, hoje, 6)
 	if err != nil {
 		return r, err
 	}

@@ -79,7 +79,10 @@ func (s *Servidor) indicadores(w http.ResponseWriter, r *http.Request) {
 		Reserva        int64                        `json:"reserva_centavos"`
 		MesesDeReserva *float64                     `json:"meses_de_reserva"`
 	}
-	serie := r.URL.Query().Get("serie") == "1"
+	serie := 0
+	if r.URL.Query().Get("serie") == "1" {
+		serie = 12
+	}
 	err := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
 		hoje := financeiro.Hoje()
 		ents, err := financeiro.Entidades(ctx, tx, r.URL.Query().Get("entidade_id"))
@@ -530,7 +533,11 @@ func (s *Servidor) patrimonio(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		if resp.Patrimonio, err = financeiro.CalcularPatrimonio(ctx, tx, ents, hoje, true); err != nil {
+		meses, err := inteiroQuery(r, "meses", 12)
+		if err != nil || !financeiro.MesesSerie[int(meses)] || meses == 0 {
+			return invalido("meses: 6, 12, 24 ou 60")
+		}
+		if resp.Patrimonio, err = financeiro.CalcularPatrimonio(ctx, tx, ents, hoje, int(meses)); err != nil {
 			return err
 		}
 		linhas, err := tx.Query(ctx, `select id, entidade_id, nome, tipo::text, valor_centavos, to_char(atualizado_em, 'YYYY-MM-DD'),

@@ -14,7 +14,7 @@ const carregarMotor = () => {
 };
 
 /** Cores do tema que mudam com o tema e o modo privacidade (atributos do <html>). */
-function useCoresTema(): CoresTema {
+export function useCoresTema(): CoresTema {
   const [cores, setCores] = useState(coresTema);
   useEffect(() => {
     const obs = new MutationObserver(() => setCores(coresTema()));

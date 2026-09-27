@@ -344,7 +344,7 @@ func (s *Servidor) ferramentasChat(r *http.Request) []ia.Ferramenta {
 			Parametros: map[string]any{},
 			Rodar: func(ctx context.Context, _ json.RawMessage) (any, error) {
 				return ler(ctx, func(ctx context.Context, tx pgx.Tx, ents []string) (any, error) {
-					return financeiro.CalcularPatrimonio(ctx, tx, ents, hoje, false)
+					return financeiro.CalcularPatrimonio(ctx, tx, ents, hoje, 0)
 				})
 			},
 		},

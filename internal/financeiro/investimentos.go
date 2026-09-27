@@ -136,6 +136,7 @@ type ativoLido struct {
 	cotacaoCodigo   *string
 	indexador       *string
 	taxa            *float64
+	criado          time.Time
 }
 
 // CalcularCarteira: ativo do Open Finance vale o saldo que o banco informa; os outros,
@@ -144,7 +145,7 @@ func CalcularCarteira(ctx context.Context, tx pgx.Tx, ents []string, data time.T
 	c := Carteira{ValorEm: data.Format("2006-01-02"), Classes: []ClasseCarteira{}, Ativos: []AtivoCarteira{}}
 	linhas, err := tx.Query(ctx, `select id, entidade_id, codigo, coalesce(nome, codigo), classe::text, subtipo, instituicao,
 			emissor, to_char(vencimento, 'YYYY-MM-DD'), origem, encerrado, isento_ir, saldo_centavos, aplicado_centavos,
-			cotacao_codigo, indexador, taxa::float8
+			cotacao_codigo, indexador, taxa::float8, criado_em::date
 		from ativos where entidade_id = any($1) order by classe, nome`, ents)
 	if err != nil {
 		return c, err
@@ -154,7 +155,7 @@ func CalcularCarteira(ctx context.Context, tx pgx.Tx, ents []string, data time.T
 		var a ativoLido
 		if err := linhas.Scan(&a.ID, &a.EntidadeID, &a.Codigo, &a.Nome, &a.Classe, &a.Subtipo, &a.Instituicao, &a.Emissor,
 			&a.Vencimento, &a.Origem, &a.Encerrado, &a.Isento, &a.saldo, &a.aplicado, &a.cotacaoCodigo,
-			&a.indexador, &a.taxa); err != nil {
+			&a.indexador, &a.taxa, &a.criado); err != nil {
 			linhas.Close()
 			return c, err
 		}
@@ -170,6 +171,10 @@ func CalcularCarteira(ctx context.Context, tx pgx.Tx, ents []string, data time.T
 	ix := &indicesCarteira{}
 	for _, a := range lidos {
 		if a.Origem == "pluggy" {
+			// o banco só informa o saldo de hoje: numa data passada, conta só se o painel já via o ativo
+			if data.Before(a.criado) {
+				continue
+			}
 			if a.saldo != nil {
 				a.Valor = core.Centavos(*a.saldo)
 			}

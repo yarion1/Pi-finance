@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { AvisoSimulacao } from "../components/extras";
+import { GraficoLeque } from "../components/graficos-painel";
 import {
   Aviso,
   Botao,
@@ -331,6 +332,15 @@ function PatrimonioFuturo() {
             {formatarPercentual(f.retorno_medio_aa)} ao ano. {f.simulacoes.toLocaleString("pt-BR")} cenários,
             em dinheiro de hoje.
           </p>
+          {(f.pontos ?? []).length > 1 ? (
+            <GraficoLeque
+              anos={(f.pontos ?? []).map((p) => p.ano)}
+              p10={(f.pontos ?? []).map((p) => p.p10_centavos)}
+              p50={(f.pontos ?? []).map((p) => p.p50_centavos)}
+              p90={(f.pontos ?? []).map((p) => p.p90_centavos)}
+              alvo={f.alvo_centavos}
+            />
+          ) : null}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <caption className="sr-only">Patrimônio investível por ano, em dinheiro de hoje</caption>
