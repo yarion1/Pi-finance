@@ -120,12 +120,20 @@ export function Notificacoes() {
     mutationFn: (id: string) => api("DELETE", `/api/notificacoes/push/${id}`),
     onSuccess: atualizar,
   });
+  // as escolhas mudam na hora (estado local) e vão para o servidor em seguida
+  const [prefs, setPrefs] = useState<Preferencias | null>(null);
+  useEffect(() => {
+    if (e && !prefs) setPrefs(e.preferencias);
+  }, [e, prefs]);
   const salvar = useMutation({
     mutationFn: (p: Preferencias) => api("PUT", "/api/notificacoes", p),
-    onMutate: (p) =>
-      cliente.setQueryData<Estado>(["notificacoes"], (v) => (v ? { ...v, preferencias: p } : v)),
+    onError: () => setPrefs(null),
     onSettled: atualizar,
   });
+  const escolher = (p: Preferencias) => {
+    setPrefs(p);
+    salvar.mutate(p);
+  };
   const conectar = useMutation({
     mutationFn: () =>
       comReautenticacao(() =>
@@ -143,14 +151,12 @@ export function Notificacoes() {
     mutationFn: () => api<{ enviados: number }>("POST", "/api/notificacoes/teste"),
   });
 
-  const quer = (tipo: string, canal: keyof Canal) => e?.preferencias.tipos[tipo]?.[canal] ?? true;
+  const p = prefs ?? e?.preferencias;
+  const quer = (tipo: string, canal: keyof Canal) => p?.tipos[tipo]?.[canal] ?? true;
   const mudar = (tipo: string, canal: keyof Canal, ligado: boolean) => {
-    if (!e) return;
+    if (!p) return;
     const atual = { push: quer(tipo, "push"), telegram: quer(tipo, "telegram") };
-    salvar.mutate({
-      ...e.preferencias,
-      tipos: { ...e.preferencias.tipos, [tipo]: { ...atual, [canal]: ligado } },
-    });
+    escolher({ ...p, tipos: { ...p.tipos, [tipo]: { ...atual, [canal]: ligado } } });
   };
   const semCanal = e && !e.aparelhos.length && !e.telegram_conectado;
 
@@ -315,8 +321,8 @@ export function Notificacoes() {
             <input
               type="checkbox"
               className="mt-0.5 size-5 shrink-0 accent-[var(--primaria)]"
-              checked={e.preferencias.mostrar_valores}
-              onChange={(ev) => salvar.mutate({ ...e.preferencias, mostrar_valores: ev.target.checked })}
+              checked={p?.mostrar_valores ?? false}
+              onChange={(ev) => p && escolher({ ...p, mostrar_valores: ev.target.checked })}
             />
             <span>
               Mostrar valores nas notificações

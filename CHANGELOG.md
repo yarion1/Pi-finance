@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.4 — correção das notificações
+
+- Em Notificações, marcar e desmarcar os tipos muda na hora (antes, num aparelho lento, a
+  caixa podia voltar ao estado anterior até o servidor responder). A v0.8.3 não chegou ao
+  Pi por causa disso; esta versão leva as notificações junto.
+
 ## v0.8.3 — fase 7 (parte 4): notificações no celular e no Telegram
 
 - **Notificações** (Mais › Notificações): ative no celular (com o app instalado) e/ou
