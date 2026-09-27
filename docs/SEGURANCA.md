@@ -43,5 +43,10 @@ aparelho (RFC 8291). Ligar o Telegram pede a senha e usa um código de uso únic
 (só o hash fica no banco); o bot só responde em conversa privada e o token nunca aparece
 em erro nem log. Os links das notificações são sempre caminhos do próprio painel.
 
+**Casa (fase 7)**: despesas divididas só aparecem para quem pagou e para quem deve (RLS),
+com cópia da descrição e do valor, sem abrir a conta nem a transação de quem pagou; só
+dá para dividir o próprio gasto e só com donos e membros da casa; o acerto roda numa
+função que confere a casa e a pessoa da sessão (`TestCasaConsolidadaEDespesasDivididas`).
+
 Na frente de tudo, o **Cloudflare Access** só deixa chegar ao painel quem está na lista de
 e-mails (DECISOES D11 e D29).

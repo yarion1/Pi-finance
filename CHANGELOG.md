@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.8.5 — fase 7 (fim): casa consolidada e despesas divididas
+
+- **Casa**: o consolidado do que cada um compartilha (saldo e gastos do mês, de quem vem
+  cada número), a **contribuição de cada membro** e os gastos da casa por categoria.
+- **Dividir uma compra** com a casa direto da transação: partes iguais, por valor ou por
+  percentual. Na casa, **quem deve quem** e o botão **Acertar**.
+- **Metas conjuntas** (viagem, reserva da casa): cada membro registra quanto pôs e vê o
+  progresso e quanto falta por mês.
+- Correções: a paleta de comandos podia fechar sozinha ao reabrir logo depois de navegar;
+  e a v0.8.4 (notificações) sai junto, que o teste instável segurou.
+- Fase 7 concluída: app instalável, sem rolagem horizontal em 360 px, temas claro e escuro
+  revisados.
+
 ## v0.8.4 — correção das notificações
 
 - Em Notificações, marcar e desmarcar os tipos muda na hora (antes, num aparelho lento, a

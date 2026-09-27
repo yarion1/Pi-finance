@@ -48,6 +48,17 @@ async function capturar(pagina: Page, nome: string) {
   if (!pasta) return;
   await pagina.waitForTimeout(1200); // animação dos gráficos
   await pagina.screenshot({ path: `${pasta}/${nome}.png`, fullPage: true });
+  // o mesmo no tema claro, para revisar os dois
+  const tema = await pagina.evaluate(() => {
+    const antes = document.documentElement.dataset.theme ?? "";
+    document.documentElement.dataset.theme = "claro";
+    return antes;
+  });
+  await pagina.waitForTimeout(1200);
+  await pagina.screenshot({ path: `${pasta}/${nome}-claro.png`, fullPage: true });
+  await pagina.evaluate((t) => {
+    document.documentElement.dataset.theme = t;
+  }, tema);
 }
 
 const senha = "uma frase longa de teste";
@@ -732,6 +743,8 @@ test.describe
       await paleta.getByRole("combobox").fill("orcamento");
       await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/orcamento$/);
+      // a tela nova carrega sob demanda: espera montar antes do próximo atalho
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Orçamento");
       await page.keyboard.press("Control+k");
       await paleta.getByRole("combobox").fill("quanto gastei com uber");
       await expect(paleta.getByRole("option", { name: /Perguntar à IA/ })).toBeVisible();
@@ -843,6 +856,55 @@ test.describe
       await semRolagemHorizontal(page);
       await page.getByRole("button", { name: "Desconectar" }).click();
       await expect(page.getByRole("button", { name: "Conectar Telegram" })).toBeVisible();
+
+      // casa: dividir um gasto com o Bruno, ver quem deve quem, acertar e juntar para uma meta
+      page.on("dialog", (d) => d.accept()); // confirmações nativas
+      await page.evaluate(async () => {
+        const contas = await (await fetch("/api/contas")).json();
+        const conta = contas.find((c: { tipo: string }) => c.tipo === "corrente");
+        const hoje = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+        await fetch("/api/transacoes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conta_id: conta.id,
+            data: hoje,
+            descricao: "JANTAR DA CASA",
+            valor_centavos: -12000,
+          }),
+        });
+      });
+      await page.goto("/gastos?busca=JANTAR%20DA%20CASA");
+      await page.getByRole("button", { name: /JANTAR DA CASA/ }).click();
+      const edicao = page.getByRole("dialog", { name: "Transação" });
+      await edicao.getByRole("button", { name: "Dividir com a casa" }).click();
+      await expect(edicao.getByRole("checkbox", { name: "Bruno Teste" })).toBeChecked();
+      await edicao.getByRole("button", { name: "Dividir", exact: true }).click();
+      await expect(edicao.getByText("Dividida.")).toBeVisible();
+
+      await page.goto("/casa");
+      await page.getByRole("link", { name: /Casa Teste/ }).click();
+      const saldos = page.getByRole("list", { name: "Saldos com cada pessoa" });
+      await expect(saldos).toContainText(/Bruno Teste te deve R\$\s60,00/);
+      await expect(page.getByRole("list", { name: "Despesas divididas" })).toContainText("JANTAR DA CASA");
+      await expect(
+        page.getByRole("list", { name: "Contribuição por membro" }).getByRole("meter"),
+      ).toHaveCount(2);
+
+      await page.getByRole("button", { name: "Nova meta" }).click();
+      await page.getByLabel("Nome da meta").fill("Viagem de férias");
+      await page.getByLabel("Quanto juntar (R$)").fill("5.000,00");
+      await page.getByRole("button", { name: "Criar meta" }).click();
+      const meta = page.getByRole("listitem", { name: "Viagem de férias" });
+      await meta.getByLabel("Quanto você pôs (R$)").fill("300,00");
+      await meta.getByRole("button", { name: "Contribuir" }).click();
+      await expect(meta).toContainText(/6\s?%/);
+      await expect(meta.getByRole("meter")).toBeVisible();
+      await capturar(page, "casa");
+      await semRolagemHorizontal(page);
+
+      await saldos.getByRole("button", { name: "Acertar" }).click();
+      await expect(page.getByText(/Tudo acertado/)).toBeVisible();
       expect(violacoes).toEqual([]);
     });
   });

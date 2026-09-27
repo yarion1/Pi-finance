@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Check, ChevronRight, Copy, LogOut, Plus, Share2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { PainelDaCasa } from "../components/casa-painel";
 import {
   Aviso,
   Botao,
@@ -132,6 +133,7 @@ export function DetalheCasa() {
   return (
     <Pagina titulo={data.nome} subtitulo={`Você é ${nomesPapel[data.papel]?.toLowerCase()} desta casa.`}>
       {erro ? <Aviso tipo="erro">{mensagemDe(erro)}</Aviso> : null}
+      <PainelDaCasa casaId={data.id} />
       <Cartao>
         <TituloCartao>Membros</TituloCartao>
         <ul className="flex flex-col divide-y divide-borda">

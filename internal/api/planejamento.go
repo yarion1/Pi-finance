@@ -338,7 +338,7 @@ func listarMetas(ctx context.Context, tx pgx.Tx, ents []string, hoje time.Time, 
 	linhas, err := tx.Query(ctx, `select m.id, m.entidade_id, m.nome, m.tipo::text, m.alvo_centavos, m.data_alvo,
 			m.contas_vinculadas::text[], m.valor_manual_centavos, m.aporte_planejado_centavos,
 			m.valor_manual_centavos + coalesce((select sum(coalesce(app_saldo_conta(c, $2), 0)) from unnest(m.contas_vinculadas) c), 0)
-		from metas m where m.entidade_id = any($1) order by m.concluida_em nulls first, m.data_alvo nulls last, m.nome`, ents, hoje)
+		from metas m where m.entidade_id = any($1) and m.casa_id is null order by m.concluida_em nulls first, m.data_alvo nulls last, m.nome`, ents, hoje)
 	if err != nil {
 		return nil, err
 	}

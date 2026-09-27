@@ -596,3 +596,29 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   guarda uma chave por dia para não repetir.
 - Aparelho que o serviço de push diz não existir mais (404/410) sai da lista sozinho;
   no máximo 10 aparelhos por pessoa.
+
+## D41 — Casa: consolidado, despesas divididas e metas conjuntas (fase 7, fim)
+
+- **Consolidado** (na tela de cada casa): soma só as contas que a pessoa compartilhou com
+  aquela casa. "Só saldo" entra no saldo e nunca nos gastos; "compartilhada" entra nos
+  dois. Cada número diz de quem vem (saldo e gastos por membro).
+- **Contribuição de cada membro** no mês = gastos nas contas compartilhadas dela + as
+  despesas divididas que ela pagou fora dessas contas (para não contar duas vezes). O
+  total das divididas vem de uma função que devolve só somas por pessoa.
+- **Despesas divididas**: quem pagou divide o próprio gasto (50/50, por valor ou por
+  percentual, com os centavos que sobram distribuídos para fechar o total) com donos e
+  membros da casa; leitor não divide nem deve. A despesa guarda cópia da descrição, data e
+  valor: quem deve vê só isso, nunca a conta nem a transação de quem pagou. Só quem
+  participa (pagou ou deve) vê a despesa; o leitor e os outros membros, não.
+- **Quem deve quem** por par, compensando os dois sentidos. **Acertar** marca como acertado
+  tudo o que está em aberto entre as duas pessoas e registra o acerto (quem pagou a quem,
+  quanto); qualquer uma das duas pode acertar. O painel não cria transação do acerto
+  (o Pix de verdade aparece pelo extrato).
+- **Metas conjuntas**: a meta fica na PF de quem cria, marcada com a casa; toda a casa vê,
+  donos e membros registram quanto puseram. O progresso é a soma das contribuições (sem
+  contas vinculadas: a conta de uma pessoa não é visível para as outras). Só quem criou
+  apaga. As metas da casa não aparecem na lista pessoal de Metas.
+- Percentual em centésimos de ponto (5000 = 50 %) e dinheiro em centavos: nada de float
+  na divisão.
+- **Temas revisados**: o e2e, com `CAPTURAS`, fotografa cada tela com gráfico no escuro e
+  no claro; os dois foram conferidos (critério da fase 7).

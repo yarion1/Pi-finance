@@ -158,7 +158,10 @@ export function PaletaComandos() {
   return (
     <dialog
       ref={dialogo}
-      onClose={() => setAberta(false)}
+      // o evento "close" chega depois; se um Ctrl+K já reabriu, ignora
+      onClose={() => {
+        if (!dialogo.current?.open) setAberta(false);
+      }}
       aria-label="Paleta de comandos"
       className="mx-auto mt-[12dvh] w-[min(100vw-1.5rem,36rem)] rounded-cartao border border-borda bg-superficie p-0 text-texto shadow-cartao backdrop:bg-black/60"
     >

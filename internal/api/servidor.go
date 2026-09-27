@@ -102,6 +102,13 @@ func (s *Servidor) Handler() http.Handler {
 	mux.Handle("DELETE /api/casas/{id}/convites/{convite}", s.sessaoCompleta(s.cancelarConvite))
 	mux.Handle("PATCH /api/casas/{id}/membros/{usuario}", s.sessaoCompleta(s.mudarPapelMembro))
 	mux.Handle("DELETE /api/casas/{id}/membros/{usuario}", s.sessaoCompleta(s.removerMembro))
+	mux.Handle("GET /api/casas/{id}/painel", s.sessaoCompleta(s.painelCasa))
+	mux.Handle("POST /api/casas/{id}/divisoes", s.sessaoCompleta(s.dividirDespesa))
+	mux.Handle("DELETE /api/divisoes/{id}", s.sessaoCompleta(s.apagarDivisao))
+	mux.Handle("POST /api/casas/{id}/acertos", s.sessaoCompleta(s.acertar))
+	mux.Handle("POST /api/casas/{id}/metas", s.sessaoCompleta(s.criarMetaCasa))
+	mux.Handle("POST /api/metas/{id}/contribuicoes", s.sessaoCompleta(s.contribuirMeta))
+	mux.Handle("DELETE /api/contribuicoes/{id}", s.sessaoCompleta(s.apagarContribuicao))
 
 	// entidades
 	mux.Handle("GET /api/entidades", s.sessaoCompleta(s.listarEntidades))
@@ -280,7 +287,7 @@ var RotasLeitura = []string{
 	"/api/relatorios", "/api/relatorios/{relatorio}",
 	"/api/analise/gastos", "/api/analise/gastos?entidade_id={entidade}&mes=2026-09&meses=24",
 	"/api/analise/fluxo", "/api/analise/fluxo?entidade_id={entidade}&mes=2026-09", "/api/holerites", "/api/holerites?entidade_id={entidade}&ano=2026",
-	"/api/notificacoes",
+	"/api/notificacoes", "/api/casas/{casa}/painel", "/api/casas/{casa}/painel?mes=2026-09",
 	"/api/projecoes/futuro", "/api/projecoes/futuro?entidade_id={entidade}&aporte=100000&anos=5&perfil=arrojado",
 }
 

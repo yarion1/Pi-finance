@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import { DividirComCasa } from "../components/dividir";
 import { Barra, Dialogo, SeletorCategoria, SeletorMes, Valor } from "../components/extras";
 import { Aviso, Botao, Campo, CarregandoLista, Cartao, Pagina, Selecao, Vazio } from "../components/ui";
 import { Bloco } from "../components/visao";
@@ -639,6 +640,9 @@ function EditarTransacao({ t, aoFechar }: { t: Transacao; aoFechar: () => void }
         onChange={setCategoria}
       />
       <Campo rotulo="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} maxLength={500} />
+      {t.tipo === "gasto" && t.valor_centavos < 0 && t.moeda === "BRL" ? (
+        <DividirComCasa transacaoId={t.id} total={-t.valor_centavos} />
+      ) : null}
       <p className="text-xs text-texto-2">
         Origem: {t.origem.toUpperCase()}
         {t.importacao_id ? (

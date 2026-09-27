@@ -49,7 +49,7 @@ func falhar(w http.ResponseWriter, r *http.Request, err error) {
 		erroJSON(w, http.StatusForbidden, "segundo_fator", err.Error())
 	case errors.Is(err, auth.ErrReautenticar):
 		erroJSON(w, http.StatusForbidden, "reautenticar", err.Error())
-	case errors.Is(err, auth.ErrNaoPermitido), errors.Is(err, auth.ErrCadastroFechado):
+	case errors.Is(err, auth.ErrNaoPermitido), errors.Is(err, auth.ErrCadastroFechado), errors.Is(err, financeiro.ErrSemPermissaoCasa):
 		erroJSON(w, http.StatusForbidden, "proibido", err.Error())
 	case errors.Is(err, auth.ErrConviteInvalido):
 		erroJSON(w, http.StatusGone, "convite", err.Error())
