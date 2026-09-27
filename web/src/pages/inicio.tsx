@@ -140,8 +140,11 @@ export function Inicio() {
   const temContas = (r?.contas.length ?? 0) > 0;
   const temTransacoes = (r?.ultimas.length ?? 0) > 0;
   const categoriasOk = temTransacoes && r?.sem_categoria === 0;
-  const passosFeitos =
-    temPF && temContas && temTransacoes && categoriasOk && (metas.data?.metas.length ?? 0) > 0;
+  const temMeta = (metas.data?.metas.length ?? 0) > 0;
+  const bancoOk = temContas && temTransacoes;
+  // onboarding da SPEC em 4 passos
+  const feitos = [temPF, bancoOk, categoriasOk, temMeta].filter(Boolean).length;
+  const passosFeitos = feitos === 4;
 
   return (
     <Pagina
@@ -350,25 +353,20 @@ export function Inicio() {
 
       {!passosFeitos ? (
         <Cartao>
-          <TituloCartao>Primeiros passos</TituloCartao>
+          <TituloCartao acao={<span className="text-sm text-texto-2">{feitos} de 4</span>}>
+            Primeiros passos
+          </TituloCartao>
           <ol className="flex flex-col gap-1">
             <Passo feito={temPF} para="/entidades" icone={<Users className="size-4" />}>
               Criar sua entidade pessoa física
             </Passo>
-            <Passo feito={temContas} para="/contas" icone={<Landmark className="size-4" />}>
-              Cadastrar suas contas e cartões
-            </Passo>
-            <Passo feito={temTransacoes} para="/importar" icone={<Upload className="size-4" />}>
-              Importar o primeiro extrato
+            <Passo feito={bancoOk} para="/open-finance" icone={<Landmark className="size-4" />}>
+              Conectar o primeiro banco (ou importar um extrato)
             </Passo>
             <Passo feito={categoriasOk} para="/gastos?sem_categoria=1" icone={<Tags className="size-4" />}>
               Revisar categorias
             </Passo>
-            <Passo
-              feito={(metas.data?.metas.length ?? 0) > 0}
-              para="/metas"
-              icone={<Target className="size-4" />}
-            >
+            <Passo feito={temMeta} para="/metas" icone={<Target className="size-4" />}>
               Definir uma meta
             </Passo>
           </ol>

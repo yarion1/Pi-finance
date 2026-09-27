@@ -1,14 +1,26 @@
 {
+  "id": "/",
   "name": "Finanças",
   "short_name": "Finanças",
   "description": "Finanças da casa, investimentos e CNPJ",
   "lang": "pt-BR",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0b0f14",
-  "theme_color": "#0b0f14",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "categories": ["finance"],
   "icons": [
-    { "src": "/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Gastos", "url": "/gastos", "icons": [{ "src": "/icone-192.png", "sizes": "192x192" }] },
+    { "name": "Nova transação", "url": "/gastos?nova=1", "icons": [{ "src": "/icone-192.png", "sizes": "192x192" }] },
+    { "name": "Investimentos", "url": "/investimentos", "icons": [{ "src": "/icone-192.png", "sizes": "192x192" }] }
   ]
 }

@@ -56,7 +56,7 @@ export function Transacoes() {
   const [buscaAtiva, setBuscaAtiva] = useState(busca);
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [editando, setEditando] = useState<Transacao | null>(null);
-  const [nova, setNova] = useState(false);
+  const [nova, setNova] = useState(() => params.get("nova") === "1");
   const campoBusca = useRef<HTMLInputElement>(null);
   const contas = useContas();
   const categorias = useCategorias();

@@ -725,6 +725,44 @@ test.describe
       await page.getByRole("button", { name: "Guardar holerite" }).click();
       await expect(page.getByText("Holerite guardado.")).toBeVisible();
 
+      // paleta de comandos: Ctrl+K, busca sem acento, Enter vai para a tela
+      await page.keyboard.press("Control+k");
+      const paleta = page.getByRole("dialog", { name: "Paleta de comandos" });
+      await expect(paleta).toBeVisible();
+      await paleta.getByRole("combobox").fill("orcamento");
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(/\/orcamento$/);
+      await page.keyboard.press("Control+k");
+      await paleta.getByRole("combobox").fill("quanto gastei com uber");
+      await expect(paleta.getByRole("option", { name: /Perguntar à IA/ })).toBeVisible();
+      await page.keyboard.press("Escape");
+
+      // PWA: manifesto com os ícones e o service worker ativo (só a casca, nada da API)
+      const pwa = await page.evaluate(async () => {
+        const m = await fetch("/manifest.webmanifest");
+        const manifesto = await m.json();
+        const icones = await Promise.all(
+          manifesto.icons.map((i: { src: string }) => fetch(i.src).then((r) => r.status)),
+        );
+        const reg = await navigator.serviceWorker.ready;
+        return { tipo: m.headers.get("content-type"), icones, sw: reg.active?.scriptURL ?? "" };
+      });
+      expect(pwa.tipo).toContain("application/manifest+json");
+      expect(pwa.icones.every((s: number) => s === 200)).toBe(true);
+      expect(pwa.sw).toMatch(/\/sw\.js$/);
+      const emCache = await page.evaluate(async () => {
+        const nomes = await caches.keys();
+        const urls: string[] = [];
+        for (const n of nomes) for (const r of await (await caches.open(n)).keys()) urls.push(r.url);
+        return urls;
+      });
+      expect(emCache.some((u) => u.includes("/api/"))).toBe(false);
+      // critério da fase 7: o Chrome considera o app instalável
+      const cdp = await page.context().newCDPSession(page);
+      const { installabilityErrors } = await cdp.send("Page.getInstallabilityErrors");
+      // o contexto do Playwright é anônimo, onde o Chrome nunca oferece instalar: só esse "erro" é esperado
+      expect(installabilityErrors.filter((e) => e.errorId !== "in-incognito")).toEqual([]);
+
       // relatórios: gera o que falta (depende do dia em que o teste roda) e abre o primeiro
       await page.goto("/relatorios");
       await page.getByRole("button", { name: "Gerar os que faltam" }).click();

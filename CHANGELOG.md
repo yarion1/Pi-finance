@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.8.2 — fase 7 (parte 3): app instalável e paleta de comandos
+
+- **Instale no celular**: o painel virou um app (PWA) com ícone, tela cheia e atalhos
+  para Gastos, Nova transação e Investimentos; abre mesmo sem rede (só a casca: nenhum
+  dado financeiro fica guardado no aparelho).
+- **Paleta de comandos**: Ctrl+K (ou a lupa no topo) para ir a qualquer tela, lançar uma
+  transação, trocar o tema, esconder os valores, buscar transações ou perguntar à IA.
+- **Primeiros passos** no início seguem os 4 passos: pessoa física, primeiro banco,
+  categorias e uma meta.
+
 ## v0.8.1 — fase 7 (parte 2): gráficos de patrimônio, investimentos e CNPJ
 
 - **Patrimônio** ao longo do tempo (6 meses a 5 anos): contas, investimentos e bens

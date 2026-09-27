@@ -20,7 +20,7 @@ const sugestoes = [
 export function Perguntar() {
   const config = useConfigIA();
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
-  const [texto, setTexto] = useState("");
+  const [texto, setTexto] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const fim = useRef<HTMLDivElement>(null);
 
   const perguntar = useMutation({

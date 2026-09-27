@@ -1,10 +1,23 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Briefcase, Eye, EyeOff, Home, LineChart, LogOut, Menu, Moon, ReceiptText, Sun } from "lucide-react";
+import {
+  Briefcase,
+  Eye,
+  EyeOff,
+  Home,
+  LineChart,
+  LogOut,
+  Menu,
+  Moon,
+  ReceiptText,
+  Search,
+  Sun,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { api } from "../lib/api";
 import { usePrivacidade, useTema } from "../lib/preferencias";
 import { chaveSessao, useSessao } from "../lib/sessao";
+import { abrirPaleta, PaletaComandos } from "./paleta";
 
 const itens = [
   { para: "/", rotulo: "Início", icone: Home },
@@ -41,6 +54,9 @@ export function Controles() {
   const { privado, alternar: alternarPrivado } = usePrivacidade();
   return (
     <div className="flex items-center">
+      <BotaoIcone rotulo="Buscar (Ctrl+K)" onClick={abrirPaleta}>
+        <Search className="size-5" />
+      </BotaoIcone>
       <BotaoIcone rotulo={privado ? "Mostrar valores" : "Esconder valores"} onClick={alternarPrivado}>
         {privado ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
       </BotaoIcone>
@@ -122,6 +138,7 @@ export function Shell() {
         <main className="flex-1 px-4 pt-5 pb-28 sm:px-6 md:px-8 md:pt-8 md:pb-10">
           <Outlet />
         </main>
+        <PaletaComandos />
 
         {/* barra inferior no celular */}
         <nav

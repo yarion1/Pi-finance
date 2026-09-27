@@ -2,10 +2,16 @@ package api
 
 import (
 	"io/fs"
+	"mime"
 	"net/http"
 	"path"
 	"strings"
 )
+
+func init() {
+	// o manifesto do PWA precisa do tipo certo
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+}
 
 // spa serve os arquivos do front; rotas desconhecidas caem no index.html
 // (o roteamento é do lado do navegador).

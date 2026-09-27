@@ -557,3 +557,21 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   cor própria: azul, laranja e verde-água; a carteira usa o destaque do tema; dívidas em
   vermelho num grupo só (duas cores de dívida lado a lado não passavam no teste de
   daltonismo no tema escuro). Cada série tem cor fixa, que não muda quando outra some.
+
+## D39 — App instalável, paleta de comandos e primeiros passos (fase 7)
+
+- **PWA**: manifesto com ícones PNG de 192 e 512 px (e um "maskable" com margem), atalhos
+  (Gastos, Nova transação, Investimentos) e um **service worker** que guarda só a casca
+  do app (HTML, JS com hash, ícones) para abrir sem rede. **Nada de `/api/` vai para o
+  cache**: dado financeiro não fica no aparelho (o e2e confere). Navegação é rede
+  primeiro (sempre a versão nova), arquivos com hash no nome, cache primeiro. O mesmo
+  service worker recebe o push na parte seguinte. Critério da fase: o e2e pergunta ao
+  Chrome (`Page.getInstallabilityErrors`) e não há erro, fora o "aba anônima" do
+  Playwright.
+- **Paleta de comandos** (Ctrl+K / ⌘K ou a lupa do topo): telas, ações (nova transação,
+  tema, modo privacidade) e, com texto, "buscar transações" e "perguntar à IA". Busca sem
+  acento. Os atalhos `n` e `/` da tela de gastos continuam.
+- **Modo privacidade** já borrava os valores (classe `valor`); os gráficos passaram a
+  mostrar "R$ ••••" nos eixos e tooltips.
+- **Primeiros passos** no início com os 4 da SPEC: pessoa física, primeiro banco (Open
+  Finance ou extrato), categorias revisadas e uma meta, com o "N de 4".

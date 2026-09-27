@@ -45,3 +45,12 @@ if (raiz) {
     </StrictMode>,
   );
 }
+
+// app instalável e que abre sem rede (só a casca; a API nunca vai para o cache)
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // sem service worker o painel funciona igual, só não abre sem rede
+    });
+  });
+}
