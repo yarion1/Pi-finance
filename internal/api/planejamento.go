@@ -823,3 +823,43 @@ func (s *Servidor) editarCompromisso(w http.ResponseWriter, r *http.Request) {
 func (s *Servidor) apagarCompromisso(w http.ResponseWriter, r *http.Request) {
 	s.apagarDaTabela(w, r, "compromissos")
 }
+
+// GET /api/cartoes/resumo?entidade_id=: quanto se deve em cada cartão e por mês.
+func (s *Servidor) resumoCartoes(w http.ResponseWriter, r *http.Request) {
+	var resp financeiro.ResumoCartoes
+	err := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
+		ents, err := financeiro.Entidades(ctx, tx, r.URL.Query().Get("entidade_id"))
+		if err != nil {
+			return err
+		}
+		resp, err = financeiro.MontarResumoCartoes(ctx, tx, ents, financeiro.Hoje())
+		return err
+	})
+	if err != nil {
+		falhar(w, r, err)
+		return
+	}
+	escreverJSON(w, http.StatusOK, resp)
+}
+
+// PUT /api/contas/{id}/faturas/{vencimento} {valor_centavos}: o total que a fatura deve ter.
+func (s *Servidor) informarValorFatura(w http.ResponseWriter, r *http.Request) {
+	var c struct {
+		Valor *int64 `json:"valor_centavos"`
+	}
+	if !lerJSON(w, r, &c) {
+		return
+	}
+	venc, err := time.Parse("2006-01-02", r.PathValue("vencimento"))
+	if err != nil || c.Valor == nil {
+		falhar(w, r, invalido("vencimento AAAA-MM-DD e valor_centavos"))
+		return
+	}
+	if err := s.comUsuario(r, func(ctx context.Context, tx pgx.Tx) error {
+		return financeiro.InformarValorFatura(ctx, tx, r.PathValue("id"), venc, *c.Valor, financeiro.Hoje())
+	}); err != nil {
+		falhar(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

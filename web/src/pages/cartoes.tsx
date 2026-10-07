@@ -1,12 +1,23 @@
-import { useQuery } from "@tanstack/react-query";
-import { CreditCard } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CreditCard, Pencil } from "lucide-react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { Barra, Valor } from "../components/extras";
-import { GraficoMensal } from "../components/graficos-painel";
-import { Aviso, CarregandoLista, Cartao, Etiqueta, Pagina, TituloCartao, Vazio } from "../components/ui";
-import { mensagemDe, obter } from "../lib/api";
+import { Barra, Dialogo, Valor } from "../components/extras";
+import { GraficoCartoesMes, GraficoMensal } from "../components/graficos-painel";
+import {
+  Aviso,
+  Botao,
+  Campo,
+  CarregandoLista,
+  Cartao,
+  Etiqueta,
+  Pagina,
+  TituloCartao,
+  Vazio,
+} from "../components/ui";
+import { api, mensagemDe, obter } from "../lib/api";
 import { nomeMes, useContas } from "../lib/dados";
-import { formatarData, formatarMoeda } from "../lib/formato";
+import { centavosParaTexto, formatarData, formatarMoeda, lerCentavos } from "../lib/formato";
 import type { Conta, Fatura, FaturaBanco, ParcelaFutura, RespostaFaturas } from "../lib/tipos";
 
 const nomesStatus: Record<Fatura["status"], string> = {
@@ -43,6 +54,8 @@ export function Cartoes() {
           />
         </Cartao>
       ) : null}
+
+      {cartoes.length ? <VisaoGeral /> : null}
 
       {cartoes.length > 1 ? (
         <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Cartões">
@@ -287,5 +300,221 @@ function ParcelasPorMes({ parcelas, moeda }: { parcelas: ParcelaFutura[]; moeda:
         </section>
       ))}
     </div>
+  );
+}
+
+type FaturaResumo = {
+  vencimento: string;
+  valor_centavos: number;
+  status: "fechada" | "aberta" | "futura";
+  paga: boolean;
+  informado: boolean;
+};
+type CartaoResumo = {
+  id: string;
+  nome: string;
+  moeda: string;
+  limite_centavos: number | null;
+  devendo_centavos: number;
+  sem_dias: boolean;
+  faturas: FaturaResumo[];
+};
+type ResumoCartoes = {
+  meses: string[];
+  total_por_mes_centavos: number[];
+  total_devendo_centavos: number;
+  cartoes: CartaoResumo[];
+};
+
+// até 8 cartões cada um com a sua cor; do 9º em diante, "Outros" (a cor segue o cartão)
+const MAX_SERIES = 8;
+
+/** Quanto devo em cada cartão e quanto vence em cada mês. */
+function VisaoGeral() {
+  const resumo = useQuery({
+    queryKey: ["cartoes-resumo"],
+    queryFn: () => obter<ResumoCartoes>("/api/cartoes/resumo"),
+  });
+  const [editando, setEditando] = useState<CartaoResumo | null>(null);
+  const r = resumo.data;
+  if (resumo.isPending) {
+    return (
+      <Cartao>
+        <CarregandoLista linhas={2} />
+      </Cartao>
+    );
+  }
+  if (!r) return resumo.error ? <Aviso tipo="erro">{mensagemDe(resumo.error)}</Aviso> : null;
+
+  const comDias = r.cartoes.filter((c) => !c.sem_dias && c.moeda === "BRL");
+  const valoresDe = (c: CartaoResumo) =>
+    r.meses.map((m) => c.faturas.find((f) => f.vencimento.startsWith(m))?.valor_centavos ?? 0);
+  const series =
+    comDias.length <= MAX_SERIES
+      ? comDias.map((c) => ({ nome: c.nome, valores: valoresDe(c) }))
+      : [
+          ...comDias.slice(0, MAX_SERIES - 1).map((c) => ({ nome: c.nome, valores: valoresDe(c) })),
+          {
+            nome: "Outros",
+            valores: r.meses.map((_, i) =>
+              comDias.slice(MAX_SERIES - 1).reduce((s, c) => s + (valoresDe(c)[i] ?? 0), 0),
+            ),
+          },
+        ];
+  const temValor = r.total_por_mes_centavos.some((v) => v > 0);
+
+  return (
+    <Cartao>
+      <TituloCartao>Quanto devo nos cartões</TituloCartao>
+      <dl className="grid grid-cols-2 gap-3">
+        <div>
+          <dt className="text-xs text-texto-2">Total a pagar</dt>
+          <dd className="valor num text-2xl font-bold">{formatarMoeda(r.total_devendo_centavos)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-texto-2">
+            Vence em{" "}
+            {nomeMes(r.meses[0] ?? "")
+              .split(" ")[0]
+              ?.toLowerCase()}
+          </dt>
+          <dd className="valor num text-2xl font-bold">{formatarMoeda(r.total_por_mes_centavos[0] ?? 0)}</dd>
+        </div>
+      </dl>
+
+      <ul className="mt-4 flex flex-col divide-y divide-borda" aria-label="Dívida por cartão">
+        {r.cartoes.map((c) => {
+          const proxima = c.faturas.find((f) => !f.paga && f.valor_centavos > 0);
+          return (
+            <li key={c.id} className="flex min-h-14 items-center gap-2 py-2">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{c.nome}</span>
+                <span className="block truncate text-xs text-texto-2">
+                  {c.sem_dias
+                    ? "sem dias de fechamento e vencimento"
+                    : proxima
+                      ? `próxima: ${formatarData(proxima.vencimento)} · ${formatarMoeda(proxima.valor_centavos, c.moeda)}`
+                      : "nada a pagar"}
+                </span>
+              </span>
+              <span className="valor num shrink-0 font-semibold">
+                {formatarMoeda(c.devendo_centavos, c.moeda)}
+              </span>
+              {c.sem_dias ? null : (
+                <button
+                  type="button"
+                  onClick={() => setEditando(c)}
+                  aria-label={`Informar valores das faturas do ${c.nome}`}
+                  className="grid size-11 shrink-0 place-items-center rounded-xl text-texto-2 hover:bg-superficie-2"
+                >
+                  <Pencil className="size-4" aria-hidden />
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {temValor ? (
+        <div className="mt-4">
+          <h3 className="mb-1 text-sm font-semibold">Por mês</h3>
+          <GraficoCartoesMes meses={r.meses} series={series} />
+          <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6" aria-label="Total por mês">
+            {r.meses.map((m, i) => (
+              <li key={m} className="rounded-xl bg-superficie-2 px-2 py-1.5 text-center">
+                <span className="block text-xs text-texto-2">{nomeMes(m).split(" ")[0]}</span>
+                <span className="valor num block text-sm font-semibold">
+                  {formatarMoeda(r.total_por_mes_centavos[i] ?? 0)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-texto-2">
+          Toque no lápis de um cartão para informar quanto vem em cada fatura, ou lance as compras nele.
+        </p>
+      )}
+
+      <Dialogo
+        aberto={editando !== null}
+        aoFechar={() => setEditando(null)}
+        titulo={editando ? `Faturas do ${editando.nome}` : "Faturas"}
+      >
+        {editando ? <ValoresFaturas cartao={editando} aoFechar={() => setEditando(null)} /> : null}
+      </Dialogo>
+    </Cartao>
+  );
+}
+
+const nomesStatusResumo: Record<FaturaResumo["status"], string> = {
+  fechada: "fechada",
+  aberta: "aberta",
+  futura: "futura",
+};
+
+/** Digitar o total de cada fatura; a diferença para as compras lançadas vira um ajuste nela. */
+function ValoresFaturas({ cartao, aoFechar }: { cartao: CartaoResumo; aoFechar: () => void }) {
+  const cliente = useQueryClient();
+  const inicial = Object.fromEntries(
+    cartao.faturas.map((f) => [f.vencimento, f.valor_centavos ? centavosParaTexto(f.valor_centavos) : ""]),
+  );
+  const [valores, setValores] = useState<Record<string, string>>(inicial);
+  const alterados = cartao.faturas.filter((f) => !f.paga && valores[f.vencimento] !== inicial[f.vencimento]);
+  const invalido = alterados.some((f) => {
+    const t = (valores[f.vencimento] ?? "").trim();
+    const v = t === "" ? 0 : lerCentavos(t);
+    return v === null || v < 0;
+  });
+  const salvar = useMutation({
+    mutationFn: async () => {
+      for (const f of alterados) {
+        const t = (valores[f.vencimento] ?? "").trim();
+        await api("PUT", `/api/contas/${cartao.id}/faturas/${f.vencimento}`, {
+          valor_centavos: t === "" ? 0 : lerCentavos(t),
+        });
+      }
+    },
+    onSuccess: async () => {
+      await Promise.all(
+        ["cartoes-resumo", "faturas", "contas", "transacoes", "resumo", "agenda"].map((k) =>
+          cliente.invalidateQueries({ queryKey: [k] }),
+        ),
+      );
+      aoFechar();
+    },
+  });
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        salvar.mutate();
+      }}
+      className="flex flex-col gap-3"
+    >
+      <p className="text-sm text-texto-2">
+        Quanto vem em cada fatura. Se você lança as compras, o painel guarda só a diferença como um ajuste.
+      </p>
+      {cartao.faturas.map((f) => (
+        <Campo
+          key={f.vencimento}
+          rotulo={`Vence ${formatarData(f.vencimento)} (${f.paga ? "paga" : nomesStatusResumo[f.status]})`}
+          inputMode="decimal"
+          placeholder="0,00"
+          disabled={f.paga}
+          value={valores[f.vencimento] ?? ""}
+          onChange={(e) => setValores((v) => ({ ...v, [f.vencimento]: e.target.value }))}
+        />
+      ))}
+      {salvar.error ? <Aviso tipo="erro">{mensagemDe(salvar.error)}</Aviso> : null}
+      <div className="flex justify-end gap-2">
+        <Botao variante="fantasma" onClick={aoFechar}>
+          Cancelar
+        </Botao>
+        <Botao type="submit" carregando={salvar.isPending} disabled={!alterados.length || invalido}>
+          Salvar
+        </Botao>
+      </div>
+    </form>
   );
 }

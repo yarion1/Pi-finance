@@ -640,3 +640,102 @@ export function GraficoFatorR({
     />
   );
 }
+
+/** Faturas dos cartões por mês: uma barra por mês, empilhada por cartão (a cor segue o cartão). */
+export function GraficoCartoesMes({
+  meses,
+  series,
+}: {
+  meses: string[];
+  series: { nome: string; valores: number[] }[];
+}) {
+  const cores = Object.values(paleta(useCoresTema()));
+  const montar = useCallback(
+    (c: CoresTema) => {
+      const pal = Object.values(paleta(c));
+      return {
+        grid: grade,
+        tooltip: {
+          trigger: "axis",
+          axisPointer: { type: "shadow" },
+          // biome-ignore lint/suspicious/noExplicitAny: parâmetros do tooltip do ECharts
+          formatter: (ps: any[]) => {
+            const total = ps.reduce((s, p) => s + (p.value ?? 0), 0);
+            return tooltip(nomeMes(meses[ps[0]?.dataIndex ?? 0] ?? ""), [
+              ...ps
+                .filter((p) => p.value > 0)
+                .map((p) => ({
+                  cor: pal[p.seriesIndex % pal.length],
+                  nome: p.seriesName,
+                  valor: moeda(p.value, c.privado),
+                })),
+              { nome: "Total", valor: moeda(total, c.privado) },
+            ]);
+          },
+        },
+        xAxis: eixoX(c, meses.map(mesCurto)),
+        yAxis: eixoY(c, (v) => moedaCurta(v, c.privado)),
+        series: series.map((s, i) => ({
+          type: "bar",
+          stack: "faturas",
+          name: s.nome,
+          barMaxWidth: 28,
+          // 1 px de borda da cor do fundo em cada segmento = 2 px de vão entre eles
+          itemStyle: {
+            color: pal[i % pal.length],
+            borderColor: c.superficie,
+            borderWidth: 1,
+            borderRadius: i === series.length - 1 ? [4, 4, 0, 0] : 0,
+          },
+          data: s.valores,
+        })),
+      };
+    },
+    [meses, series],
+  );
+  const totais = meses.map((_, i) => series.reduce((s, x) => s + (x.valores[i] ?? 0), 0));
+  return (
+    <>
+      <Grafico
+        montar={montar}
+        altura="h-56"
+        rotulo={`Faturas dos cartões por mês, de ${nomeMes(meses[0] ?? "")} a ${nomeMes(meses[meses.length - 1] ?? "")}`}
+        tabela={
+          <div className="overflow-x-auto">
+            <table className="w-full whitespace-nowrap">
+              <thead>
+                <tr>
+                  <th className="py-1 pr-3 text-left font-medium">Mês</th>
+                  {series.map((s) => (
+                    <th key={s.nome} className="py-1 pr-3 text-right font-medium">
+                      {s.nome}
+                    </th>
+                  ))}
+                  <th className="py-1 text-right font-medium">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {meses.map((m, i) => (
+                  <tr key={m}>
+                    <td className="py-1 pr-3">{nomeMes(m)}</td>
+                    {series.map((s) => (
+                      <td key={s.nome} className="valor num py-1 pr-3 text-right">
+                        {formatarMoeda(s.valores[i] ?? 0)}
+                      </td>
+                    ))}
+                    <td className="valor num py-1 text-right font-semibold">
+                      {formatarMoeda(totais[i] ?? 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        }
+      />
+      {series.length > 1 ? (
+        <Legenda itens={series.map((s, i) => ({ nome: s.nome, cor: cores[i % cores.length] ?? "" }))} />
+      ) : null}
+    </>
+  );
+}

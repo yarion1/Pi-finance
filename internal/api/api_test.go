@@ -241,8 +241,14 @@ func TestIsolamentoPorRota(t *testing.T) {
 	if len(gerados.Novos) == 0 {
 		t.Fatal("A deveria ter ao menos o resumo da semana")
 	}
-	if r := a.exigir("GET", "/api/relatorios/"+gerados.Novos[0], nil, 200); !bytes.Contains(r.corpo, []byte("COMPROMISSO-SECRETO")) {
-		t.Fatalf("A deveria ver o próprio resumo: %s", r.corpo)
+	// no começo do mês sai também o relatório do mês fechado: o compromisso está no da semana
+	viuResumo := false
+	for _, id := range gerados.Novos {
+		r := a.exigir("GET", "/api/relatorios/"+id, nil, 200)
+		viuResumo = viuResumo || bytes.Contains(r.corpo, []byte("COMPROMISSO-SECRETO"))
+	}
+	if !viuResumo {
+		t.Fatalf("A deveria ver o próprio resumo da semana: %v", gerados.Novos)
 	}
 	proibidos := []string{"SEGREDO-DA-ANA", "CONTA-SECRETA", contaPrivada, pf.ID, "982.247", "52998224725",
 		"ARQUIVO-SECRETO", imp.ImportacaoID, "CATEGORIA-SECRETA", "REGRA-SECRETA", "MAPA-SECRETO",

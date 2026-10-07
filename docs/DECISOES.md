@@ -675,3 +675,21 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
 - O `deploy.sh` passa a imprimir o JSON do `/api/health` no log do release, para conferir
   backup e teste de restore sem abrir o painel.
 - Com as 9 fases da SPEC entregues, a versão vira **1.0.0**.
+
+## D45 — Visão geral dos cartões e valor informado da fatura
+
+- Pedido: ver "PicPay R$ 4.000, ML R$ 5.000" e quanto vai dar em cada mês, sem precisar
+  lançar compra por compra. No topo de **Cartões**: total a pagar (todas as faturas não
+  pagas, inclusive parcelas além dos 6 meses), o que vence no mês, a dívida de cada cartão
+  com a próxima fatura e as **próximas 6 faturas** somadas por mês (barras empilhadas por
+  cartão, cor fixa pela ordem do cartão; do 9º em diante, "Outros").
+- **Valor informado**: o lápis do cartão abre as 6 próximas faturas; o total digitado vira
+  um lançamento de ajuste na própria fatura ("Ajuste da fatura (valor informado)", marcado
+  pela descrição original `AJUSTE DA FATURA`), com a diferença para as compras lançadas
+  (gasto se falta, estorno se sobra). Mudar o valor troca o ajuste, nunca acumula; valor
+  igual às compras apaga o ajuste. O ajuste não tem categoria (é um total, não uma
+  compra) e aparece em Gastos como os outros lançamentos.
+- Faturas já vencidas ("anteriores") ficam fora do total: extrato antigo importado sem os
+  pagamentos daria uma dívida que não existe.
+- Também corrigido um teste que dependia do dia: no começo do mês sai o relatório do mês
+  fechado junto com o da semana.

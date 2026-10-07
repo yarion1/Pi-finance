@@ -158,6 +158,8 @@ func (s *Servidor) Handler() http.Handler {
 
 	// planejamento (fase 2)
 	mux.Handle("GET /api/contas/{id}/faturas", s.sessaoCompleta(s.faturas))
+	mux.Handle("PUT /api/contas/{id}/faturas/{vencimento}", s.sessaoCompleta(s.informarValorFatura))
+	mux.Handle("GET /api/cartoes/resumo", s.sessaoCompleta(s.resumoCartoes))
 	mux.Handle("GET /api/indicadores", s.sessaoCompleta(s.indicadores))
 	mux.Handle("GET /api/agenda", s.sessaoCompleta(s.agenda))
 	mux.Handle("GET /api/recorrencias", s.sessaoCompleta(s.listarRecorrencias))
@@ -275,7 +277,8 @@ var RotasLeitura = []string{
 	"/api/importacoes", "/api/importacoes?entidade_id={entidade}", "/api/mapeamentos",
 	"/api/categorias", "/api/categorias?entidade_id={entidade}", "/api/regras", "/api/regras?entidade_id={entidade}",
 	"/api/resumo", "/api/resumo?entidade_id={entidade}",
-	"/api/contas/{conta}/faturas", "/api/contas/{cartao}/faturas",
+	"/api/contas/{conta}/faturas", "/api/contas/{cartao}/faturas", "/api/cartoes/resumo",
+	"/api/cartoes/resumo?entidade_id={entidade}",
 	"/api/indicadores", "/api/indicadores?entidade_id={entidade}&serie=1",
 	"/api/agenda", "/api/agenda?entidade_id={entidade}&dias=365",
 	"/api/recorrencias", "/api/recorrencias?entidade_id={entidade}",

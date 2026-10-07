@@ -419,7 +419,27 @@ test.describe
       // gráficos do planejamento: parcelas futuras e patrimônio ao longo do tempo
       await page.goto("/cartoes");
       await expect(page.getByRole("img", { name: /Parcelas futuras por mês/ })).toBeVisible();
+      // visão geral: quanto devo em cada cartão (as 12 parcelas) e por mês
+      const porCartao = page.getByRole("list", { name: "Dívida por cartão" });
+      await expect(porCartao).toContainText("Cartão Roxo");
+      await expect(porCartao).toContainText(/R\$\s1\.200,00/);
+      await expect(page.getByRole("img", { name: /Faturas dos cartões por mês/ })).toBeVisible();
+      // informar o valor de uma fatura: a diferença vira ajuste e o total muda
+      await page.getByRole("button", { name: "Informar valores das faturas do Cartão Roxo" }).click();
+      const faturasDialogo = page.getByRole("dialog", { name: "Faturas do Cartão Roxo" });
+      const campos = faturasDialogo.getByRole("textbox");
+      await expect(campos).toHaveCount(6);
+      await campos.nth(1).fill("350,00");
+      await faturasDialogo.getByRole("button", { name: "Salvar" }).click();
+      await expect(faturasDialogo).toBeHidden();
+      await expect(porCartao).toContainText(/R\$\s1\.450,00/);
+      await expect(page.getByRole("list", { name: "Total por mês" })).toContainText(/R\$\s350,00/);
       await capturar(page, "cartoes");
+      await page.setViewportSize({ width: 360, height: 740 });
+      await page.reload();
+      await page.waitForLoadState("networkidle");
+      await semRolagemHorizontal(page);
+      await page.setViewportSize({ width: 1280, height: 720 });
       await page.goto("/patrimonio");
       await expect(page.getByRole("img", { name: /Patrimônio mês a mês/ })).toBeVisible();
       await page.getByText("2A", { exact: true }).click();

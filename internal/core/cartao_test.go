@@ -3,6 +3,7 @@ package core
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestFaturaDaCompra(t *testing.T) {
@@ -94,6 +95,44 @@ func TestExtrairParcela(t *testing.T) {
 		base, n, total, ok := ExtrairParcela(c.entrada)
 		if base != c.base || n != c.n || total != c.total || ok != c.ok {
 			t.Errorf("%q → %q %d/%d %v", c.entrada, base, n, total, ok)
+		}
+	}
+}
+
+func TestProximosVencimentos(t *testing.T) {
+	d := func(s string) time.Time { v, _ := time.Parse("2006-01-02", s); return v }
+	fmtd := func(ts []time.Time) string {
+		s := ""
+		for _, t := range ts {
+			s += t.Format("01-02") + " "
+		}
+		return s
+	}
+	// fecha dia 3, vence dia 10: no dia 5 a fatura de 10/out já fechou e ainda não venceu
+	if got := fmtd(ProximosVencimentos(d("2026-10-05"), 3, 10, 3)); got != "10-10 11-10 12-10 " {
+		t.Errorf("fechada a vencer: %s", got)
+	}
+	// no dia 12 a de outubro já venceu: começa pela aberta (novembro)
+	if got := fmtd(ProximosVencimentos(d("2026-10-12"), 3, 10, 2)); got != "11-10 12-10 " {
+		t.Errorf("depois do vencimento: %s", got)
+	}
+	// fecha 25, vence 5 do mês seguinte; dia 31 vira o último dia do mês
+	if got := fmtd(ProximosVencimentos(d("2026-01-20"), 25, 31, 3)); got != "01-31 02-28 03-31 " {
+		t.Errorf("dia 31: %s", got)
+	}
+	if got := fmtd(ProximosVencimentos(d("2026-01-26"), 25, 5, 2)); got != "02-05 03-05 " {
+		t.Errorf("vence no mês seguinte: %s", got)
+	}
+}
+
+func TestAjusteDaFatura(t *testing.T) {
+	for _, c := range []struct {
+		informado, atual Centavos
+		tipo             string
+		valor            Centavos
+	}{{400000, 150000, "gasto", -250000}, {100000, 150000, "estorno", 50000}, {150000, 150000, "", 0}, {0, 0, "", 0}} {
+		if tipo, valor := AjusteDaFatura(c.informado, c.atual); tipo != c.tipo || valor != c.valor {
+			t.Errorf("%d − %d: %s %d", c.informado, c.atual, tipo, valor)
 		}
 	}
 }

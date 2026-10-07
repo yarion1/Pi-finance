@@ -97,3 +97,31 @@ func ExtrairParcela(descricao string) (base string, n, total int, ok bool) {
 	}
 	return descricao, 0, 0, false
 }
+
+// ProximosVencimentos: os n vencimentos que ainda vão ser pagos, a partir de hoje. Começa
+// pela fatura já fechada que ainda não venceu (se houver) e segue pela aberta e as futuras.
+func ProximosVencimentos(hoje time.Time, diaFechamento, diaVencimento, n int) []time.Time {
+	hoje = truncarDia(hoje)
+	_, aberta := FaturaDaCompra(hoje, diaFechamento, diaVencimento)
+	inicio := aberta
+	if anterior := DiaNoMes(aberta.Year(), aberta.Month()-1, diaVencimento); !anterior.Before(hoje) {
+		inicio = anterior
+	}
+	out := make([]time.Time, n)
+	for i := range out {
+		out[i] = DiaNoMes(inicio.Year(), inicio.Month()+time.Month(i), diaVencimento)
+	}
+	return out
+}
+
+// AjusteDaFatura: o lançamento que faz a fatura bater com o valor informado. Faltando,
+// um gasto (negativo); sobrando, um estorno (positivo); igual, nada (tipo vazio).
+func AjusteDaFatura(informado, atual Centavos) (tipo string, valor Centavos) {
+	switch d := informado - atual; {
+	case d > 0:
+		return "gasto", -d
+	case d < 0:
+		return "estorno", -d
+	}
+	return "", 0
+}

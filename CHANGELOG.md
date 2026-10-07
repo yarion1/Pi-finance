@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.1 — quanto devo em cada cartão
+
+- No topo de **Cartões**: o total a pagar, quanto vence no mês, a dívida de cada cartão
+  com a próxima fatura e as próximas 6 faturas mês a mês (gráfico e totais por mês).
+- **Informar o valor das faturas**: toque no lápis do cartão e digite quanto vem em cada
+  fatura (ex.: PicPay R$ 4.000 em novembro), sem lançar compra por compra. Se você também
+  lança as compras, o painel guarda só a diferença.
+
 ## v1.0.0 — fase 8 (fim): revisão de segurança
 
 - **Trocar senha** em Mais › Segurança: pede a senha atual e tira da conta os outros
