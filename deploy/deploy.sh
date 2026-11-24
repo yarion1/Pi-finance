@@ -58,6 +58,14 @@ notificar() {
   log "$texto"
 }
 
+# desligado de propósito (deploy/desligar.sh): uma versão nova não sobe sozinha
+if [ -e "$ESTADO/desligado" ] && [ "${RELIGAR:-0}" != 1 ]; then
+  echo "o Finanças está desligado desde $(cat "$ESTADO/desligado"): nada foi implantado." \
+    "Religue pelo workflow pi (acao=ligar) ou rode com RELIGAR=1." >&2
+  exit 0
+fi
+[ "${RELIGAR:-0}" = 1 ] && rm -f "$ESTADO/desligado"
+
 ANTERIOR="$(cat "$ESTADO/versao-atual" 2>/dev/null || true)"
 log "deploy $VERSAO (anterior: ${ANTERIOR:-nenhuma})"
 

@@ -693,3 +693,16 @@ rede do Docker (172.16.0.0/12, em `PROXIES_CONFIAVEIS`).
   pagamentos daria uma dívida que não existe.
 - Também corrigido um teste que dependia do dia: no começo do mês sai o relatório do mês
   fechado junto com o da semana.
+
+## D46 — Desligar e guardar
+
+- Pedido: ninguém está usando; desligar e deixar guardado. `deploy/desligar.sh desligar`
+  (pelo workflow manual `pi`, no runner do Pi) para o app, faz um último backup cifrado com
+  teste de restore conferido e só então para o banco. Se o backup ou o restore falhar,
+  nada é desligado e o painel volta a subir.
+- Nada é apagado: banco em `/srv/financas/postgres`, repositório restic, dumps
+  pré-deploy, `/srv/financas/segredos`, `/etc/financas` e as imagens continuam no Pi. Os
+  containers ficam parados (`restart: unless-stopped` não os religa num reboot).
+- Enquanto existir `/srv/financas/estado/desligado`, o `deploy.sh` não sobe versão nova
+  (sai sem erro, avisando). Religar: workflow `pi` com `acao=ligar` (ou `RELIGAR=1` no
+  deploy).

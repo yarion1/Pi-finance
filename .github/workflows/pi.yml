@@ -1,0 +1,22 @@
+name: pi
+# Desligar ou religar o Finanças no Pi, à mão (Actions › pi › Run workflow).
+# Desligar: último backup cifrado com teste de restore e para tudo; nada é apagado.
+on:
+  workflow_dispatch:
+    inputs:
+      acao:
+        description: desligar ou ligar
+        required: true
+        type: choice
+        options: [desligar, ligar]
+permissions:
+  contents: read
+jobs:
+  pi:
+    if: vars.PI_DEPLOY == 'true'
+    runs-on: [self-hosted, financas]
+    concurrency: deploy-pi-financas
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: deploy/desligar.sh "${{ inputs.acao }}"

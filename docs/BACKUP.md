@@ -75,3 +75,9 @@ Num Pi novo: instale como no primeiro deploy, copie a chave mestra para
 `/etc/financas/master.key`, a senha do restic para `/srv/financas/segredos/restic.senha`
 (e o `rclone.conf`, se usar a nuvem), ligue o disco USB no mesmo `BACKUP_DIR` e siga os
 passos acima.
+
+## Desligado
+
+Com o painel desligado (DECISOES D46) não há backup novo: o último, feito e testado na
+hora de desligar, fica no repositório restic. Para religar: Actions › pi › Run workflow ›
+`ligar`.
